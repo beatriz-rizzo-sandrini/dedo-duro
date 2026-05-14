@@ -1,0 +1,48 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>Conversor Multi-Plataforma</title>
+<link href="style.css" rel="stylesheet"/>
+</head>
+<body class="vendas-page">
+<div class="loader hidden" id="loader">Processando...</div>
+<a class="logo-home-text" href="index.html">← Voltar para Home</a>
+<nav class="sidebar">
+<ul>
+<li><a href="index.html">Home</a></li>
+<li><a href="vendas.html">Vendas</a></li>
+<li><a href="estoque.html">Estoque</a></li>
+<li><a href="cobertura.html">Cobertura de Estoque</a></li>
+<li><a href="produto.html">Produtos</a></li>
+<li><a href="reposicao.html">Reposição a Caminho</a></li>
+<li><a class="active" href="conversor.html">Conversor Multi-Plataforma</a></li>
+</ul>
+</nav>
+<main class="container">
+<header class="header-main">
+<h1>Conversor Multi-Plataforma</h1>
+</header>
+<section class="card" id="upload-section">
+<h2>Escolha a plataforma e importe a planilha</h2>
+
+<label for="plataforma">Plataforma:</label>
+<select id="plataforma">
+  <option value="mercado_livre">Mercado Livre</option>
+  <option value="amazon">Amazon</option>
+  <option value="magalu">Magalu</option>
+  <option value="dafiti">Dafiti</option>
+  <option value="shopee">Shopee</option>
+</select>
+
+<br/><br/>
+
+<input type="file" id="input-excel" accept=".csv" />
+<button class="btn-padrao" id="btn-processar" disabled>Processar Planilha</button>
+<a id="download-link" style="display:none;" class="btn-padrao" download="planilha_corrigida.csv">Baixar Planilha Corrigida (.csv)</a>
+</section>
+</main>
+<script src="conversor.js"></script>
+</body>
+</html>

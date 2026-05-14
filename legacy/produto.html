@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Sandrini - Produto</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    #modal-carrinho {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    #modal-carrinho .conteudo {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      padding: 20px;
+      width: 600px;
+      max-height: 70vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    #modal-carrinho h2 { margin-top: 0; font-weight: 600; }
+    #modal-carrinho .fechar {
+      position: absolute;
+      top: 10px; right: 15px;
+      font-size: 18px;
+      cursor: pointer;
+      color: #e74c3c;
+    }
+    #carrinho-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1100;
+    }
+    #grafico-container {
+      margin-top: 15px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body class="produto-page">
+  <div class="loader" id="loader">Carregando...</div>
+  <a class="logo-home-text" href="index.html">← Voltar para Home</a>
+  <div class="menu-toggle">☰</div>
+  <nav class="sidebar">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="vendas.html">Vendas</a></li>
+      <li><a href="estoque.html">Estoque</a></li>
+      <li><a href="cobertura.html">Cobertura de Estoque</a></li>
+      <li><a href="produto.html">Produto</a></li>
+      <li><a href="reposicao.html">Reposição a Caminho</a></li>
+    </ul>
+  </nav>
+  <main class="container">
+    <header class="header-main"><h1>Produto</h1></header>
+    <section class="card">
+      <div class="filters">
+        <div style="position: relative; flex: 1; display: flex; gap: 10px;">
+          <div style="position: relative; flex: 1;">
+            <input type="text" id="input-produto" placeholder="Digite o nome do produto" class="input-padrao" autocomplete="off" />
+            <ul id="sugestoes-produto" class="autocomplete-list" style="position: absolute;top: 100%;left: 0;right: 0;z-index: 999;background: white;border: 1px solid #ccc;border-top: none;max-height: 180px;overflow-y: auto;display: none;list-style: none;margin: 0;padding: 0;"></ul>
+          </div>
+          <input type="text" id="input-sku" placeholder="Digite o SKU" class="input-padrao" style="width: 180px;" />
+        </div>
+        <label>Data Inicial:</label><input type="date" id="data-inicial" class="input-padrao" />
+        <label>Data Final:</label><input type="date" id="data-final" class="input-padrao" />
+        <label>Dias de Cobertura:</label><input type="number" id="dias-cobertura" class="input-padrao" style="width: 80px;" value="60" min="1" />
+        <button id="btn-buscar" class="btn-padrao">Buscar</button>
+      </div>
+      <div class="totais">
+        Produto: <strong id="nome-produto">-</strong> | SKUs: <strong id="total-skus">0</strong> | Valor Total: <strong id="valor-total">R$ 0,00</strong>
+      </div>
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Local</th>
+            <th>Valor (R$)</th>
+            <th>Quantidade</th>
+            <th>Vendas</th>
+            <th>Cobertura</th>
+            <th>Reposição</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-produto"></tbody>
+      </table>
+    </section>
+    <!-- Contêiner do gráfico -->
+    <section id="grafico-container">
+      <h3 style="margin-bottom:10px;">📊 Vendas do Local Selecionado</h3>
+      <canvas id="grafico-vendas" style="max-height:150px; height:150px;"></canvas><div id="grafico-resumo" style="margin-top:10px;"></div>
+    </section>
+  </main>
+
+  <button id="carrinho-btn" class="btn-padrao">🛒 Carrinho (0)</button>
+
+  <div id="modal-carrinho">
+    <div class="conteudo" style="text-align:center;">
+      <span class="fechar" onclick="document.getElementById('modal-carrinho').style.display='none'">×</span>
+      <h2>Itens do Carrinho</h2>
+      <table class="styled-table" style="text-align:center; margin:auto;" id="carrinho-tabela">
+        <thead>
+          <tr>
+            <th>Local</th>
+            <th>SKU</th>
+            <th>Estoque</th>
+            <th>Vendas</th>
+            <th>Cobertura</th>
+            <th>Reposição</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <br/>
+      <button id="exportar-carrinho" class="btn-padrao">Exportar CSV</button>
+    </div>
+  </div>
+
+  <script src="produto.js"></script>
+  <script>
+    document.body.classList.add("fade-in");
+    window.addEventListener("load", () => {
+      document.getElementById("loader")?.classList.add("hidden");
+    });
+  </script>
+</body>
+</html>

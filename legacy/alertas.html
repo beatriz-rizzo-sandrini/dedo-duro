@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Sandrini - Alertas</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="produto-page">
+  <div class="loader" id="loader">Carregando...</div>
+  <a class="logo-home-text" href="index.html">← Voltar para Home</a>
+  <div class="menu-toggle">☰</div>
+  <nav class="sidebar">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="vendas.html">Vendas</a></li>
+      <li><a href="estoque.html">Estoque</a></li>
+      <li><a href="cobertura.html">Cobertura de Estoque</a></li>
+      <li><a href="produto.html">Produto</a></li>
+      <li><a href="alertas.html" class="active">Alertas</a></li>
+    </ul>
+  </nav>
+  <main class="container">
+    <header class="header-main">
+      <h1>Alertas de Estoque</h1>
+    </header>
+
+    <section class="card">
+      <div class="filters">
+        <label>Data Inicial:</label>
+        <input type="date" id="data-inicial" class="input-padrao" />
+        <label>Data Final:</label>
+        <input type="date" id="data-final" class="input-padrao" />
+        <label>Tipo de Alerta:</label>
+        <select id="tipo-alerta" class="input-padrao">
+          <option value="todos">Todos</option>
+          <option value="cobertura">Cobertura baixa (&lt;60 dias)</option>
+          <option value="ruptura">Ruptura (sem estoque, mas com vendas)</option>
+          <option value="reposicao">Reposição disponível</option>
+          <option value="badstock">Badstock</option>
+        </select>
+        <button id="btn-buscar" class="btn-padrao">Buscar Alertas</button>
+      </div>
+
+      <div class="totais">
+        Alertas encontrados: <strong id="total-alertas">0</strong>
+      </div>
+
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Local</th>
+            <th>SKU</th>
+            <th>Estoque</th>
+            <th>Vendas</th>
+            <th>Cobertura</th>
+            <th>Alerta</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-alertas"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <button id="exportar-alertas" class="btn-padrao" style="position: fixed; top: 20px; right: 20px;">Exportar CSV</button>
+
+  <script src="alertas.js"></script>
+  <script>
+    document.body.classList.add("fade-in");
+    window.addEventListener("load", () => {
+      document.getElementById("loader")?.classList.add("hidden");
+    });
+  </script>
+</body>
+</html>

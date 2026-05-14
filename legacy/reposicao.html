@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <title>Dashboard Sandrini - Reposição a Caminho</title>
+  <link href="style.css" rel="stylesheet"/>
+</head>
+<body class="reposicao-page">
+  <div class="loader" id="loader">Carregando...</div>
+  <a class="logo-home-text" href="index.html">← Voltar para Home</a>
+  <div class="menu-toggle">☰</div>
+  <nav class="sidebar">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="vendas.html">Vendas</a></li>
+      <li><a href="estoque.html">Estoque</a></li>
+      <li><a href="cobertura.html">Cobertura de Estoque</a></li>
+      <li><a href="produto.html">Produto</a></li>
+      <li><a href="reposicao.html">Reposição a Caminho</a></li>
+    </ul>
+  </nav>
+  <main class="container">
+    <header class="header-main">
+      <h1>Reposição a Caminho</h1>
+    </header>
+    <section class="card" id="reposicao">
+      <h2>Lista de Reposição</h2>
+      <button class="btn-padrao" id="btn-exportar" style="float: right; margin-top: -32px;">Exportar Dados</button>
+      <div class="filters">
+        <label>Local Destino:</label>
+        <select id="filtro-local-rep"></select>
+
+        <label>Status:</label>
+        <select id="filtro-status-rep"></select>
+
+        <label>Nº Envio:</label>
+        <select id="filtro-envio-rep"></select>
+
+        <button id="btn-aplicar-rep">Aplicar Filtro</button>
+        <div class="totais">
+          Total de Itens a Caminho: <strong id="total-rep">0</strong>
+        </div>
+        <table class="styled-table" id="tabela-rep">
+          <thead>
+            <tr>
+              <th data-col="local">Local ⇅</th>
+              <th data-col="envio">Nº Envio ⇅</th>
+              <th data-col="total">Qtd Total ⇅</th>
+              <th data-col="status">Status ⇅</th>
+              <th data-col="previsao">Data ⇅</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="reposicao.js"></script>
+  <script>
+    document.body.classList.add("fade-in");
+    window.addEventListener("load", () => {
+      document.getElementById("loader")?.classList.add("hidden");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>Dashboard Sandrini - Cobertura com IA</title>
+<link href="style.css" rel="stylesheet"/>
+<style>
+  .chatbot-container {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 300px;
+    height: 400px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+  }
+  .chatbot-header {
+    background: #007bff;
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+  }
+  .chatbot-messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 14px;
+  }
+  .chatbot-input {
+    display: flex;
+    border-top: 1px solid #ddd;
+  }
+  .chatbot-input input {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    outline: none;
+  }
+  .chatbot-input button {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .chatbot-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1001;
+  }
+</style>
+</head>
+<body class="cobertura-page">
+<div class="loader" id="loader">Carregando...</div>
+<a class="logo-home-text" href="index.html">← Voltar para Home</a>
+<div class="menu-toggle">☰</div>
+<nav class="sidebar">
+<ul>
+<li><a href="index.html">Home</a></li>
+<li><a href="vendas.html">Vendas</a></li>
+<li><a href="estoque.html">Estoque</a></li>
+<li><a href="cobertura.html">Cobertura de Estoque</a></li>
+<li><a href="produto.html">Produto</a></li>
+<li><a href="reposicao.html">Reposição a Caminho</a></li>
+</ul>
+</nav>
+<main class="container">
+<header class="header-main">
+<h1>Cobertura de Estoque</h1>
+</header>
+<section class="card">
+<div class="filters">
+<label>Marketplace:</label>
+<select id="filtro-local"></select>
+<label>Data Inicial:</label>
+<input id="filtro-data-inicial" type="date"/>
+<label>Data Final:</label>
+<input id="filtro-data-final" type="date"/>
+<button id="btn-aplicar">Aplicar Filtro</button>
+<div class="totais">
+        Total de Itens Vendidos: <strong id="total-itens">0</strong>
+</div>
+<table class="styled-table">
+<thead></thead>
+<tbody id="tabela-cobertura"></tbody>
+</table>
+</div></section>
+</main>
+
+<!-- Botão do Chatbot -->
+<button class="chatbot-toggle">💬</button>
+
+<!-- Janela do Chatbot -->
+<div class="chatbot-container" id="chatbot">
+  <div class="chatbot-header">IA - Cobertura</div>
+  <div class="chatbot-messages" id="chatbot-messages"></div>
+  <div class="chatbot-input">
+    <input type="text" id="chatbot-question" placeholder="Pergunte sobre os dados..."/>
+    <button id="chatbot-send">➤</button>
+  </div>
+</div>
+
+<script src="cobertura.js"></script>
+<script src="chatbot.js"></script>
+<script>
+  document.body.classList.add("fade-in");
+  window.addEventListener("load", () => {
+    document.getElementById("loader")?.classList.add("hidden");
+  });
+</script>
+</body>
+</html>

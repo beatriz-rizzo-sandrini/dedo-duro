@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Distribuição por Nota Fiscal</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .upload-label {
+      background: #2f3640;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .upload-label:hover {
+      background: #00a8ff;
+    }
+    #file-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    #input-xml {
+      display: none;
+    }
+
+    .toggle-canais {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .toggle-canal {
+      padding: 8px 14px;
+      border-radius: 6px;
+      background: #ccc;
+      color: #333;
+      cursor: pointer;
+      font-weight: 500;
+      transition: 0.3s;
+    }
+
+    .toggle-canal.ativo {
+      background: #27ae60;
+      color: white;
+    }
+
+    .percentual-input {
+      width: 70px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body class="distribuicao-page">
+  <a class="logo-home-text" href="index.html">← Voltar para Home</a>
+  <nav class="sidebar">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="vendas.html">Vendas</a></li>
+      <li><a href="estoque.html">Estoque</a></li>
+      <li><a href="cobertura.html">Cobertura de Estoque</a></li>
+      <li><a href="produto.html">Produto</a></li>
+      <li><a href="reposicao.html">Reposição a Caminho</a></li>
+      <li><a href="distribuir.html">Distribuir por NF</a></li>
+    </ul>
+  </nav>
+  <main class="container">
+    <header class="header-main"><h1>Distribuir Itens da NF</h1></header>
+
+    <section class="card">
+      <div class="upload-area">
+        <label for="input-xml" class="upload-label">Selecionar XML</label>
+        <span id="file-name">Nenhum arquivo selecionado</span>
+        <input type="file" id="input-xml" accept=".xml" />
+      </div>
+
+      <div class="toggle-canais" id="canais-container">
+        <div class="toggle-canal" data-canal="DAFITI">DAFITI</div>
+        <div class="toggle-canal" data-canal="STAND BY">STAND BY</div>
+        <div class="toggle-canal" data-canal="MELI SP">MELI SP</div>
+        <div class="toggle-canal" data-canal="MAGALU">MAGALU</div>
+        <div class="toggle-canal" data-canal="SHOPEE">SHOPEE</div>
+        <div class="toggle-canal" data-canal="AMAZON">AMAZON</div>
+      </div>
+
+      <div class="filters" id="percentuais-container"></div>
+<div style="margin-top: 10px; font-weight: 500;">% Restante: <span id="restante-pct">100%</span></div>
+    </section>
+
+    <section class="card">
+      <button class="btn-padrao" onclick="exportarCSV()">Exportar CSV</button>
+      <h3>Itens da Nota</h3>
+      <table class="styled-table" id="tabela-itens">
+        <thead><tr><th>SKU</th><th>Descrição</th><th>Qtd. Total</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <button class="btn-padrao" onclick="exportarCSV()">Exportar CSV</button>
+      <h3>Resultado Distribuição</h3>
+      <table class="styled-table resultado-table" id="resultado-tabela">
+        <thead id="resultado-header"><tr><th>Descrição</th><th>Total</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <script src="distribuir.js"></script>
+  </main>
+</body>
+</html>
