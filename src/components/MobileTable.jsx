@@ -5,11 +5,13 @@ import './MobileTable.css';
  * MobileTable — tabela responsiva que vira cards no mobile.
  *
  * Props:
- *  - columns: [{ label: string, key: string, render?: (row) => ReactNode, mobileHide?: bool }]
- *  - rows: array de objetos (ou qualquer estrutura; use render para customizar)
+ *  - columns: [{ label, key, render?, rawLabel?, onSort?, mobileHide? }]
+ *  - rows: array de dados
  *  - onRowClick?: (row) => void
- *  - expandedRow?: ReactNode — conteúdo expandido abaixo da linha clicada
  *  - isExpanded?: (row) => bool
+ *  - renderExpanded?: (row) => ReactNode        — conteúdo expandido no MOBILE (cards)
+ *  - renderExpandedDesktop?: (row) => ReactNode — conteúdo expandido no DESKTOP (tabela original)
+ *    Se renderExpandedDesktop não for passado, usa renderExpanded em ambos.
  *  - getRowStyle?: (row) => object
  *  - emptyMessage?: string
  *  - keyExtractor: (row, index) => string
@@ -20,10 +22,13 @@ export default function MobileTable({
   onRowClick,
   isExpanded,
   renderExpanded,
+  renderExpandedDesktop,
   getRowStyle,
   emptyMessage = 'Nenhum dado encontrado.',
   keyExtractor,
 }) {
+  const expandedDesktop = renderExpandedDesktop || renderExpanded;
+
   return (
     <div className="mobile-table-wrapper">
       {/* Versão desktop: tabela normal */}
@@ -53,10 +58,10 @@ export default function MobileTable({
                     </td>
                   ))}
                 </tr>
-                {expanded && renderExpanded && (
+                {expanded && expandedDesktop && (
                   <tr>
                     <td colSpan={columns.length} style={{ padding: 0 }}>
-                      {renderExpanded(row)}
+                      {expandedDesktop(row)}
                     </td>
                   </tr>
                 )}

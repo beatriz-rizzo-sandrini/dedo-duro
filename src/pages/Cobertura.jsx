@@ -422,6 +422,45 @@ export default function Cobertura() {
           if (row.dias > 60) return { background: '#fef3c7' };
           return { background: '#dcfce7' };
         }}
+        renderExpandedDesktop={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <table style={{ width: '100%', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ color: '#94a3b8' }}>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>SKU</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Vendas</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Estoque</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>A Caminho</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Média SKU</th>
+                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Cobertura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(item.skus).map(([sku, dados]) => {
+                    const mediaSKU = dadosProcessados.diasPeriodo > 0 ? dados.vendas / dadosProcessados.diasPeriodo : 0;
+                    const cobertura = mediaSKU > 0 ? (dados.estoque / mediaSKU) : '∞';
+                    return (
+                      <tr key={sku}>
+                        <td style={{ padding: '8px 0', fontWeight: 500 }}>{sku}</td>
+                        <td>{dados.vendas.toLocaleString('pt-BR')}</td>
+                        <td>{dados.estoque.toLocaleString('pt-BR')}</td>
+                        <td>{dados.caminho > 0 ? <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>+{dados.caminho}</span> : '-'}</td>
+                        <td>{mediaSKU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                        <td>{cobertura === '∞' ? '∞' : Math.round(cobertura)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
         renderExpanded={(item) => (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

@@ -266,6 +266,30 @@ export default function Estoque() {
         keyExtractor={(row) => row.descricao}
         onRowClick={(row) => setExpandedId(expandedId === row.descricao ? null : row.descricao)}
         isExpanded={(row) => expandedId === row.descricao}
+        renderExpandedDesktop={(prod) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <table style={{ width: '100%', fontSize: '13px' }}>
+                <tbody>
+                  {prod.itens.map((item, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '8px 0', color: '#64748b' }}>
+                        {filtroLocal ? `SKU: ` : `SKU: ${item.sku} | Local: `}
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{filtroLocal ? item.sku : item.local}</span>
+                      </td>
+                      <td style={{ padding: '8px 0', width: '100px' }}>{item.quantidade.toLocaleString('pt-BR')} peças</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
         renderExpanded={(prod) => (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

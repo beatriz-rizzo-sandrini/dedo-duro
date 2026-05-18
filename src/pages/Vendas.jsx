@@ -460,6 +460,27 @@ export default function Vendas() {
         keyExtractor={(row) => row.id}
         onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
         isExpanded={(row) => expandedId === row.id}
+        renderExpandedDesktop={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <table style={{ width: '100%', fontSize: '13px' }}>
+                <tbody>
+                  {Object.entries(item.skus).map(([sku, qtd]) => (
+                    <tr key={sku}>
+                      <td style={{ padding: '8px 0', color: '#64748b' }}>SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{sku}</span></td>
+                      <td style={{ padding: '8px 0', width: '100px' }}>{qtd.toLocaleString('pt-BR')} peças</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
         renderExpanded={(item) => (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
