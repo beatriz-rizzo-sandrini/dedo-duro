@@ -9,6 +9,8 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
+import MobileTable from '../components/MobileTable';
 
 export default function Cobertura() {
   const { data, loading, error } = useData();
@@ -46,7 +48,7 @@ export default function Cobertura() {
     if (!estoqueRows.length) return [];
     const setLocais = new Set();
     estoqueRows.forEach(r => {
-      const l = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       if (l) setLocais.add(l);
@@ -69,29 +71,29 @@ export default function Cobertura() {
 
     const skuToDesc = {};
     vendasRows.forEach(r => {
-      const sku = r?.c?.[2]?.v || "";
-      const desc = r?.c?.[3]?.v || "";
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[1]?.v || "";
-      const desc = r?.c?.[2]?.v || "";
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
     const agrupado = {};
 
     vendasRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f;
+      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f;
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
       const dataRow = new Date(`${y}-${m}-${d}`);
 
-      const local = (r?.c?.[1]?.v || "").toUpperCase().trim();
+      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const sku = r?.c?.[2]?.v || "";
-      let desc = r?.c?.[3]?.v || "";
-      const qtd = r?.c?.[4]?.v || 0;
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -111,15 +113,15 @@ export default function Cobertura() {
     });
 
     estoqueRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f || String(r?.c?.[0]?.v || "");
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       // Corrigido: Apenas filtra pela data mais recente para não somar histórico
       if (dataEstoque && dataStr !== dataEstoque) return;
 
-      const sku = r?.c?.[1]?.v || "";
-      let desc = r?.c?.[2]?.v || "";
-      const local = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      let desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[5]?.v || 0;
+      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -136,12 +138,12 @@ export default function Cobertura() {
     });
 
     caminhoRows.forEach(r => {
-      const sku = r?.c?.[0]?.v || "";
-      let desc = r?.c?.[1]?.v || "";
-      const local = String(r?.c?.[2]?.v ?? "").toUpperCase().trim();
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[4]?.v || 0;
-      const status = String(r?.c?.[5]?.v ?? "").toUpperCase().trim();
+      const qtd = r?.c?.[COL_CAMINHO.QTD]?.v || 0;
+      const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -258,7 +260,7 @@ export default function Cobertura() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Cobertura de Estoque</h1>
           <p>Análise de dias cobertos baseado na média de vendas</p>
@@ -353,105 +355,101 @@ export default function Cobertura() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('descricao')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>
-            </th>
-            <th onClick={() => requestSort('local')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>
-            </th>
-            <th onClick={() => requestSort('total')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('total')}</div>
-            </th>
-            <th onClick={() => requestSort('estoqueTotal')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('estoqueTotal')}</div>
-            </th>
-            <th onClick={() => requestSort('caminhoTotal')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>A Caminho {getSortIcon('caminhoTotal')}</div>
-            </th>
-            <th onClick={() => requestSort('media')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Média Diária {getSortIcon('media')}</div>
-            </th>
-            <th onClick={() => requestSort('dias')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Dias Cobertos {getSortIcon('dias')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((item) => {
-            const isExpanded = expandedId === item.id;
-            let bgColor = 'transparent';
-            let badgeColor = '#64748b';
-            let badgeBg = '#f1f5f9';
-            if (item.dias <= 29) { bgColor = '#fee2e2'; badgeColor = '#b91c1c'; badgeBg = '#fecaca'; }
-            else if (item.dias > 60) { bgColor = '#fef3c7'; badgeColor = '#b45309'; badgeBg = '#fde68a'; }
-            else { bgColor = '#dcfce7'; badgeColor = '#15803d'; badgeBg = '#bbf7d0'; }
-
-            return (
-              <React.Fragment key={item.id}>
-                <tr style={{ background: isExpanded ? '#f8fafc' : bgColor, cursor: 'pointer' }} onClick={() => setExpandedId(isExpanded ? null : item.id)}>
-                  <td style={{ fontWeight: 600 }}>{toTitleCase(item.descricao)}</td>
-                  <td>{toTitleCase(item.local)}</td>
-                  <td>{item.total.toLocaleString('pt-BR')}</td>
-                  <td>{item.estoqueTotal.toLocaleString('pt-BR')}</td>
-                  <td>{item.caminhoTotal > 0 ? <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>+{item.caminhoTotal.toLocaleString('pt-BR')}</span> : '-'}</td>
-                  <td>{item.media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                  <td><span style={{ background: badgeBg, color: badgeColor, padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{item.dias} dias</span></td>
-                </tr>
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.tr
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      <td colSpan={6} style={{ padding: 0 }}>
-                        <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', fontSize: '13px' }}>
-                            <thead>
-                              <tr style={{ color: '#94a3b8' }}>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>SKU</th>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Vendas</th>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Estoque</th>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>A Caminho</th>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Média SKU</th>
-                                <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Cobertura</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Object.entries(item.skus).map(([sku, dados]) => {
-                                const mediaSKU = dadosProcessados.diasPeriodo > 0 ? dados.vendas / dadosProcessados.diasPeriodo : 0;
-                                const cobertura = mediaSKU > 0 ? (dados.estoque / mediaSKU) : "∞";
-                                return (
-                                  <tr key={sku}>
-                                    <td style={{ padding: '8px 0', fontWeight: 500 }}>{sku}</td>
-                                    <td>{dados.vendas.toLocaleString('pt-BR')}</td>
-                                    <td>{dados.estoque.toLocaleString('pt-BR')}</td>
-                                    <td>{dados.caminho > 0 ? <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>+{dados.caminho}</span> : '-'}</td>
-                                    <td>{mediaSKU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                                    <td>{cobertura === "∞" ? "∞" : Math.round(cobertura)}</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  )}
-                </AnimatePresence>
-              </React.Fragment>
-            );
-          })}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Nenhum dado encontrado para os filtros aplicados.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <MobileTable
+        columns={[
+          {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>,
+            rawLabel: 'Produto',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          {
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+            rawLabel: 'Local',
+            render: (row) => toTitleCase(row.local),
+            onSort: () => requestSort('local'),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('total')}</div>,
+            rawLabel: 'Vendas',
+            render: (row) => row.total.toLocaleString('pt-BR'),
+            onSort: () => requestSort('total'),
+          },
+          {
+            key: 'estoqueTotal',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('estoqueTotal')}</div>,
+            rawLabel: 'Estoque',
+            render: (row) => row.estoqueTotal.toLocaleString('pt-BR'),
+            onSort: () => requestSort('estoqueTotal'),
+          },
+          {
+            key: 'caminhoTotal',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>A Caminho {getSortIcon('caminhoTotal')}</div>,
+            rawLabel: 'A Caminho',
+            render: (row) => row.caminhoTotal > 0 ? <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>+{row.caminhoTotal.toLocaleString('pt-BR')}</span> : '-',
+            onSort: () => requestSort('caminhoTotal'),
+          },
+          {
+            key: 'media',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Média Diária {getSortIcon('media')}</div>,
+            rawLabel: 'Média/dia',
+            render: (row) => row.media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+            onSort: () => requestSort('media'),
+          },
+          {
+            key: 'dias',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Dias Cobertos {getSortIcon('dias')}</div>,
+            rawLabel: 'Dias Cobertos',
+            render: (row) => {
+              let badgeColor = '#64748b', badgeBg = '#f1f5f9';
+              if (row.dias <= 29) { badgeColor = '#b91c1c'; badgeBg = '#fecaca'; }
+              else if (row.dias > 60) { badgeColor = '#b45309'; badgeBg = '#fde68a'; }
+              else { badgeColor = '#15803d'; badgeBg = '#bbf7d0'; }
+              return <span style={{ background: badgeBg, color: badgeColor, padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{row.dias} dias</span>;
+            },
+            onSort: () => requestSort('dias'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+        isExpanded={(row) => expandedId === row.id}
+        getRowStyle={(row) => {
+          if (row.dias <= 29) return { background: '#fee2e2' };
+          if (row.dias > 60) return { background: '#fef3c7' };
+          return { background: '#dcfce7' };
+        }}
+        renderExpanded={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                {Object.entries(item.skus).map(([sku, dados]) => {
+                  const mediaSKU = dadosProcessados.diasPeriodo > 0 ? dados.vendas / dadosProcessados.diasPeriodo : 0;
+                  const cobertura = mediaSKU > 0 ? (dados.estoque / mediaSKU) : '∞';
+                  return (
+                    <div key={sku} style={{ background: 'white', borderRadius: '8px', padding: '12px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '8px', color: '#0f172a' }}>{sku}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Vendas</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{dados.vendas.toLocaleString('pt-BR')}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Estoque</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{dados.estoque.toLocaleString('pt-BR')}</span></div>
+                      {dados.caminho > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>A Caminho</span><span style={{ fontWeight: 600, color: '#8b5cf6' }}>+{dados.caminho}</span></div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Cobertura</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{cobertura === '∞' ? '∞' : Math.round(cobertura)} dias</span></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

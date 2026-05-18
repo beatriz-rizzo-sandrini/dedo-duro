@@ -20,6 +20,7 @@ import HeaderDates from '../components/HeaderDates';
 import { getLatestDates } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
 
 ChartJS.register(
   CategoryScale,
@@ -82,10 +83,10 @@ export default function Sellout() {
 
     // 1. Mapeia Estoque (Filtrado por Loja se necessário)
     estoqueRows.forEach(r => {
-      const sku = String(r?.c?.[1]?.v || "");
-      const localEstoque = String(r?.c?.[3]?.v || "").toUpperCase();
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const localEstoque = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = localEstoque.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[5]?.v || 0;
+      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
 
       if (sku) {
         if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
@@ -110,17 +111,17 @@ export default function Sellout() {
 
     // 2. Processa Vendas
     vendasRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f || "";
+      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
       const dataVenda = new Date(`${y}-${m}-${d}`);
       
-      const sku = String(r?.c?.[2]?.v || "");
-      const desc = r?.c?.[3]?.v || "";
-      const local = String(r?.c?.[1]?.v || "Sem Local").toUpperCase().trim();
-      const marca = String(r?.c?.[5]?.v || "Sem Marca").toUpperCase().trim();
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
+      const marca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").toUpperCase().trim();
       const lojaVenda = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[4]?.v || 0;
+      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
 
       // Filtro de Loja (Buy Clock vs Sandrini)
       if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
@@ -362,7 +363,7 @@ export default function Sellout() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Sellout</h1>
           <p>Análise de performance por SKU e Marcas</p>

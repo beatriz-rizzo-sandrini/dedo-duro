@@ -7,6 +7,7 @@ import { toTitleCase } from '../utils/stringUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
 
 function SkuRow({ s, loc, addToCart }) {
   const [repoQtd, setRepoQtd] = React.useState(s.reposicaoSugerida);
@@ -88,12 +89,12 @@ export default function Produto() {
     if (!termo) return [];
     const setSug = new Set();
     estoqueRows.forEach(r => {
-      const l = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const nome = (r?.c?.[2]?.v || "").toLowerCase();
-      if (nome.includes(termo)) setSug.add(r?.c?.[2]?.v);
+      const nome = (r?.c?.[COL_ESTOQUE.DESC]?.v || "").toLowerCase();
+      if (nome.includes(termo)) setSug.add(r?.c?.[COL_ESTOQUE.DESC]?.v);
     });
     return Array.from(setSug).sort().slice(0, 50);
   }, [termoBusca, estoqueRows, selectedCompany]);
@@ -101,10 +102,10 @@ export default function Produto() {
   const handleSkuSearch = (e) => {
     if (e.key === 'Enter') {
       const sku = skuBusca.trim().toUpperCase();
-      const item = estoqueRows.find(r => String(r?.c?.[1]?.v || "").trim().toUpperCase() === sku);
+      const item = estoqueRows.find(r => String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase() === sku);
       if (item) {
-        setProdutoSelecionado(item?.c?.[2]?.v);
-        setTermoBusca(item?.c?.[2]?.v);
+        setProdutoSelecionado(item?.c?.[COL_ESTOQUE.DESC]?.v);
+        setTermoBusca(item?.c?.[COL_ESTOQUE.DESC]?.v);
       } else alert("SKU não encontrado.");
     }
   };
@@ -124,16 +125,16 @@ export default function Produto() {
 
     // 1. Processar Estoque
     estoqueRows.forEach(r => {
-      const desc = (r?.c?.[2]?.v || "").toLowerCase().trim();
+      const desc = (r?.c?.[COL_ESTOQUE.DESC]?.v || "").toLowerCase().trim();
       if (desc !== descSelecionada) return;
 
-      const local = (r?.c?.[3]?.v || "OUTROS").toUpperCase().trim();
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "OUTROS").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const sku = String(r?.c?.[1]?.v || "");
-      const qtd = r?.c?.[5]?.v || 0;
-      const valor = r?.c?.[6]?.v || 0;
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const valor = r?.c?.[COL_ESTOQUE.VALOR]?.v || 0;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
       if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
@@ -146,21 +147,21 @@ export default function Produto() {
 
     // 2. Processar Vendas
     vendasRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f || "";
+      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
       const dataVenda = new Date(`${y}-${m}-${d}`);
       if (dataIni && dataFim && (dataVenda < new Date(dataIni) || dataVenda > new Date(dataFim))) return;
 
-      const descVenda = (r?.c?.[3]?.v || "").toLowerCase().trim();
+      const descVenda = (r?.c?.[COL_VENDAS.DESC]?.v || "").toLowerCase().trim();
       if (descVenda !== descSelecionada) return;
 
-      const local = (r?.c?.[1]?.v || "OUTROS").toUpperCase().trim();
+      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "OUTROS").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const sku = String(r?.c?.[2]?.v || "");
-      const qtd = r?.c?.[4]?.v || 0;
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
       if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
@@ -184,7 +185,7 @@ export default function Produto() {
           sku, estoque: info.estoque, vendas: info.vendas,
           cobertura: media > 0 ? info.estoque / media : (info.vendas > 0 ? 0 : -1),
           reposicaoSugerida: finalRepo,
-          isBad: badStockRows.some(bs => String(bs?.c?.[1]?.v || "").trim().toLowerCase() === sku.toLowerCase() && (bs?.c?.[2]?.v || "").trim().toUpperCase() === local),
+          isBad: badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === local),
           isRuptura: info.estoque === 0 && info.vendas > 0
         };
       });
@@ -222,18 +223,23 @@ export default function Produto() {
 
   return (
     <div className="header-main" style={{ paddingBottom: '100px' }}>
-      <button onClick={() => setIsCartOpen(true)} style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 100, background: '#334155', color: 'white', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-        <ShoppingCart size={20} style={{ marginRight: '8px' }} /> Carrinho ({carrinho.length})
-      </button>
-
-      <div style={{ marginBottom: '24px' }}>
-        <h1>Análise de Produto</h1>
-        <p>Visão detalhada de estoque e performance por SKU (Google Sheets 📊)</p>
+      {/* ── Cabeçalho com botão carrinho integrado ── */}
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div>
+          <h1>Análise de Produto</h1>
+          <p>Visão detalhada de estoque e performance por SKU (Google Sheets 📊)</p>
+        </div>
+        <button
+          onClick={() => setIsCartOpen(true)}
+          style={{ background: '#334155', color: 'white', padding: '10px 20px', borderRadius: '30px', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          <ShoppingCart size={18} /> Carrinho ({carrinho.length})
+        </button>
       </div>
 
-      <div className="filters-container" style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', marginBottom: '30px' }}>
+      <div className="filters-container" style={{ marginBottom: '30px' }}>
         <CompanySelector />
-        <div style={{ flex: 1.5, position: 'relative' }} ref={dropdownRef}>
+        <div style={{ flex: '1 1 200px', position: 'relative' }} ref={dropdownRef}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>BUSCAR PRODUTO</label>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
@@ -245,37 +251,37 @@ export default function Produto() {
             </ul>
           )}
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: '1 1 150px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>BUSCAR POR SKU</label>
-          <input type="text" className="input-padrao" placeholder="Aperte Enter..." value={skuBusca} onChange={e => setSkuBusca(e.target.value)} onKeyDown={handleSkuSearch} />
+          <input type="text" className="input-padrao" style={{ width: '100%' }} placeholder="Aperte Enter..." value={skuBusca} onChange={e => setSkuBusca(e.target.value)} onKeyDown={handleSkuSearch} />
         </div>
-        <div>
+        <div style={{ flex: '1 1 250px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>PERÍODO VENDAS</label>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <input type="date" className="input-padrao" value={dataIni} onChange={e => setDataIni(e.target.value)} />
-            <input type="date" className="input-padrao" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataIni} onChange={e => setDataIni(e.target.value)} />
+            <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataFim} onChange={e => setDataFim(e.target.value)} />
           </div>
         </div>
-        <div style={{ width: '100px' }}>
+        <div style={{ flex: '0 0 120px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>DIAS ALVO</label>
-          <input type="number" className="input-padrao" value={diasCobertura} onChange={e => setDiasCobertura(Number(e.target.value))} />
+          <input type="number" className="input-padrao" style={{ width: '100%' }} value={diasCobertura} onChange={e => setDiasCobertura(Number(e.target.value))} />
         </div>
       </div>
 
       {dadosProcessados && (
         <>
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
-            <div style={{ flex: 2, background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '2 1 200px', background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>PRODUTO SELECIONADO</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{toTitleCase(produtoSelecionado)}</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px' }}>{toTitleCase(produtoSelecionado)}</div>
             </div>
-            <div style={{ flex: 1, background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <div style={{ flex: '1 1 100px', background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
               <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>TOTAL SKUs</div>
               <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>{dadosProcessados.skusUnicos}</div>
             </div>
-            <div style={{ flex: 1, background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <div style={{ flex: '1 1 100px', background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
               <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>VALOR TOTAL</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981' }}>{dadosProcessados.valorTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+              <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{dadosProcessados.valorTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
             </div>
           </div>
 

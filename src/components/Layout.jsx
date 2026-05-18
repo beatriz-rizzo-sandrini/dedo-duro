@@ -9,9 +9,27 @@ export default function Layout() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-      <main style={{ marginLeft: sidebarWidth, padding: '40px', flex: 1, width: `calc(100vw - ${sidebarWidth})`, transition: 'margin-left 0.3s ease, width 0.3s ease' }}>
+      <main
+        className="main-content"
+        style={{
+          marginLeft: sidebarWidth,
+          padding: '40px',
+          flex: 1,
+          width: `calc(100vw - ${sidebarWidth})`,
+          transition: 'margin-left 0.3s ease, width 0.3s ease',
+        }}
+      >
         <Outlet />
       </main>
+      <style>{`
+        @media (max-width: 768px) {
+          .main-content {
+            margin-left: 0 !important;
+            width: 100vw !important;
+            padding: 70px 16px 24px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

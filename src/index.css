@@ -136,3 +136,46 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.4);
   margin-bottom: 24px;
 }
+
+/* ─── RESPONSIVIDADE MOBILE GLOBAL ─── */
+@media (max-width: 768px) {
+  .header-main h1 {
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .header-main p {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  /* Filtros em coluna no mobile */
+  .filters-container {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  /* Botões ocupam largura total */
+  .btn-padrao {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Cabeçalho das páginas: empilha título e ações no mobile */
+  .page-header-row {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+
+  .page-header-row > div:last-child {
+    width: 100%;
+  }
+
+  .page-header-row > div:last-child .btn-padrao {
+    width: 100%;
+    justify-content: center;
+  }
+}

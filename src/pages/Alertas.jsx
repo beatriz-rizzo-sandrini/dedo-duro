@@ -9,6 +9,8 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
+import MobileTable from '../components/MobileTable';
 
 export default function Alertas() {
   const { data, loading, error } = useData();
@@ -27,7 +29,7 @@ export default function Alertas() {
     if (!estoqueRows.length) return [];
     const lSet = new Set();
     estoqueRows.forEach(r => {
-      const l = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       if (l) lSet.add(l);
@@ -69,17 +71,17 @@ export default function Alertas() {
     const vendasMap = {};
 
     vendasRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f;
+      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f;
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
       const dt = new Date(`${y}-${m}-${d}`);
       if (dataIni && dataFim) {
          if (dt < new Date(dataIni) || dt > new Date(dataFim)) return;
       }
-      const local = (r?.c?.[1]?.v || "").toUpperCase().trim();
+      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const sku = r?.c?.[2]?.v || "";
-      const qtd = r?.c?.[4]?.v || 0;
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       const key = local + "|" + sku;
@@ -89,27 +91,27 @@ export default function Alertas() {
 
     const temReposicaoCentral = (sku) => {
       const estoqueCentral = estoqueRows.filter(r => {
-        const local = (r?.c?.[3]?.v || "").toUpperCase().trim();
-        return ["STAND BY", "EXP MINAS"].includes(local) && (r?.c?.[1]?.v || "") === sku;
-      }).reduce((soma, r) => soma + (r?.c?.[5]?.v || 0), 0);
+        const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+        return ["STAND BY", "EXP MINAS"].includes(local) && (r?.c?.[COL_ESTOQUE.SKU]?.v || "") === sku;
+      }).reduce((soma, r) => soma + (r?.c?.[COL_ESTOQUE.QTD]?.v || 0), 0);
       return estoqueCentral > 0;
     };
 
     let alertas = [];
 
     estoqueRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f || String(r?.c?.[0]?.v || "");
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       // Corrigido: Filtra pela data para não somar histórico
       if (dataEstoque && dataStr !== dataEstoque) return;
 
-      const local = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
       if (filtroLocal && local !== filtroLocal) return;
 
-      const sku = r?.c?.[1]?.v || "";
-      const qtdEstoque = r?.c?.[5]?.v || 0;
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const qtdEstoque = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
       const key = local + "|" + sku;
       const vendas = vendasMap[key] || 0;
       const media = diasPeriodo > 0 ? vendas / diasPeriodo : 0;
@@ -119,8 +121,8 @@ export default function Alertas() {
       let alertaI = "";
 
       const isBad = badStockRows.some(bs => {
-        const skuB = (bs?.c?.[1]?.v || "").trim().toLowerCase();
-        const localB = (bs?.c?.[2]?.v || "").trim().toLowerCase();
+        const skuB = (bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
+        const localB = (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
         return sku.trim().toLowerCase() === skuB && local.trim().toLowerCase() === localB;
       });
 
@@ -203,7 +205,7 @@ export default function Alertas() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Central de Alertas</h1>
           <p>Identificação de Rupturas e Badstock</p>
@@ -309,57 +311,66 @@ export default function Alertas() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('local')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>
-            </th>
-            <th onClick={() => requestSort('sku')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>SKU {getSortIcon('sku')}</div>
-            </th>
-            <th onClick={() => requestSort('qtdEstoque')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('qtdEstoque')}</div>
-            </th>
-            <th onClick={() => requestSort('vendas')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('vendas')}</div>
-            </th>
-            <th onClick={() => requestSort('cobertura')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Cobertura {getSortIcon('cobertura')}</div>
-            </th>
-            <th onClick={() => requestSort('alertaI')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Alerta {getSortIcon('alertaI')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((item, idx) => (
-            <tr key={idx}>
-              <td style={{ fontWeight: 600 }}>{toTitleCase(item.local)}</td>
-              <td>{item.sku}</td>
-              <td>{item.qtdEstoque.toLocaleString('pt-BR')}</td>
-              <td>{item.vendas.toLocaleString('pt-BR')}</td>
-              <td>{item.cobertura === "∞" ? "∞" : item.cobertura + ' dias'}</td>
-              <td>
-                <span style={{ 
-                  background: item.alertaT === 'badstock' ? '#fee2e2' : item.alertaT === 'ruptura' ? '#fecaca' : '#fef3c7', 
-                  color: item.alertaT === 'badstock' ? '#b91c1c' : item.alertaT === 'ruptura' ? '#dc2626' : '#b45309', 
-                  padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
-                }}>
-                  {item.alertaI}
-                </span>
-              </td>
-            </tr>
-          ))}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                Nenhum alerta encontrado com os filtros aplicados.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <MobileTable
+        columns={[
+          {
+            key: 'sku',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>SKU {getSortIcon('sku')}</div>,
+            rawLabel: 'SKU',
+            render: (row) => <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.sku}</span>,
+            onSort: () => requestSort('sku'),
+          },
+          {
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+            rawLabel: 'Local',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.local)}</span>,
+            onSort: () => requestSort('local'),
+          },
+          {
+            key: 'qtdEstoque',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('qtdEstoque')}</div>,
+            rawLabel: 'Estoque',
+            render: (row) => row.qtdEstoque.toLocaleString('pt-BR'),
+            onSort: () => requestSort('qtdEstoque'),
+          },
+          {
+            key: 'vendas',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('vendas')}</div>,
+            rawLabel: 'Vendas (30d)',
+            render: (row) => row.vendas.toLocaleString('pt-BR'),
+            onSort: () => requestSort('vendas'),
+          },
+          {
+            key: 'cobertura',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Cobertura {getSortIcon('cobertura')}</div>,
+            rawLabel: 'Cobertura',
+            render: (row) => row.cobertura === '∞' ? '∞' : row.cobertura + ' dias',
+            onSort: () => requestSort('cobertura'),
+          },
+          {
+            key: 'alertaI',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Alerta {getSortIcon('alertaI')}</div>,
+            rawLabel: 'Tipo de Alerta',
+            render: (row) => (
+              <span style={{
+                background: row.alertaT === 'badstock' ? '#fee2e2' : row.alertaT === 'ruptura' ? '#fecaca' : '#fef3c7',
+                color: row.alertaT === 'badstock' ? '#b91c1c' : row.alertaT === 'ruptura' ? '#dc2626' : '#b45309',
+                padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px'
+              }}>
+                {row.alertaI}
+              </span>
+            ),
+            onSort: () => requestSort('alertaI'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row, idx) => `${row.local}|${row.sku}|${idx}`}
+        getRowStyle={(row) => ({
+          background: row.alertaT === 'badstock' || row.alertaT === 'ruptura' ? '#fee2e2' : '#fef3c7'
+        })}
+        emptyMessage="Nenhum alerta encontrado com os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

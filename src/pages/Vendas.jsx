@@ -20,6 +20,8 @@ import { getLatestDates } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
+import MobileTable from '../components/MobileTable';
 
 ChartJS.register(
   CategoryScale,
@@ -31,16 +33,17 @@ ChartJS.register(
   ArcElement
 );
 
-const getTodayStr = () => {
+const getYesterdayStr = () => {
   const d = new Date();
+  d.setDate(d.getDate() - 1);
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 };
 
-const get30DaysAgoStr = () => {
+const get29DaysBeforeYesterdayStr = () => {
   const d = new Date();
-  d.setDate(d.getDate() - 30);
+  d.setDate(d.getDate() - 30); // 1 dia de ontem + 29 dias antes = 30 dias no total
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
@@ -53,8 +56,8 @@ export default function Vendas() {
   const estoqueRows = data.estoque || [];
 
   const [filtroLocal, setFiltroLocal] = useState([]);
-  const [dataIni, setDataIni] = useState(get30DaysAgoStr());
-  const [dataFim, setDataFim] = useState(getTodayStr());
+  const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
+  const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [busca, setBusca] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -82,7 +85,7 @@ export default function Vendas() {
     if (!vendasRows) return [];
     const setLocais = new Set();
     vendasRows.forEach(r => {
-      const l = (r?.c?.[1]?.v || "").toUpperCase().trim();
+      const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       if (l) setLocais.add(l);
@@ -96,15 +99,15 @@ export default function Vendas() {
     const skuToDesc = {};
     // 1. Pega a descrição mais atualizada do Estoque como "fonte da verdade"
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[1]?.v || "";
-      const desc = r?.c?.[2]?.v || "";
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
     // 2. Fallback para as vendas caso o SKU não exista mais no estoque
     vendasRows.forEach(r => {
-      const sku = r?.c?.[2]?.v || "";
-      const desc = r?.c?.[3]?.v || "";
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
     });
 
@@ -126,15 +129,15 @@ export default function Vendas() {
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
 
     vendasRows.forEach(r => {
-      const dateVal = r?.c?.[0]?.f;
+      const dateVal = r?.c?.[COL_VENDAS.DATA]?.f;
       const dateRow = parseDateStr(dateVal);
       if (!dateVal) return;
 
-      const local = (r?.c?.[1]?.v || "").toUpperCase().trim();
+      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const sku = r?.c?.[2]?.v || "";
-      let desc = r?.c?.[3]?.v || "";
-      const qtd = r?.c?.[4]?.v || 0;
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -291,7 +294,7 @@ export default function Vendas() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Vendas</h1>
           <p>Acompanhamento de saídas de estoque</p>
@@ -363,8 +366,8 @@ export default function Vendas() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', flex: 1 }}>
+      <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', flex: '1 1 300px', minWidth: 0 }}>
           <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>Evolução de Vendas</h3>
           {dadosProcessados.chartData && (
             <div style={{ height: '250px' }}>
@@ -378,10 +381,10 @@ export default function Vendas() {
             </div>
           )}
         </div>
-        <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '250px' }}>
-          <span style={{ fontSize: '14px', opacity: 0.9, fontWeight: 500, marginBottom: '8px' }}>TOTAL VENDIDO NO PERÍODO</span>
-          <span style={{ fontSize: '48px', fontWeight: 800 }}>{dadosProcessados.totalItens.toLocaleString('pt-BR')}</span>
-          <span style={{ fontSize: '14px', opacity: 0.8 }}>peças</span>
+        <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', padding: '24px 30px', borderRadius: '12px', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: '1 1 200px' }}>
+          <span style={{ fontSize: '13px', opacity: 0.9, fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Vendido no Período</span>
+          <span style={{ fontSize: '42px', fontWeight: 800, lineHeight: 1.1 }}>{dadosProcessados.totalItens.toLocaleString('pt-BR')}</span>
+          <span style={{ fontSize: '14px', opacity: 0.8, marginTop: '4px' }}>peças</span>
         </div>
       </div>
 
@@ -429,66 +432,53 @@ export default function Vendas() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('descricao')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>
-            </th>
-            {filtroLocal.length !== 1 && (
-              <th onClick={() => requestSort('local')} style={{ cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>
-              </th>
-            )}
-            <th onClick={() => requestSort('total')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total Vendido {getSortIcon('total')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((item) => {
-            const isExpanded = expandedId === item.id;
-            return (
-              <React.Fragment key={item.id}>
-                <tr style={{ background: isExpanded ? '#f8fafc' : 'transparent', cursor: 'pointer' }} onClick={() => setExpandedId(isExpanded ? null : item.id)}>
-                  <td style={{ fontWeight: 500 }}>{toTitleCase(item.descricao)}</td>
-                  {filtroLocal.length !== 1 && <td>{toTitleCase(item.local)}</td>}
-                  <td style={{ fontWeight: 600 }}>{item.total.toLocaleString('pt-BR')}</td>
-                </tr>
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.tr
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      <td colSpan={filtroLocal.length === 1 ? 2 : 3} style={{ padding: 0 }}>
-                        <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', fontSize: '13px' }}>
-                            <tbody>
-                              {Object.entries(item.skus).map(([sku, qtd]) => (
-                                <tr key={sku}>
-                                  <td style={{ padding: '8px 0', color: '#64748b' }}>SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{sku}</span></td>
-                                  <td style={{ padding: '8px 0', width: '100px' }}>{qtd.toLocaleString('pt-BR')} peças</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  )}
-                </AnimatePresence>
-              </React.Fragment>
-            );
-          })}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Nenhum dado encontrado para os filtros aplicados.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <MobileTable
+        columns={[
+          {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>,
+            rawLabel: 'Produto',
+            render: (row) => <span style={{ fontWeight: 500 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          ...(filtroLocal.length !== 1 ? [{
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+            rawLabel: 'Local',
+            render: (row) => toTitleCase(row.local),
+            onSort: () => requestSort('local'),
+          }] : []),
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total Vendido {getSortIcon('total')}</div>,
+            rawLabel: 'Total Vendido',
+            render: (row) => <span style={{ fontWeight: 600 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('total'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+        isExpanded={(row) => expandedId === row.id}
+        renderExpanded={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              {Object.entries(item.skus).map(([sku, qtd]) => (
+                <div key={sku} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b' }}>SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{sku}</span></span>
+                  <span style={{ fontWeight: 600 }}>{qtd.toLocaleString('pt-BR')} peças</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

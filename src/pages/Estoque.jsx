@@ -9,6 +9,8 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_ESTOQUE } from '../utils/sheetColumns';
+import MobileTable from '../components/MobileTable';
 
 export default function Estoque() {
   const { data, loading, error } = useData();
@@ -44,7 +46,7 @@ export default function Estoque() {
     if (!estoqueRows) return [];
     const setLocais = new Set();
     estoqueRows.forEach(r => {
-      const l = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       if (l) setLocais.add(l);
@@ -59,8 +61,8 @@ export default function Estoque() {
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[1]?.v || "";
-      const desc = r?.c?.[2]?.v || "";
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
@@ -68,15 +70,15 @@ export default function Estoque() {
     const agrupado = {};
 
     estoqueRows.forEach(r => {
-      const dataStr = r?.c?.[0]?.f || String(r?.c?.[0]?.v || "");
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       // Corrigido: Filtra pela data para não somar histórico
       if (dataEstoque && dataStr !== dataEstoque) return;
 
-      const sku = r?.c?.[1]?.v || "";
-      let descricao = r?.c?.[2]?.v || "";
-      const local = (r?.c?.[3]?.v || "").toUpperCase().trim();
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      let descricao = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const quantidade = r?.c?.[5]?.v || 0;
+      const quantidade = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -168,7 +170,7 @@ export default function Estoque() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Estoque Consolidado</h1>
           <p>Visão geral dos produtos em armazém</p>
@@ -243,59 +245,49 @@ export default function Estoque() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('descricao')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>
-            </th>
-            <th onClick={() => requestSort('total')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total em Estoque {getSortIcon('total')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((prod, idx) => {
-            const isExpanded = expandedId === prod.descricao;
-            return (
-              <React.Fragment key={idx}>
-                <tr style={{ cursor: 'pointer', background: isExpanded ? '#f8fafc' : 'transparent' }} onClick={() => setExpandedId(isExpanded ? null : prod.descricao)}>
-                  <td style={{ fontWeight: 600 }}>{toTitleCase(prod.descricao)}</td>
-                  <td style={{ fontWeight: 800 }}>{prod.total.toLocaleString('pt-BR')}</td>
-                </tr>
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.tr initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                      <td colSpan={2} style={{ padding: 0 }}>
-                        <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', fontSize: '13px' }}>
-                            <tbody>
-                              {prod.itens.map((item, i) => (
-                                <tr key={i}>
-                                  <td style={{ padding: '8px 0', color: '#64748b' }}>
-                                    {filtroLocal ? `SKU: ` : `SKU: ${item.sku} | Local: `}
-                                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{filtroLocal ? item.sku : item.local}</span>
-                                  </td>
-                                  <td style={{ padding: '8px 0', width: '100px' }}>{item.quantidade.toLocaleString('pt-BR')} peças</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  )}
-                </AnimatePresence>
-              </React.Fragment>
-            )
-          })}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={2} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Nenhum dado encontrado para os filtros aplicados.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <MobileTable
+        columns={[
+          {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>,
+            rawLabel: 'Produto',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total em Estoque {getSortIcon('total')}</div>,
+            rawLabel: 'Total em Estoque',
+            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('total'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.descricao}
+        onRowClick={(row) => setExpandedId(expandedId === row.descricao ? null : row.descricao)}
+        isExpanded={(row) => expandedId === row.descricao}
+        renderExpanded={(prod) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              {prod.itens.map((item, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', borderBottom: i < prod.itens.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                  <span style={{ color: '#64748b' }}>
+                    {filtroLocal ? 'SKU: ' : `SKU: ${item.sku} | `}
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{filtroLocal ? item.sku : item.local}</span>
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{item.quantidade.toLocaleString('pt-BR')} peças</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

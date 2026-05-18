@@ -7,6 +7,7 @@ import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
+import { COL_CAMINHO } from '../utils/sheetColumns';
 
 export default function Reposicao() {
   const { data, loading, error } = useData();
@@ -48,11 +49,11 @@ export default function Reposicao() {
     const sSet = new Set();
 
     caminhoRows.forEach(r => {
-      const local = String(r?.c?.[2]?.v ?? "").toUpperCase().trim();
+      const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       
-      const status = String(r?.c?.[5]?.v ?? "").toUpperCase().trim();
+      const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
       if (local) lSet.add(local);
       if (status) sSet.add(status);
     });
@@ -66,8 +67,8 @@ export default function Reposicao() {
     // Optional: SKU to Desc map if some descriptions are missing (using only 'caminho' for now, could use others if needed)
     const skuToDesc = {};
     caminhoRows.forEach(r => {
-      const sku = r?.c?.[0]?.v || "";
-      const desc = r?.c?.[1]?.v || "";
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
@@ -78,12 +79,12 @@ export default function Reposicao() {
     const fimTime = dataFim ? new Date(`${dataFim}T23:59:59`).getTime() : Infinity;
 
     caminhoRows.forEach(r => {
-      const sku = r?.c?.[0]?.v || "";
-      let descricao = r?.c?.[1]?.v || "";
-      const local = String(r?.c?.[2]?.v ?? "").toUpperCase().trim();
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      let descricao = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const quantidade = r?.c?.[4]?.v || 0;
-      const status = String(r?.c?.[5]?.v ?? "").toUpperCase().trim();
+      const quantidade = r?.c?.[COL_CAMINHO.QTD]?.v || 0;
+      const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
       
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       
@@ -91,7 +92,7 @@ export default function Reposicao() {
       if (!sku && !descricao) return;
       if (!descricao) descricao = `SKU: ${sku}`;
 
-      let previsaoRaw = r?.c?.[6]?.v || "";
+      let previsaoRaw = r?.c?.[COL_CAMINHO.PREVISAO]?.v || "";
       let previsao = "";
       if(typeof previsaoRaw === "object" && previsaoRaw?.f) {
         previsao = previsaoRaw.f;
@@ -114,10 +115,10 @@ export default function Reposicao() {
       }
 
       let envio = "";
-      if (r?.c?.[7]?.f) {
-        envio = r?.c?.[7].f.toUpperCase().trim();
-      } else if (r?.c?.[7]?.v != null) {
-        envio = String(r?.c?.[7].v).toUpperCase().trim();
+      if (r?.c?.[COL_CAMINHO.NF]?.f) {
+        envio = r?.c?.[COL_CAMINHO.NF].f.toUpperCase().trim();
+      } else if (r?.c?.[COL_CAMINHO.NF]?.v != null) {
+        envio = String(r?.c?.[COL_CAMINHO.NF].v).toUpperCase().trim();
       }
 
       if (filtroLocal && local !== filtroLocal) return;
@@ -222,7 +223,7 @@ export default function Reposicao() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Reposição A Caminho</h1>
           <p>Acompanhamento de pedidos em trânsito</p>
@@ -359,10 +360,15 @@ export default function Reposicao() {
                   </td>
                   <td>{env.previsao}</td>
                 </tr>
-                <AnimatePresence>
-                  {isEnvExpanded && (
-                    <motion.tr initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                      <td colSpan={5} style={{ padding: 0 }}>
+                {isEnvExpanded && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        style={{ overflow: 'hidden' }}
+                      >
                         <div style={{ padding: '0', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                           <table style={{ width: '100%', fontSize: '13px' }}>
                             <tbody>
@@ -374,28 +380,26 @@ export default function Reposicao() {
                                       <td style={{ padding: '12px 40px', fontWeight: 600, width: '40%' }}>{toTitleCase(desc.descricao)}</td>
                                       <td style={{ padding: '12px 20px', fontWeight: 600 }}>{desc.total.toLocaleString('pt-BR')} peças</td>
                                     </tr>
-                                    <AnimatePresence>
-                                      {isDescExpanded && desc.skus.map((skuItem, sIdx) => (
-                                        <motion.tr key={sIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                          <td style={{ padding: '8px 80px', color: '#64748b' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                              SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.sku}</span>
-                                            </div>
-                                          </td>
-                                          <td style={{ padding: '8px 20px' }}>{skuItem.quantidade.toLocaleString('pt-BR')} un</td>
-                                        </motion.tr>
-                                      ))}
-                                    </AnimatePresence>
+                                    {isDescExpanded && desc.skus.map((skuItem, sIdx) => (
+                                      <tr key={sIdx}>
+                                        <td style={{ padding: '8px 80px', color: '#64748b' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.sku}</span>
+                                          </div>
+                                        </td>
+                                        <td style={{ padding: '8px 20px' }}>{skuItem.quantidade.toLocaleString('pt-BR')} un</td>
+                                      </tr>
+                                    ))}
                                   </React.Fragment>
                                 );
                               })}
                             </tbody>
                           </table>
                         </div>
-                      </td>
-                    </motion.tr>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    </td>
+                  </tr>
+                )}
               </React.Fragment>
             )
           })}

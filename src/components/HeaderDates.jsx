@@ -1,28 +1,40 @@
 import React from 'react';
 
 export default function HeaderDates({ dataEstoque, dataVendas }) {
-  const badgeStyle = { 
-    background: '#e2e8f0', 
-    padding: '2px 8px', 
-    borderRadius: '4px', 
-    marginLeft: '8px', 
-    fontSize: '12px', 
-    fontWeight: '600', 
-    color: '#475569',
-    display: 'inline-block',
-    marginTop: '4px'
-  };
+  if (!dataEstoque && !dataVendas) return null;
 
   return (
-    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
       {dataEstoque && (
-        <span style={badgeStyle}>
-          Última atualização de estoque: {dataEstoque}
+        <span style={{
+          background: '#e2e8f0',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#475569',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          whiteSpace: 'nowrap',
+        }}>
+          📦 Estoque: {dataEstoque}
         </span>
       )}
       {dataVendas && (
-        <span style={badgeStyle}>
-          Última atualização de vendas: {dataVendas}
+        <span style={{
+          background: '#e2e8f0',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#475569',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          whiteSpace: 'nowrap',
+        }}>
+          🛒 Vendas: {dataVendas}
         </span>
       )}
     </div>
