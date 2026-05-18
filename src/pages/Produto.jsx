@@ -56,7 +56,7 @@ export default function Produto() {
   const [termoBusca, setTermoBusca] = useState('');
   const [skuBusca, setSkuBusca] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState('');
-  
+
   const [showSugestoes, setShowSugestoes] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -113,7 +113,7 @@ export default function Produto() {
   const dadosProcessados = useMemo(() => {
     if (!produtoSelecionado || !estoqueRows.length) return null;
     const descSelecionada = produtoSelecionado.toLowerCase().trim();
-    
+
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
       diasPeriodo = (new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24) + 1;
@@ -134,14 +134,16 @@ export default function Produto() {
 
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
-      const valor = r?.c?.[COL_ESTOQUE.VALOR]?.v || 0;
+      // VALOR é o custo unitário — multiplica pela qtd para obter o valor real em estoque
+      const custoUnitario = r?.c?.[COL_ESTOQUE.VALOR]?.v || 0;
+      const valorEstoque = custoUnitario * qtd;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
       if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
-      
+
       skusMapByLocal[local][sku].estoque += qtd;
-      skusMapByLocal[local][sku].valor += valor;
-      valorTotalGeral += valor;
+      skusMapByLocal[local][sku].valor += valorEstoque;
+      valorTotalGeral += valorEstoque;
       skusUnicosSet.add(sku);
     });
 
@@ -165,7 +167,7 @@ export default function Produto() {
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
       if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
-      
+
       skusMapByLocal[local][sku].vendas += qtd;
     });
 
@@ -204,7 +206,7 @@ export default function Produto() {
   const addToCart = (skuObj, local, customRepo) => {
     if (carrinho.find(c => c.sku === skuObj.sku && c.local === local)) return alert("Já está no carrinho!");
     setCarrinho(prev => [...prev, {
-      produto: produtoSelecionado, local, sku: skuObj.sku, estoque: skuObj.estoque, 
+      produto: produtoSelecionado, local, sku: skuObj.sku, estoque: skuObj.estoque,
       vendas: skuObj.vendas, cobertura: skuObj.cobertura === -1 ? "∞" : Math.round(skuObj.cobertura), reposicao: customRepo
     }]);
   };
