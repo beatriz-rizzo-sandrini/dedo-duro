@@ -96,10 +96,17 @@ export default function Sellout() {
       }
     });
 
-    const hoje = new Date();
-    const d7 = new Date(); d7.setDate(hoje.getDate() - 7);
-    const d15 = new Date(); d15.setDate(hoje.getDate() - 15);
-    const d30 = new Date(); d30.setDate(hoje.getDate() - 30);
+    // Define limites de datas baseados em ontem, idênticos à página de Vendas (estáveis em UTC)
+    const hojeLocal = new Date();
+    const hojeUTC = Date.UTC(hojeLocal.getFullYear(), hojeLocal.getMonth(), hojeLocal.getDate());
+    
+    // Ontem às 23:59:59.999 UTC
+    const ontemTime = hojeUTC - 1;
+    
+    // Limites de dias atrás em UTC (zerados à meia-noite)
+    const d7Time = hojeUTC - (7 * 24 * 60 * 60 * 1000);
+    const d15Time = hojeUTC - (15 * 24 * 60 * 60 * 1000);
+    const d30Time = hojeUTC - (30 * 24 * 60 * 60 * 1000);
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
 
@@ -114,7 +121,8 @@ export default function Sellout() {
       const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
-      const dataVenda = new Date(`${y}-${m}-${d}`);
+      // Cria a data da venda no formato UTC midnight estável
+      const dataVendaTime = Date.UTC(Number(y), Number(m) - 1, Number(d));
       
       const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
@@ -142,10 +150,13 @@ export default function Sellout() {
         };
       }
 
-      // Estatísticas básicas (sempre calculadas)
-      if (dataVenda >= d7) stats[sku].vendas7d += qtd;
-      if (dataVenda >= d15) stats[sku].vendas15d += qtd;
-      if (dataVenda >= d30) stats[sku].vendas30d += qtd;
+      // Filtra vendas de hoje em diante (fora do período encerrado)
+      if (dataVendaTime > ontemTime) return;
+
+      // Estatísticas básicas (sempre calculadas com base nos limites estáveis)
+      if (dataVendaTime >= d7Time) stats[sku].vendas7d += qtd;
+      if (dataVendaTime >= d15Time) stats[sku].vendas15d += qtd;
+      if (dataVendaTime >= d30Time) stats[sku].vendas30d += qtd;
       stats[sku].totalSempre += qtd;
 
       // Filtros de Seleção (Marca e Local)
@@ -154,9 +165,9 @@ export default function Sellout() {
 
       if (passLocal && passMarcaFiltro) {
         let considerar = false;
-        if (filtroDias === '7' && dataVenda >= d7) considerar = true;
-        else if (filtroDias === '15' && dataVenda >= d15) considerar = true;
-        else if (filtroDias === '30' && dataVenda >= d30) considerar = true;
+        if (filtroDias === '7' && dataVendaTime >= d7Time) considerar = true;
+        else if (filtroDias === '15' && dataVendaTime >= d15Time) considerar = true;
+        else if (filtroDias === '30' && dataVendaTime >= d30Time) considerar = true;
         else if (filtroDias === 'all') considerar = true;
 
         if (considerar) {
