@@ -167,6 +167,39 @@ async function fetchBadstock() {
   }
 }
 
+async function fetchMapeamentosSupabase() {
+  try {
+    console.log('[DataContext] Buscando mapeamentos do Supabase (produção)...');
+    const PAGE_SIZE = 2000;
+    let allData = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('silver_mapeamento_sku')
+        .select('sku_plataforma, plataforma, sku_senior, descricao_oficial')
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.warn('[DataContext] Falha ao buscar mapeamentos do Supabase:', error.message);
+        break;
+      }
+
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
+    }
+    console.log(`[DataContext] Mapeamentos carregados do Supabase: ${allData.length} registros`);
+    return allData;
+  } catch (err) {
+    console.warn('[DataContext] API Local offline. Buscando mapeamentos...', err.message);
+    return [];
+  }
+}
+
 // ── Context ───────────────────────────────────────────────────────────────────
 
 const DataContext = createContext(null);
@@ -197,16 +230,130 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      // Busca em paralelo: Google Sheets (sellout) + Supabase/Local (vendas, estoque, caminho, badstock)
-      const [gsResults, vendas, estoque, caminho, badstock] = await Promise.all([
+      // Busca em paralelo: Google Sheets (sellout) + Supabase/Local (vendas, estoque, caminho, badstock) + Mapeamentos
+      const [gsResults, vendas, estoque, caminho, badstock, mappings] = await Promise.all([
         Promise.all(SHEETS_FROM_GS.map(async name => ({ name, rows: await fetchSheet(name) }))),
         fetchVendasSupabase(),
         fetchEstoqueSupabase(),
         fetchCaminho(),
         fetchBadstock(),
+        fetchMapeamentosSupabase(),
       ]);
 
-      const combined = { vendas, estoque, caminho, badstock };
+      // Cria o lookup de mapeamento
+      const mapLookup = {};
+      mappings.forEach(m => {
+        const platSku = String(m.sku_plataforma || "").trim().toUpperCase();
+        const plat = String(m.plataforma || "").trim().toUpperCase();
+        if (platSku && plat) {
+          mapLookup[`${platSku}|${plat}`] = {
+            sku_senior: String(m.sku_senior || "").trim().toUpperCase(),
+            descricao_oficial: String(m.descricao_oficial || "").trim()
+          };
+        }
+      });
+
+      // 1. Traduz Vendas se vier do Supabase direto (quando API local offline)
+      const mappedVendas = vendas.map(r => {
+        if (r.c[6]) return r; // Já mapeado pelo localhost
+
+        const rawSku = String(r.c[2]?.v || "").trim().toUpperCase();
+        const rawLocal = String(r.c[1]?.v || "").trim().toUpperCase();
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+
+        const mappedSku = mapping?.sku_senior || rawSku;
+        const mappedDesc = mapping?.descricao_oficial || r.c[3]?.v || "";
+
+        return {
+          c: [
+            r.c[0], // data
+            r.c[1], // local
+            { v: mappedSku }, // sku mapped
+            { v: mappedDesc }, // desc mapped
+            r.c[4], // qtd
+            r.c[5], // marca
+            { v: rawSku } // index 6: original platform SKU
+          ]
+        };
+      });
+
+      // 2. Traduz Estoque se vier do Supabase direto (quando API local offline)
+      const mappedEstoque = estoque.map(r => {
+        if (r.c[7]) return r; // Já mapeado pelo localhost
+
+        const rawSku = String(r.c[1]?.v || "").trim().toUpperCase();
+        const rawLocal = String(r.c[3]?.v || "").trim().toUpperCase();
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+
+        const mappedSku = mapping?.sku_senior || rawSku;
+        const mappedDesc = mapping?.descricao_oficial || r.c[2]?.v || "";
+
+        return {
+          c: [
+            r.c[0], // data
+            { v: mappedSku }, // sku mapped
+            { v: mappedDesc }, // desc mapped
+            r.c[3], // local
+            r.c[4], // marca
+            r.c[5], // qtd
+            r.c[6], // valor
+            { v: rawSku } // index 7: original platform SKU
+          ]
+        };
+      });
+
+      // 3. Traduz Caminho/Reposicao se vier do Google Sheets direto
+      const mappedCaminho = caminho.map(r => {
+        if (r.c[8]) return r; // Já mapeado pelo localhost
+
+        const rawSku = String(r.c[0]?.v || "").trim().toUpperCase();
+        const rawLocal = String(r.c[2]?.v || "").trim().toUpperCase();
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+
+        const mappedSku = mapping?.sku_senior || rawSku;
+        const mappedDesc = mapping?.descricao_oficial || r.c[1]?.v || "";
+
+        return {
+          c: [
+            { v: mappedSku }, // sku mapped
+            { v: mappedDesc }, // desc mapped
+            r.c[2], // local
+            r.c[3], // NF/envio (não usado)
+            r.c[4], // qtd
+            r.c[5], // status
+            r.c[6], // previsao
+            r.c[7], // NF
+            { v: rawSku } // index 8: original platform SKU
+          ]
+        };
+      });
+
+      // 4. Traduz Badstock se vier do Google Sheets direto
+      const mappedBadstock = badstock.map(r => {
+        if (r.c[3]) return r; // Já mapeado pelo localhost
+
+        const rawSku = String(r.c[1]?.v || "").trim().toUpperCase();
+        const rawLocal = String(r.c[2]?.v || "").trim().toUpperCase();
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+
+        const mappedSku = mapping?.sku_senior || rawSku;
+
+        return {
+          c: [
+            r.c[0], // não usado
+            { v: mappedSku }, // sku mapped
+            r.c[2], // local
+            { v: rawSku } // index 3: original platform SKU
+          ]
+        };
+      });
+
+      const combined = { 
+        vendas: mappedVendas, 
+        estoque: mappedEstoque, 
+        caminho: mappedCaminho, 
+        badstock: mappedBadstock 
+      };
       gsResults.forEach(({ name, rows }) => { combined[name] = rows; });
 
       setData(combined);

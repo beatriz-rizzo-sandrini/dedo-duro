@@ -9,6 +9,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_CAMINHO } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
+import MobileTable from '../components/MobileTable';
 
 export default function Reposicao() {
   const { data, loading, error } = useData();
@@ -205,13 +206,15 @@ export default function Reposicao() {
       ]);
       handleExport(type, "Relatorio_Reposicao_Resumido", headers, exportData);
     } else {
-      const headers = ["SKU Sênior", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
+      const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
       const exportData = [];
       dadosProcessados.envios.forEach(item => {
         Object.values(item.descricoes).forEach(d => {
           d.skus.forEach(s => {
             exportData.push([
               s.sku,
+              s.skuPlat || '-',
+              toTitleCase(d.descricao),
               item.local,
               item.envio,
               item.status,
@@ -351,96 +354,132 @@ export default function Reposicao() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('local')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local de Destino {getSortIcon('local')}</div>
-            </th>
-            <th onClick={() => requestSort('envio')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Envio (NF) {getSortIcon('envio')}</div>
-            </th>
-            <th onClick={() => requestSort('total')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total de Peças {getSortIcon('total')}</div>
-            </th>
-            <th onClick={() => requestSort('status')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status {getSortIcon('status')}</div>
-            </th>
-            <th onClick={() => requestSort('previsao')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Previsão {getSortIcon('previsao')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((env, idx) => {
-            const isEnvExpanded = expandedEnvio === env.id;
-            return (
-              <React.Fragment key={env.id}>
-                <tr style={{ cursor: 'pointer', background: isEnvExpanded ? '#f8fafc' : 'transparent' }} onClick={() => setExpandedEnvio(isEnvExpanded ? null : env.id)}>
-                  <td style={{ fontWeight: 600 }}>{toTitleCase(env.local)}</td>
-                  <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{env.envio}</span></td>
-                  <td style={{ fontWeight: 600 }}>{env.total.toLocaleString('pt-BR')}</td>
-                  <td>
-                    <span style={{ 
-                      background: env.status.includes('CONFER') ? '#fef08a' : env.status === 'FINALIZADO' ? '#bbf7d0' : env.status === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
-                      color: env.status.includes('CONFER') ? '#a16207' : env.status === 'FINALIZADO' ? '#166534' : env.status === 'A CAMINHO' ? '#991b1b' : '#475569', 
-                      padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
-                    }}>
-                      {env.status}
-                    </span>
-                  </td>
-                  <td>{env.previsao}</td>
-                </tr>
-                {isEnvExpanded && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 0 }}>
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div style={{ padding: '0', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', fontSize: '13px' }}>
-                            <tbody>
-                              {Object.values(env.descricoes).map((desc, dIdx) => {
-                                const isDescExpanded = expandedDesc === `${env.id}-${desc.descricao}`;
-                                return (
-                                  <React.Fragment key={dIdx}>
-                                    <tr style={{ cursor: 'pointer', background: '#e2e8f0' }} onClick={() => setExpandedDesc(isDescExpanded ? null : `${env.id}-${desc.descricao}`)}>
-                                      <td style={{ padding: '12px 40px', fontWeight: 600, width: '40%' }}>{toTitleCase(desc.descricao)}</td>
-                                      <td style={{ padding: '12px 20px', fontWeight: 600 }}>{desc.total.toLocaleString('pt-BR')} peças</td>
-                                    </tr>
-                                    {isDescExpanded && desc.skus.map((skuItem, sIdx) => (
-                                      <tr key={sIdx}>
-                                        <td style={{ padding: '8px 80px', color: '#64748b' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.sku}</span>
-                                          </div>
-                                        </td>
-                                        <td style={{ padding: '8px 20px' }}>{skuItem.quantidade.toLocaleString('pt-BR')} un</td>
-                                      </tr>
-                                    ))}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+      <MobileTable
+        columns={[
+          {
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local de Destino {getSortIcon('local')}</div>,
+            rawLabel: 'Local de Destino',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.local)}</span>,
+            onSort: () => requestSort('local'),
+          },
+          {
+            key: 'envio',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Envio (NF) {getSortIcon('envio')}</div>,
+            rawLabel: 'Envio (NF)',
+            render: (row) => <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{row.envio}</span>,
+            onSort: () => requestSort('envio'),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total de Peças {getSortIcon('total')}</div>,
+            rawLabel: 'Total de Peças',
+            render: (row) => <span style={{ fontWeight: 600 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('total'),
+          },
+          {
+            key: 'status',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status {getSortIcon('status')}</div>,
+            rawLabel: 'Status',
+            render: (row) => (
+              <span style={{ 
+                background: row.status.includes('CONFER') ? '#fef08a' : row.status === 'FINALIZADO' ? '#bbf7d0' : row.status === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
+                color: row.status.includes('CONFER') ? '#a16207' : row.status === 'FINALIZADO' ? '#166534' : row.status === 'A CAMINHO' ? '#991b1b' : '#475569', 
+                padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
+              }}>
+                {row.status}
+              </span>
+            ),
+            onSort: () => requestSort('status'),
+          },
+          {
+            key: 'previsao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Previsão {getSortIcon('previsao')}</div>,
+            rawLabel: 'Previsão',
+            render: (row) => row.previsao,
+            onSort: () => requestSort('previsao'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedEnvio(expandedEnvio === row.id ? null : row.id)}
+        isExpanded={(row) => expandedEnvio === row.id}
+        renderExpandedDesktop={(env) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Descrição do Produto</th>
+                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa', width: '220px' }}>SKU Sênior</th>
+                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa', width: '220px' }}>SKU Plataforma</th>
+                      <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Quantidade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(env.descricoes).map((desc) => (
+                      <React.Fragment key={desc.descricao}>
+                        {desc.skus.map((skuItem, sIdx) => (
+                          <tr key={skuItem.sku + sIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            {sIdx === 0 && (
+                              <td style={{ padding: '10px 20px', fontWeight: 600, color: '#1e293b' }} rowSpan={desc.skus.length}>
+                                {toTitleCase(desc.descricao)}
+                              </td>
+                            )}
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569' }}>
+                              {skuItem.sku}
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                              {skuItem.skuPlat || '-'}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {skuItem.quantidade.toLocaleString('pt-BR')} un
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        renderExpanded={(env) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Object.values(env.descricoes).map((desc) => (
+                <div key={desc.descricao} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>{toTitleCase(desc.descricao)}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {desc.skus.map((skuItem, sIdx) => (
+                      <div key={skuItem.sku + sIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', borderTop: sIdx > 0 ? '1px solid #f1f5f9' : 'none', paddingTop: sIdx > 0 ? '6px' : '0' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontFamily: 'monospace', color: '#475569' }}>{skuItem.sku}</span>
+                          {skuItem.skuPlat && <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '10px' }}>Plat: {skuItem.skuPlat}</span>}
                         </div>
-                      </motion.div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            )
-          })}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Nenhum dado encontrado para os filtros aplicados.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.quantidade} un</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

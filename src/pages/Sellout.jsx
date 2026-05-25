@@ -22,6 +22,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
+import MobileTable from '../components/MobileTable';
 
 ChartJS.register(
   CategoryScale,
@@ -47,6 +48,7 @@ export default function Sellout() {
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'vendasFiltradas', direction: 'desc' });
+  const [expandedId, setExpandedId] = useState(null);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -78,24 +80,8 @@ export default function Sellout() {
     };
 
     const stats = {};
-    const estoqueMap = {};
     const setMarcas = new Set();
     const setLocais = new Set();
-
-    // 1. Mapeia Estoque (Filtrado por Loja se necessário)
-    estoqueRows.forEach(r => {
-      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
-      const localEstoque = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
-      const lojaEstoque = localEstoque.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
-
-      if (sku) {
-        if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
-        
-        if (!estoqueMap[sku]) estoqueMap[sku] = 0;
-        estoqueMap[sku] += qtd;
-      }
-    });
 
     // Define limites de datas baseados em ontem, idênticos à página de Vendas (estáveis em UTC)
     const hojeLocal = new Date();
@@ -111,20 +97,87 @@ export default function Sellout() {
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
 
+    // 1. Processar Estoque primeiro para registrar todos os produtos e suas variações
+    estoqueRows.forEach(r => {
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      if (dataEstoque && dataStr !== dataEstoque) return;
+
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
+      const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
+      const marca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+
+      if (sku) {
+        if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
+        
+        if (marca) setMarcas.add(marca);
+        if (local) setLocais.add(local);
+
+        const parsed = parseProductDescription(rawDesc, sku);
+        const prodKey = `${parsed.baseTitle}|${marca}`;
+
+        if (!stats[prodKey]) {
+          stats[prodKey] = {
+            descricao: parsed.baseTitle,
+            marca,
+            vendas7d: 0,
+            vendas15d: 0,
+            vendas30d: 0,
+            vendasFiltradas: 0,
+            totalSempre: 0,
+            totalEstoque: 0,
+            cores: {},
+            id: prodKey,
+            skusArr: []
+          };
+        }
+
+        if (sku && !stats[prodKey].skusArr.includes(sku)) stats[prodKey].skusArr.push(sku);
+        const skuPlat = r?.c?.[7]?.v || "";
+        if (skuPlat && !stats[prodKey].skusArr.includes(skuPlat)) stats[prodKey].skusArr.push(skuPlat);
+
+        stats[prodKey].totalEstoque += qtd;
+
+        const corKey = parsed.color;
+        if (!stats[prodKey].cores[corKey]) {
+          stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, variacoes: {} };
+        }
+        stats[prodKey].cores[corKey].totalEstoque += qtd;
+
+        const varKey = `${sku}|${parsed.size}`;
+        if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
+          stats[prodKey].cores[corKey].variacoes[varKey] = { 
+            sku, 
+            skuPlat, 
+            size: parsed.size, 
+            vendas7d: 0, 
+            vendas15d: 0, 
+            vendas30d: 0, 
+            vendasFiltradas: 0, 
+            totalSempre: 0, 
+            estoque: 0 
+          };
+        }
+        stats[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
+      }
+    });
+
     let totalGeralPeriodo = 0;
     const vendasPorMarca = {};
     const vendasPorProduto = {};
     const vendasPorLocal = {};
     const vendasPorData = {};
 
-    // 2. Processa Vendas
+    // 2. Processar Vendas
     vendasRows.forEach(r => {
       const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
-      // Cria a data da venda no formato UTC midnight estável
       const dataVendaTime = Date.UTC(Number(y), Number(m) - 1, Number(d));
       
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const skuPlat = r?.c?.[6]?.v || "";
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
@@ -132,39 +185,65 @@ export default function Sellout() {
       const lojaVenda = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
-      // Filtro de Loja (Buy Clock vs Sandrini)
       if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
 
       if (marca) setMarcas.add(marca);
       if (local) setLocais.add(local);
 
-      if (!stats[sku]) {
-        const parsed = parseProductDescription(desc, sku);
-        const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
-        const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
-        const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
+      // Filtra vendas de hoje em diante (fora do período encerrado)
+      if (dataVendaTime > ontemTime) return;
 
-        stats[sku] = { 
-          sku, 
-          skuPlat,
-          descricao: cleanDesc, 
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${marca}`;
+
+      if (!stats[prodKey]) {
+        stats[prodKey] = { 
+          descricao: parsed.baseTitle, 
           marca, 
           vendas7d: 0, 
           vendas15d: 0, 
           vendas30d: 0, 
           vendasFiltradas: 0,
-          totalSempre: 0
+          totalSempre: 0,
+          totalEstoque: 0,
+          cores: {},
+          id: prodKey,
+          skusArr: []
         };
       }
 
-      // Filtra vendas de hoje em diante (fora do período encerrado)
-      if (dataVendaTime > ontemTime) return;
+      if (sku && !stats[prodKey].skusArr.includes(sku)) stats[prodKey].skusArr.push(sku);
+      if (skuPlat && !stats[prodKey].skusArr.includes(skuPlat)) stats[prodKey].skusArr.push(skuPlat);
 
-      // Estatísticas básicas (sempre calculadas com base nos limites estáveis)
-      if (dataVendaTime >= d7Time) stats[sku].vendas7d += qtd;
-      if (dataVendaTime >= d15Time) stats[sku].vendas15d += qtd;
-      if (dataVendaTime >= d30Time) stats[sku].vendas30d += qtd;
-      stats[sku].totalSempre += qtd;
+      if (dataVendaTime >= d7Time) stats[prodKey].vendas7d += qtd;
+      if (dataVendaTime >= d15Time) stats[prodKey].vendas15d += qtd;
+      if (dataVendaTime >= d30Time) stats[prodKey].vendas30d += qtd;
+      stats[prodKey].totalSempre += qtd;
+
+      const corKey = parsed.color;
+      if (!stats[prodKey].cores[corKey]) {
+        stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, variacoes: {} };
+      }
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
+        stats[prodKey].cores[corKey].variacoes[varKey] = { 
+          sku, 
+          skuPlat, 
+          size: parsed.size, 
+          vendas7d: 0, 
+          vendas15d: 0, 
+          vendas30d: 0, 
+          vendasFiltradas: 0, 
+          totalSempre: 0, 
+          estoque: 0 
+        };
+      }
+
+      if (dataVendaTime >= d7Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas7d += qtd;
+      if (dataVendaTime >= d15Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas15d += qtd;
+      if (dataVendaTime >= d30Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas30d += qtd;
+      stats[prodKey].cores[corKey].variacoes[varKey].totalSempre += qtd;
 
       // Filtros de Seleção (Marca e Local)
       const passLocal = filtroLocal.length === 0 || filtroLocal.some(l => l.value === local);
@@ -178,15 +257,17 @@ export default function Sellout() {
         else if (filtroDias === 'all') considerar = true;
 
         if (considerar) {
-          stats[sku].vendasFiltradas += qtd;
+          stats[prodKey].vendasFiltradas += qtd;
+          stats[prodKey].cores[corKey].totalVendas += qtd;
+          stats[prodKey].cores[corKey].variacoes[varKey].vendasFiltradas += qtd;
           totalGeralPeriodo += qtd;
 
           // Agrupamento para Gráficos
           if (!vendasPorMarca[marca]) vendasPorMarca[marca] = 0;
           vendasPorMarca[marca] += qtd;
 
-          if (!vendasPorProduto[desc]) vendasPorProduto[desc] = 0;
-          vendasPorProduto[desc] += qtd;
+          if (!vendasPorProduto[parsed.baseTitle]) vendasPorProduto[parsed.baseTitle] = 0;
+          vendasPorProduto[parsed.baseTitle] += qtd;
 
           if (!vendasPorLocal[local]) vendasPorLocal[local] = 0;
           vendasPorLocal[local] += qtd;
@@ -198,29 +279,43 @@ export default function Sellout() {
     });
 
     const rows = Object.values(stats).map(s => {
-      const stock = estoqueMap[s.sku] || 0;
       const share = totalGeralPeriodo > 0 ? ((s.vendasFiltradas / totalGeralPeriodo) * 100).toFixed(1) : 0;
-      return { ...s, estoque: stock, share: Number(share) };
+      return { ...s, share: Number(share) };
     });
 
     // Filtro de Busca (na tabela)
-    const filteredRows = rows.filter(r => {
+    let filteredRows = rows.filter(r => {
       const hasFilter = filtroMarca.length > 0 || filtroLocal.length > 0;
       
       // Se há filtro ativo de marca/local, só mostra itens com venda no período filtrado
       if (hasFilter && r.vendasFiltradas === 0) return false;
-      if (!busca) return r.vendasFiltradas > 0 || r.estoque > 0;
+      if (!busca) return r.vendasFiltradas > 0 || r.totalEstoque > 0;
 
       const termos = busca.toLowerCase().trim().split(/\s+/);
-      const skuLower = (r.sku || "").toLowerCase();
-      const skuPlatLower = (r.skuPlat || "").toLowerCase();
+      const skusArray = r.skusArr.map(s => s.toLowerCase());
       const descLower = (r.descricao || "").toLowerCase();
 
       return termos.every(termo => 
-        skuLower.includes(termo) || 
-        skuPlatLower.includes(termo) || 
-        descLower.includes(termo)
+        descLower.includes(termo) || 
+        skusArray.some(sku => sku.includes(termo))
       );
+    });
+
+    // KPI stats
+    let skusComVenda = 0;
+    let skusRuptura = 0;
+    
+    rows.forEach(r => {
+      Object.values(r.cores).forEach(c => {
+        Object.values(c.variacoes).forEach(v => {
+          if (v.vendasFiltradas > 0) {
+            skusComVenda++;
+            if (v.estoque === 0) {
+              skusRuptura++;
+            }
+          }
+        });
+      });
     });
 
     // Ordenação
@@ -315,9 +410,7 @@ export default function Sellout() {
     };
 
     // KPIs Adicionais
-    const skusComVenda = rows.filter(r => r.vendasFiltradas > 0).length;
-    const totalEstoque = rows.reduce((acc, r) => acc + r.estoque, 0);
-    const skusRuptura = rows.filter(r => r.vendasFiltradas > 0 && r.estoque === 0).length;
+    const totalEstoque = rows.reduce((acc, r) => acc + r.totalEstoque, 0);
     
     const numDias = filtroDias === 'all' ? 30 : Number(filtroDias); // Fallback para 30 se for all
     const vmd = (totalGeralPeriodo / numDias).toFixed(1);
@@ -343,34 +436,40 @@ export default function Sellout() {
 
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
-      const headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque"];
-      const agrupado = {};
-      dadosProcessados.linhas.forEach(r => {
-        const baseTitle = r.descricao.split(' Tam ')[0].split(' Cor ')[0];
-        const key = `${baseTitle}|${r.marca}`;
-        if (!agrupado[key]) {
-          agrupado[key] = { baseTitle, marca: r.marca, vendas: 0, estoque: 0 };
-        }
-        agrupado[key].vendas += r.vendasFiltradas;
-        agrupado[key].estoque += r.estoque;
-      });
-      const exportData = Object.values(agrupado).map(a => [
-        a.baseTitle,
-        a.marca,
-        a.vendas,
-        a.estoque
+      const headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+      const exportData = dadosProcessados.linhas.map(item => [
+        item.descricao,
+        item.marca,
+        item.vendasFiltradas,
+        item.totalEstoque,
+        item.share + "%"
       ]);
       handleExport(type, `Sellout_${filtroDias}d_Resumido`, headers, exportData);
     } else {
-      const headers = ["SKU Sênior", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-      const exportData = dadosProcessados.linhas.map(r => [
-        r.sku,
-        r.descricao,
-        r.marca,
-        r.vendasFiltradas,
-        r.estoque,
-        r.share + "%"
-      ]);
+      const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+      const exportData = [];
+      
+      dadosProcessados.linhas.forEach(item => {
+        Object.values(item.cores).forEach(corObj => {
+          Object.values(corObj.variacoes).forEach(v => {
+            const share = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
+            
+            const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+            const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+            const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
+
+            exportData.push([
+              v.sku,
+              v.skuPlat || '',
+              fullDesc,
+              item.marca,
+              v.vendasFiltradas,
+              v.estoque,
+              share + "%"
+            ]);
+          });
+        });
+      });
       handleExport(type, `Sellout_${filtroDias}d_Detalhado`, headers, exportData);
     }
   };
@@ -618,99 +717,228 @@ export default function Sellout() {
         </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <table className="data-table" style={{ border: 'none', boxShadow: 'none' }}>
-          <thead>
-            <tr>
-              <th onClick={() => requestSort('sku')} style={{ cursor: 'pointer' }}>SKU {getSortIcon('sku')}</th>
-              <th onClick={() => requestSort('descricao')} style={{ cursor: 'pointer' }}>DESCRIÇÃO {getSortIcon('descricao')}</th>
-              <th onClick={() => requestSort('marca')} style={{ cursor: 'pointer' }}>MARCA {getSortIcon('marca')}</th>
-              <th onClick={() => requestSort('vendasFiltradas')} style={{ cursor: 'pointer', textAlign: 'center' }}>VENDAS {getSortIcon('vendasFiltradas')}</th>
-              <th onClick={() => requestSort('estoque')} style={{ cursor: 'pointer', textAlign: 'center' }}>ESTOQUE {getSortIcon('estoque')}</th>
-              <th onClick={() => requestSort('share')} style={{ cursor: 'pointer', textAlign: 'center' }}>SHARE % {getSortIcon('share')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linhasPaginadas.map((r, i) => (
-              <tr key={r.sku + i}>
-                <td style={{ fontWeight: '700', color: '#1e293b', fontSize: '13px' }}>{r.sku}</td>
-                <td style={{ fontSize: '13px' }}>{toTitleCase(r.descricao)}</td>
-                <td>
-                  <span style={{ fontSize: '11px', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontWeight: 600, color: '#475569' }}>
-                    {toTitleCase(r.marca)}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center', fontWeight: '600' }}>{r.vendasFiltradas}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ color: r.estoque === 0 ? '#ef4444' : 'inherit', fontWeight: r.estoque === 0 ? '700' : 'normal' }}>
-                    {r.estoque}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <div style={{ width: '40px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(r.share * 5, 100)}%`, height: '100%', background: '#3b82f6' }}></div>
-                    </div>
-                    <span style={{ fontSize: '12px', fontWeight: 600, width: '40px' }}>{r.share}%</span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {linhasPaginadas.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
-                  Nenhum resultado encontrado para os filtros selecionados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Paginação */}
-        <div style={{ padding: '20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
-            Mostrando <strong>{linhasPaginadas.length}</strong> de <strong>{dadosProcessados.linhas.length}</strong> SKUs
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '10px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>Linhas:</span>
-              <select 
-                className="input-padrao" 
-                style={{ width: 'auto', padding: '4px 24px 4px 10px', height: '32px' }} 
-                value={itensPorPagina} 
-                onChange={e => setItensPorPagina(Number(e.target.value))}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-
-            {totalPaginas > 1 && (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                  disabled={currentPage === 1}
-                  className="btn-padrao" style={{ padding: '6px' }}
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: '13px', fontWeight: 600, color: '#475569' }}>
-                  {currentPage} / {totalPaginas}
+      <MobileTable
+        columns={[
+          {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>,
+            rawLabel: 'Descrição',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          {
+            key: 'marca',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Marca {getSortIcon('marca')}</div>,
+            rawLabel: 'Marca',
+            render: (row) => (
+              <span style={{ fontSize: '11px', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontWeight: 600, color: '#475569' }}>
+                {toTitleCase(row.marca)}
+              </span>
+            ),
+            onSort: () => requestSort('marca'),
+          },
+          {
+            key: 'vendasFiltradas',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('vendasFiltradas')}</div>,
+            rawLabel: 'Vendas',
+            render: (row) => <span style={{ fontWeight: 600 }}>{row.vendasFiltradas.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('vendasFiltradas'),
+          },
+          {
+            key: 'totalEstoque',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('totalEstoque')}</div>,
+            rawLabel: 'Estoque',
+            render: (row) => (
+              <span style={{ color: row.totalEstoque === 0 ? '#ef4444' : 'inherit', fontWeight: row.totalEstoque === 0 ? '700' : 'normal' }}>
+                {row.totalEstoque.toLocaleString('pt-BR')}
+              </span>
+            ),
+            onSort: () => requestSort('totalEstoque'),
+          },
+          {
+            key: 'share',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Share % {getSortIcon('share')}</div>,
+            rawLabel: 'Share',
+            render: (row) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '40px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(row.share * 5, 100)}%`, height: '100%', background: '#3b82f6' }}></div>
                 </div>
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPaginas, p + 1))} 
-                  disabled={currentPage === totalPaginas}
-                  className="btn-padrao" style={{ padding: '6px' }}
-                >
-                  <ChevronRight size={18} />
-                </button>
+                <span style={{ fontSize: '12px', fontWeight: 600, width: '40px' }}>{row.share}%</span>
               </div>
-            )}
-          </div>
+            ),
+            onSort: () => requestSort('share'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+        isExpanded={(row) => expandedId === row.id}
+        renderExpandedDesktop={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                  {/* Cabeçalho da Cor */}
+                  <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>🎨</span>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                        Estoque: {corObj.totalEstoque.toLocaleString('pt-BR')} pçs
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                        Vendas: {corObj.totalVendas.toLocaleString('pt-BR')} pçs
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Tabela de Variações */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Sênior</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Plataforma</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.values(corObj.variacoes).map((v) => {
+                        const varShare = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
+                        return (
+                          <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                            <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                              <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                {v.size || 'Único'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                              {v.sku}
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                              {v.skuPlat || '-'}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.vendasFiltradas.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.estoque === 0 ? '#ef4444' : '#0f172a' }}>
+                              {v.estoque.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                              {varShare}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        renderExpanded={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  {/* Cabeçalho Cor */}
+                  <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                      Estoque: {corObj.totalEstoque}
+                    </span>
+                  </div>
+                  
+                  {/* Lista de Variações Mobile */}
+                  <div style={{ padding: '0 14px' }}>
+                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => {
+                      const varShare = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
+                      return (
+                        <div key={v.sku} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {v.size || 'Único'}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '12px' }}>{v.sku}</span>
+                            </div>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#3b82f6' }}>
+                              {varShare}%
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                            <span>Vendas: {v.vendasFiltradas} un</span>
+                            <span style={{ color: v.estoque === 0 ? '#ef4444' : 'inherit' }}>Estoque: {v.estoque} un</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum resultado encontrado para os filtros selecionados."
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+        <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Mostrar 
+          <select 
+            className="input-padrao" 
+            style={{ width: 'auto', padding: '6px 30px 6px 12px' }} 
+            value={itensPorPagina} 
+            onChange={e => { setItensPorPagina(Number(e.target.value)); setCurrentPage(1); }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={999999}>Todos</option>
+          </select>
+          linhas
         </div>
+
+        {totalPaginas > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+              disabled={currentPage === 1}
+              style={{ padding: '8px', borderRadius: '8px', background: currentPage === 1 ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronLeft size={20} color={currentPage === 1 ? '#94a3b8' : '#0f172a'} />
+            </button>
+            
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
+              Página {currentPage} de {totalPaginas}
+            </span>
+
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))} 
+              disabled={currentPage === totalPaginas}
+              style={{ padding: '8px', borderRadius: '8px', background: currentPage === totalPaginas ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === totalPaginas ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronRight size={20} color={currentPage === totalPaginas ? '#94a3b8' : '#0f172a'} />
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );
