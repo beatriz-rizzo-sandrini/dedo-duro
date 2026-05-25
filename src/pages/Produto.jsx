@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
+import { getLatestDates } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
@@ -121,8 +122,13 @@ export default function Produto() {
       diasPeriodo = (new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24) + 1;
     }
 
+    const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+
     const skuToDesc = {};
     estoqueRows.forEach(r => {
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      if (dataEstoque && dataStr !== dataEstoque) return;
+
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
@@ -159,6 +165,9 @@ export default function Produto() {
     const agrupado = {};
 
     estoqueRows.forEach(r => {
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      if (dataEstoque && dataStr !== dataEstoque) return;
+
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase();
       const skuPlat = r?.c?.[7]?.v || "";
       let desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
@@ -389,7 +398,14 @@ export default function Produto() {
     const totalGeralValor = linhas.reduce((acc, l) => acc + l.valorEstoque, 0);
     const totalGeralSkus = linhas.reduce((acc, l) => acc + l.cores.reduce((sum, c) => sum + c.variacoes.length, 0), 0);
 
-    return { linhas, totalGeralEstoque, totalGeralValor, totalGeralSkus };
+    return { 
+      linhas, 
+      totalGeralEstoque, 
+      totalGeralValor, 
+      totalGeralSkus,
+      dataEstoque,
+      dataVendas
+    };
   }, [estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany, busca, sortConfig]);
 
   const addToCart = (skuObj, localObj, customRepo) => {
@@ -437,6 +453,9 @@ export default function Produto() {
         <div>
           <h1>Análise de Produto</h1>
           <p>Análise de vendas, cobertura de estoque e sugestão de reposição inteligente</p>
+          {busca.trim() && dadosProcessados && (
+            <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
+          )}
         </div>
         <button
           onClick={() => setIsCartOpen(true)}
