@@ -21,26 +21,28 @@ function SkuRow({ s, loc, addToCart }) {
 
   return (
     <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-      <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+      <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+        <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+          {s.size || 'Único'}
+        </span>
+      </td>
+      <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
         {s.sku} 
         {s.skuPlat && s.skuPlat !== s.sku && (
-          <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b', display: 'block', marginTop: '2px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
             Plat: {s.skuPlat}
           </span>
         )}
         {s.isRuptura && ' 🔴'} 
         {s.isBad && ' ⛔'}
       </td>
-      <td style={{ padding: '10px 8px', fontWeight: 600, color: '#475569' }}>
-        🎨 {toTitleCase(s.color)} - {s.size}
-      </td>
-      <td style={{ textAlign: 'center' }}>{s.estoque}</td>
-      <td style={{ textAlign: 'center', fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#475569' }}>
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.estoque} un</td>
+      <td style={{ textAlign: 'center', padding: '10px 20px', fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#475569' }}>
         {s.aCaminho > 0 ? `${s.aCaminho} un` : '-'}
       </td>
-      <td style={{ textAlign: 'center' }}>{s.vendas}</td>
-      <td style={{ textAlign: 'center' }}>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura) + " dias"}</td>
-      <td style={{ padding: '8px 0' }}>
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.vendas} un</td>
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura) + " dias"}</td>
+      <td style={{ padding: '10px 20px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
             type="number"
@@ -184,26 +186,41 @@ export default function Produto() {
           caminhoTotal: 0,
           reposicaoTotal: 0,
           id: prodKey,
-          skus: {}
+          cores: {}
         };
       }
 
       agrupado[prodKey].estoqueTotal += qtd;
       agrupado[prodKey].valorEstoque += (custoUnitario * qtd);
 
-      if (!agrupado[prodKey].skus[sku]) {
-        agrupado[prodKey].skus[sku] = {
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = {
+          cor: corKey,
+          totalEstoque: 0,
+          totalCaminho: 0,
+          totalVendas: 0,
+          totalReposicao: 0,
+          variacoes: {}
+        };
+      }
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku,
           skuPlat: skuPlat,
           estoque: 0,
           vendas: 0,
           aCaminho: 0,
-          color: parsed.color,
+          color: corKey,
           size: parsed.size
         };
       }
-      agrupado[prodKey].skus[sku].estoque += qtd;
-      if (skuPlat && !agrupado[prodKey].skus[sku].skuPlat) agrupado[prodKey].skus[sku].skuPlat = skuPlat;
+      agrupado[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
+      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      }
     });
 
     vendasRows.forEach(r => {
@@ -239,66 +256,95 @@ export default function Produto() {
           caminhoTotal: 0,
           reposicaoTotal: 0,
           id: prodKey,
-          skus: {}
+          cores: {}
         };
       }
 
       agrupado[prodKey].vendasTotal += qtd;
 
-      if (!agrupado[prodKey].skus[sku]) {
-        agrupado[prodKey].skus[sku] = {
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = {
+          cor: corKey,
+          totalEstoque: 0,
+          totalCaminho: 0,
+          totalVendas: 0,
+          totalReposicao: 0,
+          variacoes: {}
+        };
+      }
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku,
           skuPlat: skuPlat,
           estoque: 0,
           vendas: 0,
           aCaminho: 0,
-          color: parsed.color,
+          color: corKey,
           size: parsed.size
         };
       }
-      agrupado[prodKey].skus[sku].vendas += qtd;
-      if (skuPlat && !agrupado[prodKey].skus[sku].skuPlat) agrupado[prodKey].skus[sku].skuPlat = skuPlat;
+      agrupado[prodKey].cores[corKey].variacoes[varKey].vendas += qtd;
+      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      }
     });
 
     let linhas = Object.values(agrupado).map(prod => {
       let localACaminho = 0;
       let localReposicao = 0;
 
-      const skusArray = Object.values(prod.skus).map(s => {
-        const aCaminho = aCaminhoMap[prod.local]?.[s.sku] || 0;
-        localACaminho += aCaminho;
-        s.aCaminho = aCaminho;
+      const coresArray = Object.values(prod.cores).map(corObj => {
+        let corACaminho = 0;
+        let corReposicao = 0;
 
-        const media = s.vendas / diasPeriodo;
-        const repo = Math.round((media * diasCobertura) - s.estoque - aCaminho);
-        const finalRepo = repo > 0 ? repo : 0;
-        localReposicao += finalRepo;
+        const variacoesArray = Object.values(corObj.variacoes).map(v => {
+          const aCaminho = aCaminhoMap[prod.local]?.[v.sku] || 0;
+          localACaminho += aCaminho;
+          corACaminho += aCaminho;
+          v.aCaminho = aCaminho;
 
-        return {
-          ...s,
-          cobertura: media > 0 ? s.estoque / media : (s.vendas > 0 ? 0 : -1),
-          reposicaoSugerida: finalRepo,
-          isBad: badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === s.sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === prod.local),
-          isRuptura: s.estoque === 0 && s.vendas > 0
-        };
-      });
+          const media = v.vendas / diasPeriodo;
+          const repo = Math.round((media * diasCobertura) - v.estoque - aCaminho);
+          const finalRepo = repo > 0 ? repo : 0;
+          localReposicao += finalRepo;
+          corReposicao += finalRepo;
+          v.reposicaoSugerida = finalRepo;
 
-      const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
-      skusArray.sort((a, b) => {
-        const aVal = String(a.size || '').toUpperCase().trim();
-        const bVal = String(b.size || '').toUpperCase().trim();
-        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
-        if (sizeWeights[aVal] !== undefined) return -1;
-        if (sizeWeights[bVal] !== undefined) return 1;
-        const aNum = parseFloat(aVal);
-        const bNum = parseFloat(bVal);
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return aVal.localeCompare(bVal);
+          v.cobertura = media > 0 ? v.estoque / media : (v.vendas > 0 ? 0 : -1);
+          v.isBad = badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === v.sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === prod.local);
+          v.isRuptura = v.estoque === 0 && v.vendas > 0;
+
+          return v;
+        });
+
+        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+        variacoesArray.sort((a, b) => {
+          const aVal = String(a.size || '').toUpperCase().trim();
+          const bVal = String(b.size || '').toUpperCase().trim();
+          if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+          if (sizeWeights[aVal] !== undefined) return -1;
+          if (sizeWeights[bVal] !== undefined) return 1;
+          const aNum = parseFloat(aVal);
+          const bNum = parseFloat(bVal);
+          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+          return aVal.localeCompare(bVal);
+        });
+
+        corObj.variacoes = variacoesArray;
+        corObj.totalEstoque = variacoesArray.reduce((acc, v) => acc + v.estoque, 0);
+        corObj.totalCaminho = corACaminho;
+        corObj.totalVendas = variacoesArray.reduce((acc, v) => acc + v.vendas, 0);
+        corObj.totalReposicao = corReposicao;
+
+        return corObj;
       });
 
       prod.caminhoTotal = localACaminho;
       prod.reposicaoTotal = localReposicao;
-      prod.skus = skusArray;
+      prod.cores = coresArray;
 
       const mediaLocal = prod.vendasTotal / diasPeriodo;
       prod.cobertura = mediaLocal > 0 ? prod.estoqueTotal / mediaLocal : -1;
@@ -311,9 +357,11 @@ export default function Produto() {
       linhas = linhas.filter(item => {
         const descLower = item.descricao.toLowerCase();
         const localLower = item.local.toLowerCase();
-        const skuMatch = item.skus.some(s => 
-          s.sku.toLowerCase().includes(termos[0]) || 
-          (s.skuPlat && s.skuPlat.toLowerCase().includes(termos[0]))
+        const skuMatch = item.cores.some(c => 
+          c.variacoes.some(v => 
+            v.sku.toLowerCase().includes(termos[0]) || 
+            (v.skuPlat && v.skuPlat.toLowerCase().includes(termos[0]))
+          )
         );
 
         return termos.every(termo => 
@@ -339,7 +387,7 @@ export default function Produto() {
 
     const totalGeralEstoque = linhas.reduce((acc, l) => acc + l.estoqueTotal, 0);
     const totalGeralValor = linhas.reduce((acc, l) => acc + l.valorEstoque, 0);
-    const totalGeralSkus = linhas.reduce((acc, l) => acc + l.skus.length, 0);
+    const totalGeralSkus = linhas.reduce((acc, l) => acc + l.cores.reduce((sum, c) => sum + c.variacoes.length, 0), 0);
 
     return { linhas, totalGeralEstoque, totalGeralValor, totalGeralSkus };
   }, [estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany, busca, sortConfig]);
@@ -358,25 +406,30 @@ export default function Produto() {
   };
 
   const addAll = (localObj) => {
-    const novos = localObj.skus
-      .filter(s => !carrinho.find(c => c.sku === s.sku && c.local === localObj.local))
-      .map(s => ({
-        produto: s.color && s.color !== 'SEM COR' ? `${localObj.descricao} ${s.color}` : localObj.descricao, 
-        local: localObj.local, 
-        sku: s.sku, 
-        estoque: s.estoque,
-        vendas: s.vendas, 
-        cobertura: s.cobertura === -1 ? "∞" : Math.round(s.cobertura), 
-        reposicao: s.reposicaoSugerida
-      }));
+    const novos = [];
+    localObj.cores.forEach(corObj => {
+      corObj.variacoes.forEach(s => {
+        if (!carrinho.find(c => c.sku === s.sku && c.local === localObj.local)) {
+          novos.push({
+            produto: s.color && s.color !== 'SEM COR' ? `${localObj.descricao} ${s.color}` : localObj.descricao, 
+            local: localObj.local, 
+            sku: s.sku, 
+            estoque: s.estoque,
+            vendas: s.vendas, 
+            cobertura: s.cobertura === -1 ? "∞" : Math.round(s.cobertura), 
+            reposicao: s.reposicaoSugerida
+          });
+        }
+      });
+    });
     if (novos.length) setCarrinho(p => [...p, ...novos]);
   };
 
   if (loading) return <div className="header-main"><h1>Carregando dados das planilhas...</h1></div>;
   if (error) return <div style={{ color: 'red', padding: '40px' }}>Erro: {error}</div>;
 
-  const totalPaginas = dadosProcessados ? Math.ceil(dadosProcessados.linhas.length / itensPorPagina) : 0;
-  const linhasPaginadas = dadosProcessados ? dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina) : [];
+  const totalPaginas = dadosProcessados && busca.trim() ? Math.ceil(dadosProcessados.linhas.length / itensPorPagina) : 0;
+  const linhasPaginadas = dadosProcessados && busca.trim() ? dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina) : [];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main" style={{ paddingBottom: '100px' }}>
@@ -425,7 +478,7 @@ export default function Produto() {
         </div>
       </div>
 
-      {dadosProcessados && (
+      {busca.trim() && dadosProcessados ? (
         <>
           <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -519,92 +572,127 @@ export default function Produto() {
             onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
             isExpanded={(row) => expandedId === row.id}
             renderExpandedDesktop={(row) => (
-              <div style={{ background: '#f8fafc', padding: '15px 20px', borderBottom: '2px solid #cbd5e1' }}>
-                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0', height: '35px' }}>
-                      <th style={{ textAlign: 'left', padding: '8px' }}>SKU</th>
-                      <th style={{ textAlign: 'left', padding: '8px' }}>VARIAÇÃO</th>
-                      <th style={{ textAlign: 'center', padding: '8px' }}>ESTOQUE</th>
-                      <th style={{ textAlign: 'center', padding: '8px' }}>A CAMINHO</th>
-                      <th style={{ textAlign: 'center', padding: '8px' }}>VENDAS</th>
-                      <th style={{ textAlign: 'center', padding: '8px' }}>COBERTURA</th>
-                      <th style={{ textAlign: 'left', padding: '8px', width: '180px' }}>ADD REPOSIÇÃO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {row.skus.map((s) => (
-                      <SkuRow key={`${row.local}-${s.sku}`} s={s} loc={row} addToCart={addToCart} />
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {row.cores.map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    {/* Cabeçalho da Cor */}
+                    <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                          Estoque: {corObj.totalEstoque} un
+                        </span>
+                        {corObj.totalCaminho > 0 && (
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                            A Caminho: {corObj.totalCaminho} un
+                          </span>
+                        )}
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: corObj.totalReposicao > 0 ? '#ef4444' : '#64748b', background: corObj.totalReposicao > 0 ? '#fef2f2' : '#f8fafc', padding: '4px 10px', borderRadius: '20px', border: corObj.totalReposicao > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
+                          Sugestão: {corObj.totalReposicao} un
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Tabela de Variações */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Tamanho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Estoque</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>A Caminho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Vendas</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Cobertura</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '180px', background: '#fafafa' }}>Add Reposição</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {corObj.variacoes.map((s) => (
+                          <SkuRow key={`${row.local}-${s.sku}`} s={s} loc={row} addToCart={addToCart} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
             )}
             renderExpanded={(row) => (
-              <div style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {row.skus.map((s) => (
-                  <div key={s.sku} style={{ background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>
-                          🎨 {toTitleCase(s.color)} - {s.size}
-                        </span>
-                        <span style={{ fontFamily: 'monospace', color: '#64748b', fontSize: '11px', marginTop: '2px' }}>
-                          {s.sku}
-                        </span>
-                        {s.skuPlat && s.skuPlat !== s.sku && (
-                          <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '11px' }}>
-                            Plat: {s.skuPlat}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        {s.isRuptura && <span style={{ fontSize: '12px' }}>🔴 Ruptura</span>}
-                        {s.isBad && <span style={{ fontSize: '12px' }}>⛔ Bad</span>}
-                      </div>
+              <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {row.cores.map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    {/* Cabeçalho Cor Mobile */}
+                    <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                        {corObj.totalEstoque} un
+                      </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px', background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
-                      <div>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600 }}>ESTOQUE</div>
-                        <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px' }}>{s.estoque}</div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600 }}>A CAMINHO</div>
-                        <div style={{ fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#94a3b8', marginTop: '2px' }}>
-                          {s.aCaminho > 0 ? s.aCaminho : '-'}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600 }}>VENDAS</div>
-                        <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px' }}>{s.vendas}</div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600 }}>COBERTURA</div>
-                        <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px' }}>
-                          {s.cobertura === -1 ? '∞' : Math.round(s.cobertura)}
-                        </div>
-                      </div>
-                    </div>
+                    {/* Lista de Variações Mobile */}
+                    <div style={{ padding: '0 14px' }}>
+                      {corObj.variacoes.map((s, sIdx, arr) => (
+                        <div key={s.sku} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0', borderBottom: sIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {s.size || 'U'}
+                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{s.sku}</span>
+                                {s.skuPlat && s.skuPlat !== s.sku && (
+                                  <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '10px' }}>Plat: {s.skuPlat}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {s.isRuptura && <span style={{ fontSize: '10px', color: '#ef4444', background: '#fee2e2', padding: '1px 5px', borderRadius: '4px' }}>🔴 Ruptura</span>}
+                              {s.isBad && <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}>⛔ Bad</span>}
+                            </div>
+                          </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <input
-                        type="number"
-                        className="input-padrao"
-                        style={{ flex: 1, padding: '6px 10px', minHeight: '36px' }}
-                        defaultValue={s.reposicaoSugerida}
-                        id={`mob-repo-${row.local}-${s.sku}`}
-                      />
-                      <button
-                        className="btn-padrao"
-                        style={{ padding: '6px 12px', flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', minHeight: '36px' }}
-                        onClick={() => {
-                          const val = Number(document.getElementById(`mob-repo-${row.local}-${s.sku}`)?.value || 0);
-                          addToCart(s, row, val);
-                        }}
-                      >
-                        <ShoppingCart size={14} /> Add
-                      </button>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px', textAlign: 'center', fontSize: '11px', background: '#f8fafc', padding: '6px', borderRadius: '4px' }}>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>ESTOQUE</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.estoque}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>A CAMINHO</div>
+                              <div style={{ fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#94a3b8' }}>{s.aCaminho > 0 ? s.aCaminho : '-'}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>VENDAS</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.vendas}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>COBERTURA</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.cobertura === -1 ? '∞' : Math.round(s.cobertura)}</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                            <input
+                              type="number"
+                              className="input-padrao"
+                              style={{ flex: 1, padding: '4px 8px', minHeight: '32px', fontSize: '12px' }}
+                              defaultValue={s.reposicaoSugerida}
+                              id={`mob-repo-${row.local}-${s.sku}`}
+                            />
+                            <button
+                              className="btn-padrao"
+                              style={{ padding: '4px 10px', flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', minHeight: '32px', fontSize: '12px' }}
+                              onClick={() => {
+                                const val = Number(document.getElementById(`mob-repo-${row.local}-${s.sku}`)?.value || 0);
+                                addToCart(s, row, val);
+                              }}
+                            >
+                              <ShoppingCart size={12} /> Add
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -656,6 +744,14 @@ export default function Produto() {
             )}
           </div>
         </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1', padding: '40px', textAlign: 'center', margin: '20px 0' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔎</div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#334155', margin: '0 0 8px 0' }}>Análise de Produto</h3>
+          <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
+            Digite no campo de busca acima para carregar e analisar as informações do produto desejado.
+          </p>
+        </div>
       )}
 
       {isCartOpen && (
