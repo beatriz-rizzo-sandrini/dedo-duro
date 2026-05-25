@@ -11,6 +11,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
+import { parseProductDescription } from '../utils/productParser';
 
 export default function Alertas() {
   const { data, loading, error } = useData();
@@ -81,7 +82,7 @@ export default function Alertas() {
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
-      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       const key = local + "|" + sku;
@@ -93,7 +94,7 @@ export default function Alertas() {
       const estoqueCentral = estoqueRows.filter(r => {
         const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
         return ["STAND BY", "EXP MINAS"].includes(local) && (r?.c?.[COL_ESTOQUE.SKU]?.v || "") === sku;
-      }).reduce((soma, r) => soma + (r?.c?.[COL_ESTOQUE.QTD]?.v || 0), 0);
+      }).reduce((soma, r) => soma + (Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0), 0);
       return estoqueCentral > 0;
     };
 
@@ -111,7 +112,9 @@ export default function Alertas() {
       if (filtroLocal && local !== filtroLocal) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
-      const qtdEstoque = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const skuPlat = r?.c?.[7]?.v || "";
+      let descricao = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const qtdEstoque = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
       const key = local + "|" + sku;
       const vendas = vendasMap[key] || 0;
       const media = diasPeriodo > 0 ? vendas / diasPeriodo : 0;
@@ -142,7 +145,12 @@ export default function Alertas() {
       }
 
       if (alertaT && (tipoAlerta === "todos" || tipoAlerta === alertaT)) {
-        alertas.push({ local, sku, qtdEstoque, vendas, cobertura, alertaT, alertaI });
+        const parsed = parseProductDescription(descricao, sku);
+        const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
+        const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
+        const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
+
+        alertas.push({ local, sku, skuPlat, descricao: cleanDesc, qtdEstoque, vendas, cobertura, alertaT, alertaI });
       }
     });
 
@@ -150,7 +158,9 @@ export default function Alertas() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       alertas = alertas.filter(l => {
         const skuLower = (l.sku || "").toLowerCase();
-        return termos.every(termo => skuLower.includes(termo));
+        const skuPlatLower = (l.skuPlat || "").toLowerCase();
+        const descLower = (l.descricao || "").toLowerCase();
+        return termos.every(termo => skuLower.includes(termo) || skuPlatLower.includes(termo) || descLower.includes(termo));
       });
     }
 

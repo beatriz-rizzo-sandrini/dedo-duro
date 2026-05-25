@@ -8,6 +8,7 @@ import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_CAMINHO } from '../utils/sheetColumns';
+import { parseProductDescription } from '../utils/productParser';
 
 export default function Reposicao() {
   const { data, loading, error } = useData();
@@ -80,6 +81,7 @@ export default function Reposicao() {
 
     caminhoRows.forEach(r => {
       const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const skuPlat = r?.c?.[8]?.v || "";
       let descricao = r?.c?.[COL_CAMINHO.DESC]?.v || "";
       const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
@@ -91,6 +93,11 @@ export default function Reposicao() {
       if (!descricao && skuToDesc[sku]) descricao = skuToDesc[sku];
       if (!sku && !descricao) return;
       if (!descricao) descricao = `SKU: ${sku}`;
+
+      const parsed = parseProductDescription(descricao, sku);
+      const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
+      const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
+      const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
 
       let previsaoRaw = r?.c?.[COL_CAMINHO.PREVISAO]?.v || "";
       let previsao = "";
@@ -135,11 +142,11 @@ export default function Reposicao() {
       }
       agrupadoEnvio[chaveEnvio].total += quantidade;
 
-      if (!agrupadoEnvio[chaveEnvio].descricoes[descricao]) {
-        agrupadoEnvio[chaveEnvio].descricoes[descricao] = { descricao, total: 0, skus: [] };
+      if (!agrupadoEnvio[chaveEnvio].descricoes[cleanDesc]) {
+        agrupadoEnvio[chaveEnvio].descricoes[cleanDesc] = { descricao: cleanDesc, total: 0, skus: [] };
       }
-      agrupadoEnvio[chaveEnvio].descricoes[descricao].total += quantidade;
-      agrupadoEnvio[chaveEnvio].descricoes[descricao].skus.push({ sku, quantidade, status, previsao });
+      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].total += quantidade;
+      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].skus.push({ sku, skuPlat, quantidade, status, previsao });
     });
 
     let envios = Object.values(agrupadoEnvio);
@@ -152,7 +159,8 @@ export default function Reposicao() {
         
         Object.values(env.descricoes).forEach(desc => {
           const descLower = (desc.descricao || "").toLowerCase();
-          const skusArray = desc.skus.map(s => (s.sku || "").toLowerCase());
+          const skusArray = desc.skus.map(s => (s.sku || "").toLowerCase())
+            .concat(desc.skus.map(s => (s.skuPlat || "").toLowerCase()));
           
           const thisDescMatches = termos.every(termo => 
             envioLower.includes(termo) ||
@@ -185,24 +193,36 @@ export default function Reposicao() {
   const totalPaginas = Math.ceil(dadosProcessados.envios.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.envios.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
-  const handleExportData = (type) => {
-    const headers = ["SKU", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
-    const exportData = [];
-    dadosProcessados.envios.forEach(item => {
-      Object.values(item.descricoes).forEach(d => {
-        d.skus.forEach(s => {
-          exportData.push([
-            s.sku,
-            item.local,
-            item.envio,
-            item.status,
-            item.previsao,
-            s.quantidade
-          ]);
+  const handleExportData = (type, mode = 'detalhado') => {
+    if (mode === 'resumido') {
+      const headers = ["Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade Total"];
+      const exportData = dadosProcessados.envios.map(item => [
+        item.local,
+        item.envio,
+        item.status,
+        item.previsao,
+        item.total
+      ]);
+      handleExport(type, "Relatorio_Reposicao_Resumido", headers, exportData);
+    } else {
+      const headers = ["SKU Sênior", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
+      const exportData = [];
+      dadosProcessados.envios.forEach(item => {
+        Object.values(item.descricoes).forEach(d => {
+          d.skus.forEach(s => {
+            exportData.push([
+              s.sku,
+              item.local,
+              item.envio,
+              item.status,
+              item.previsao,
+              s.quantidade
+            ]);
+          });
         });
       });
-    });
-    handleExport(type, "Relatorio_Reposicao", headers, exportData);
+      handleExport(type, "Relatorio_Reposicao_Detalhado", headers, exportData);
+    }
   };
 
   React.useEffect(() => {
@@ -241,22 +261,33 @@ export default function Reposicao() {
               <Download size={18} /> Exportar
             </button>
             <AnimatePresence>
-              {isExportMenuOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '150px' }}
-                >
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('csv'); setIsExportMenuOpen(false); }}>
-                    <FileText size={16} color="#64748b" /> CSV
-                  </div>
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('xlsx'); setIsExportMenuOpen(false); }}>
-                    <FileSpreadsheet size={16} color="#10b981" /> Excel (XLSX)
-                  </div>
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => { handleExportData('pdf'); setIsExportMenuOpen(false); }}>
-                    <FileText size={16} color="#ef4444" /> PDF
-                  </div>
-                </motion.div>
-              )}
+            {isExportMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
+              >
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (SKUS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (LOTES)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+              </motion.div>
+            )}
             </AnimatePresence>
           </div>
         </div>

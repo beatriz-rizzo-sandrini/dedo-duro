@@ -19,7 +19,16 @@ function SkuRow({ s, loc, addToCart }) {
 
   return (
     <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{s.sku} {s.isRuptura && '🔴'} {s.isBad && '⛔'}</td>
+      <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+        {s.sku} 
+        {s.skuPlat && s.skuPlat !== s.sku && (
+          <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b', display: 'block', marginTop: '2px' }}>
+            Plat: {s.skuPlat}
+          </span>
+        )}
+        {s.isRuptura && ' 🔴'} 
+        {s.isBad && ' ⛔'}
+      </td>
       <td>{s.estoque}</td>
       <td>{s.vendas}</td>
       <td>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura)}</td>
@@ -102,7 +111,10 @@ export default function Produto() {
   const handleSkuSearch = (e) => {
     if (e.key === 'Enter') {
       const sku = skuBusca.trim().toUpperCase();
-      const item = estoqueRows.find(r => String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase() === sku);
+      const item = estoqueRows.find(r => 
+        String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase() === sku ||
+        String(r?.c?.[7]?.v || "").trim().toUpperCase() === sku
+      );
       if (item) {
         setProdutoSelecionado(item?.c?.[COL_ESTOQUE.DESC]?.v);
         setTermoBusca(item?.c?.[COL_ESTOQUE.DESC]?.v);
@@ -133,16 +145,18 @@ export default function Produto() {
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
-      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const skuPlat = r?.c?.[7]?.v || "";
+      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
       // VALOR é o custo unitário — multiplica pela qtd para obter o valor real em estoque
-      const custoUnitario = r?.c?.[COL_ESTOQUE.VALOR]?.v || 0;
+      const custoUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
       const valorEstoque = custoUnitario * qtd;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
+      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0, skuPlat: "" };
 
       skusMapByLocal[local][sku].estoque += qtd;
       skusMapByLocal[local][sku].valor += valorEstoque;
+      if (skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
       valorTotalGeral += valorEstoque;
       skusUnicosSet.add(sku);
     });
@@ -163,12 +177,14 @@ export default function Produto() {
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
       const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
-      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
+      const skuPlat = r?.c?.[6]?.v || "";
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0 };
+      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0, skuPlat: "" };
 
       skusMapByLocal[local][sku].vendas += qtd;
+      if (skuPlat && !skusMapByLocal[local][sku].skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
     });
 
     const locais = Object.entries(skusMapByLocal).map(([local, skus]) => {
@@ -184,7 +200,10 @@ export default function Produto() {
         localReposicaoSugerida += finalRepo;
 
         return {
-          sku, estoque: info.estoque, vendas: info.vendas,
+          sku, 
+          skuPlat: info.skuPlat,
+          estoque: info.estoque, 
+          vendas: info.vendas,
           cobertura: media > 0 ? info.estoque / media : (info.vendas > 0 ? 0 : -1),
           reposicaoSugerida: finalRepo,
           isBad: badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === local),

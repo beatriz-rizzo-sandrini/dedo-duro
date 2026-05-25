@@ -11,6 +11,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
+import { parseProductDescription } from '../utils/productParser';
 
 export default function Estoque() {
   const { data, loading, error } = useData();
@@ -75,10 +76,11 @@ export default function Estoque() {
       if (dataEstoque && dataStr !== dataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const skuPlat = r?.c?.[7]?.v || "";
       let descricao = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const quantidade = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const quantidade = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -90,12 +92,45 @@ export default function Estoque() {
 
       totalGeral += quantidade;
 
-      if (!agrupado[descricao]) {
-        agrupado[descricao] = { descricao, total: 0, itens: [], skusArr: [] };
+      const parsed = parseProductDescription(descricao, sku);
+
+      // Group by Base Title + Local (Model & Platform level)
+      const prodKey = `${parsed.baseTitle}|${local}`;
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = {
+          descricao: parsed.baseTitle,
+          local: local,
+          total: 0,
+          cores: {},
+          skusArr: [],
+          id: prodKey
+        };
       }
-      agrupado[descricao].total += quantidade;
-      agrupado[descricao].itens.push({ sku, local, quantidade });
-      agrupado[descricao].skusArr.push(sku);
+      agrupado[prodKey].total += quantidade;
+      agrupado[prodKey].skusArr.push(sku);
+      if (skuPlat) agrupado[prodKey].skusArr.push(skuPlat);
+
+      // Group by color
+      const corKey = parsed.color;
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = {
+          cor: corKey,
+          total: 0,
+          variacoes: {}
+        };
+      }
+      agrupado[prodKey].cores[corKey].total += quantidade;
+
+      // Group by variation
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
+          sku: sku,
+          size: parsed.size,
+          total: 0
+        };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].total += quantidade;
     });
 
     let linhas = Object.values(agrupado);
@@ -104,10 +139,12 @@ export default function Estoque() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
+        const localLower = (l.local || "").toLowerCase();
         const skusArray = l.skusArr.map(s => s.toLowerCase());
         
         return termos.every(termo => 
           descLower.includes(termo) || 
+          localLower.includes(termo) ||
           skusArray.some(sku => sku.includes(termo))
         );
       });
@@ -133,21 +170,37 @@ export default function Estoque() {
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
-  const handleExportData = (type) => {
-    const headers = ["SKU", "Descrição", "Local", "Quantidade em Estoque"];
-    const exportData = [];
-    dadosProcessados.linhas.forEach(item => {
-      const skuMap = {};
-      item.itens.forEach(i => {
-        const key = i.sku + "|" + i.local;
-        if (!skuMap[key]) skuMap[key] = { sku: i.sku, local: i.local, qtd: 0 };
-        skuMap[key].qtd += i.quantidade;
+  const handleExportData = (type, mode = 'detalhado') => {
+    if (mode === 'resumido') {
+      const headers = filtroLocal ? ["Descrição", "Quantidade em Estoque"] : ["Descrição", "Local", "Quantidade em Estoque"];
+      const exportData = dadosProcessados.linhas.map(item => {
+        if (filtroLocal) {
+          return [item.descricao, item.total];
+        } else {
+          return [item.descricao, item.local, item.total];
+        }
       });
-      Object.values(skuMap).forEach(s => {
-        exportData.push([s.sku, item.descricao, s.local, s.qtd]);
+      handleExport(type, "Estoque_Consolidado_Resumido", headers, exportData);
+    } else {
+      const headers = filtroLocal ? ["SKU Sênior", "Descrição", "Quantidade em Estoque"] : ["SKU Sênior", "Descrição", "Local", "Quantidade em Estoque"];
+      const exportData = [];
+      dadosProcessados.linhas.forEach(item => {
+        Object.values(item.cores).forEach(corObj => {
+          Object.values(corObj.variacoes).forEach(v => {
+            const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+            const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+            const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
+            
+            if (filtroLocal) {
+              exportData.push([v.sku, fullDesc, v.total]);
+            } else {
+              exportData.push([v.sku, fullDesc, item.local, v.total]);
+            }
+          });
+        });
       });
-    });
-    handleExport(type, "Estoque_Consolidado", headers, exportData);
+      handleExport(type, "Estoque_Consolidado_Detalhado", headers, exportData);
+    }
   };
 
   React.useEffect(() => {
@@ -192,16 +245,27 @@ export default function Estoque() {
               {isExportMenuOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '150px' }}
+                  style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
                 >
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('csv'); setIsExportMenuOpen(false); }}>
-                    <FileText size={16} color="#64748b" /> CSV
+                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (CORES/TAMANHOS)</div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
+                    <FileText size={14} color="#64748b" /> CSV
                   </div>
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('xlsx'); setIsExportMenuOpen(false); }}>
-                    <FileSpreadsheet size={16} color="#10b981" /> Excel (XLSX)
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
+                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
                   </div>
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => { handleExportData('pdf'); setIsExportMenuOpen(false); }}>
-                    <FileText size={16} color="#ef4444" /> PDF
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
+                    <FileText size={14} color="#ef4444" /> PDF
+                  </div>
+                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
+                    <FileText size={14} color="#64748b" /> CSV
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
+                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
+                    <FileText size={14} color="#ef4444" /> PDF
                   </div>
                 </motion.div>
               )}
@@ -254,6 +318,13 @@ export default function Estoque() {
             render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
             onSort: () => requestSort('descricao'),
           },
+          ...(!filtroLocal ? [{
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+            rawLabel: 'Local',
+            render: (row) => toTitleCase(row.local),
+            onSort: () => requestSort('local'),
+          }] : []),
           {
             key: 'total',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total em Estoque {getSortIcon('total')}</div>,
@@ -263,48 +334,98 @@ export default function Estoque() {
           },
         ]}
         rows={linhasPaginadas}
-        keyExtractor={(row) => row.descricao}
-        onRowClick={(row) => setExpandedId(expandedId === row.descricao ? null : row.descricao)}
-        isExpanded={(row) => expandedId === row.descricao}
-        renderExpandedDesktop={(prod) => (
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+        isExpanded={(row) => expandedId === row.id}
+        renderExpandedDesktop={(item) => (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <table style={{ width: '100%', fontSize: '13px' }}>
-                <tbody>
-                  {prod.itens.map((item, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: '8px 0', color: '#64748b' }}>
-                        {filtroLocal ? `SKU: ` : `SKU: ${item.sku} | Local: `}
-                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{filtroLocal ? item.sku : item.local}</span>
-                      </td>
-                      <td style={{ padding: '8px 0', width: '100px' }}>{item.quantidade.toLocaleString('pt-BR')} peças</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                  {/* Cabeçalho da Cor */}
+                  <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>🎨</span>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                      {corObj.total.toLocaleString('pt-BR')} peças
+                    </span>
+                  </div>
+                  
+                  {/* Tabela de Variações */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Tamanho</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Qtd em Estoque</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.values(corObj.variacoes).map((v) => (
+                        <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                          <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                            <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                              {v.size || 'Único'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                            {v.sku}
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                            {v.total.toLocaleString('pt-BR')} peças
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
-        renderExpanded={(prod) => (
+        renderExpanded={(item) => (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              {prod.itens.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', borderBottom: i < prod.itens.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                  <span style={{ color: '#64748b' }}>
-                    {filtroLocal ? 'SKU: ' : `SKU: ${item.sku} | `}
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{filtroLocal ? item.sku : item.local}</span>
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{item.quantidade.toLocaleString('pt-BR')} peças</span>
+            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  {/* Cabeçalho Cor */}
+                  <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                      {corObj.total} pçs
+                    </span>
+                  </div>
+                  
+                  {/* Lista de Variações Mobile */}
+                  <div style={{ padding: '0 14px' }}>
+                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => (
+                      <div key={v.sku} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                            {v.size || 'Único'}
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                          </div>
+                        </div>
+                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
+                          {v.total} pçs
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
