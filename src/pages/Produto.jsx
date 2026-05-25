@@ -7,7 +7,7 @@ import { toTitleCase } from '../utils/stringUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
+import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK, COL_CAMINHO } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
 
 function SkuRow({ s, loc, addToCart }) {
@@ -34,6 +34,9 @@ function SkuRow({ s, loc, addToCart }) {
         🎨 {toTitleCase(s.color)} - {s.size}
       </td>
       <td>{s.estoque}</td>
+      <td style={{ fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#475569' }}>
+        {s.aCaminho > 0 ? `${s.aCaminho} un` : '-'}
+      </td>
       <td>{s.vendas}</td>
       <td>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura)}</td>
       <td>
@@ -221,15 +224,39 @@ export default function Produto() {
       if (skuPlat && !skusMapByLocal[local][sku].skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
     });
 
+    // 2.5. Processar Reposição A Caminho para descontar
+    const aCaminhoMap = {}; // { [local]: { [sku]: total_quantidade } }
+    const caminhoRows = data.caminho || [];
+    caminhoRows.forEach(r => {
+      const sku = String(r?.c?.[COL_CAMINHO.SKU]?.v || "").trim().toUpperCase();
+      const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v || "OUTROS").toUpperCase().trim();
+      const qtd = Number(r?.c?.[COL_CAMINHO.QTD]?.v) || 0;
+      const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v || "").toUpperCase().trim();
+
+      const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+
+      // Desconsidera itens FINALIZADOS, pois já entraram no estoque físico
+      if (status === 'FINALIZADO') return;
+
+      if (!aCaminhoMap[local]) aCaminhoMap[local] = {};
+      if (!aCaminhoMap[local][sku]) aCaminhoMap[local][sku] = 0;
+      aCaminhoMap[local][sku] += qtd;
+    });
+
     const locais = Object.entries(skusMapByLocal).map(([local, skus]) => {
-      let localVendas = 0, localEstoque = 0, localValor = 0, localReposicaoSugerida = 0;
+      let localVendas = 0, localEstoque = 0, localValor = 0, localReposicaoSugerida = 0, localACaminho = 0;
       const skusArray = Object.entries(skus).map(([sku, info]) => {
         localVendas += info.vendas;
         localEstoque += info.estoque;
         localValor += info.valor;
 
+        const aCaminho = aCaminhoMap[local]?.[sku] || 0;
+        localACaminho += aCaminho;
+
         const media = info.vendas / diasPeriodo;
-        const repo = Math.round((media * diasCobertura) - info.estoque);
+        // A reposição sugerida desconta o que já está a caminho
+        const repo = Math.round((media * diasCobertura) - info.estoque - aCaminho);
         const finalRepo = repo > 0 ? repo : 0;
         localReposicaoSugerida += finalRepo;
 
@@ -237,6 +264,7 @@ export default function Produto() {
           sku, 
           skuPlat: info.skuPlat,
           estoque: info.estoque, 
+          aCaminho,
           vendas: info.vendas,
           cobertura: media > 0 ? info.estoque / media : (info.vendas > 0 ? 0 : -1),
           reposicaoSugerida: finalRepo,
@@ -249,6 +277,7 @@ export default function Produto() {
 
       return {
         local, valor: localValor, estoque: localEstoque, vendas: localVendas,
+        aCaminho: localACaminho,
         cobertura: (localVendas / diasPeriodo) > 0 ? localEstoque / (localVendas / diasPeriodo) : -1,
         reposicaoSugerida: localReposicaoSugerida,
         skus: skusArray.sort((a, b) => b.vendas - a.vendas)
@@ -256,7 +285,7 @@ export default function Produto() {
     });
 
     return { locais, valorTotalGeral, skusUnicos: skusUnicosSet.size };
-  }, [produtoSelecionado, estoqueRows, vendasRows, badStockRows, dataIni, dataFim, diasCobertura, selectedCompany]);
+  }, [produtoSelecionado, estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany]);
 
   const addToCart = (skuObj, local, customRepo) => {
     if (carrinho.find(c => c.sku === skuObj.sku && c.local === local)) return alert("Já está no carrinho!");
@@ -348,6 +377,7 @@ export default function Produto() {
                 <th>LOCAL</th>
                 <th>VALOR DO ESTOQUE</th>
                 <th>ESTOQUE ATUAL</th>
+                <th>A CAMINHO</th>
                 <th>VENDAS (31D)</th>
                 <th>COBERTURA</th>
                 <th>REPOSIÇÃO SUGERIDA</th>
@@ -363,6 +393,9 @@ export default function Produto() {
                       <td style={{ fontWeight: 700 }}><ChevronRight size={18} style={{ transform: isExp ? 'rotate(90deg)' : 'none', marginRight: '8px' }} />{toTitleCase(loc.local)}</td>
                       <td>{loc.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                       <td>{loc.estoque} un</td>
+                      <td style={{ fontWeight: 600, color: loc.aCaminho > 0 ? '#3b82f6' : '#64748b' }}>
+                        {loc.aCaminho > 0 ? `${loc.aCaminho} un` : '-'}
+                      </td>
                       <td>{loc.vendas} un</td>
                       <td>{loc.cobertura === -1 ? "∞" : Math.round(loc.cobertura) + " dias"}</td>
                       <td style={{ fontWeight: 600, color: loc.reposicaoSugerida > 0 ? '#e74c3c' : '#64748b' }}>{loc.reposicaoSugerida || '-'}</td>
@@ -370,10 +403,10 @@ export default function Produto() {
                     </tr>
                     {isExp && (
                       <tr>
-                        <td colSpan={7} style={{ padding: 0 }}>
+                        <td colSpan={8} style={{ padding: 0 }}>
                           <div style={{ background: '#f8fafc', padding: '15px 20px', borderBottom: '2px solid #cbd5e1' }}>
                             <table style={{ width: '100%', fontSize: '13px' }}>
-                              <thead><tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}><th style={{ textAlign: 'left', padding: '8px' }}>SKU</th><th style={{ textAlign: 'left', padding: '8px' }}>VARIAÇÃO</th><th style={{ textAlign: 'left', padding: '8px' }}>ESTOQUE</th><th style={{ textAlign: 'left', padding: '8px' }}>VENDAS</th><th style={{ textAlign: 'left', padding: '8px' }}>COBERTURA</th><th style={{ textAlign: 'left', padding: '8px' }}>ADD REPOSIÇÃO</th></tr></thead>
+                              <thead><tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}><th style={{ textAlign: 'left', padding: '8px' }}>SKU</th><th style={{ textAlign: 'left', padding: '8px' }}>VARIAÇÃO</th><th style={{ textAlign: 'left', padding: '8px' }}>ESTOQUE</th><th style={{ textAlign: 'left', padding: '8px' }}>A CAMINHO</th><th style={{ textAlign: 'left', padding: '8px' }}>VENDAS</th><th style={{ textAlign: 'left', padding: '8px' }}>COBERTURA</th><th style={{ textAlign: 'left', padding: '8px' }}>ADD REPOSIÇÃO</th></tr></thead>
                               <tbody>
                                 {loc.skus.map((s, i) => (
                                   <SkuRow key={`${loc.local}-${s.sku}`} s={s} loc={loc} addToCart={addToCart} />
