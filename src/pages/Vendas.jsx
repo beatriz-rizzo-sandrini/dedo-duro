@@ -559,7 +559,18 @@ export default function Vendas() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.values(corObj.variacoes).map((v) => (
+                      {Object.values(corObj.variacoes).sort((a, b) => {
+                        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                        const aVal = String(a.size || '').toUpperCase().trim();
+                        const bVal = String(b.size || '').toUpperCase().trim();
+                        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                        if (sizeWeights[aVal] !== undefined) return -1;
+                        if (sizeWeights[bVal] !== undefined) return 1;
+                        const aNum = parseFloat(aVal);
+                        const bNum = parseFloat(bVal);
+                        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                        return aVal.localeCompare(bVal);
+                      }).map((v) => (
                         <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                           <td style={{ padding: '10px 20px', textAlign: 'center' }}>
                             <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
@@ -601,7 +612,18 @@ export default function Vendas() {
                   
                   {/* Lista de Variações Mobile */}
                   <div style={{ padding: '0 14px' }}>
-                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => (
+                    {Object.values(corObj.variacoes).sort((a, b) => {
+                      const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                      const aVal = String(a.size || '').toUpperCase().trim();
+                      const bVal = String(b.size || '').toUpperCase().trim();
+                      if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                      if (sizeWeights[aVal] !== undefined) return -1;
+                      if (sizeWeights[bVal] !== undefined) return 1;
+                      const aNum = parseFloat(aVal);
+                      const bNum = parseFloat(bVal);
+                      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                      return aVal.localeCompare(bVal);
+                    }).map((v, vIdx, arr) => (
                       <div key={v.sku} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
