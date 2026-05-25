@@ -92,8 +92,9 @@ export default function Cobertura() {
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const skuPlat = r?.c?.[6]?.v || "";
       let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
-      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -106,10 +107,11 @@ export default function Cobertura() {
       if (dataFim && dataRow > new Date(dataFim)) return;
 
       const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {} };
+      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
       agrupado[key].total += qtd;
       if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
       agrupado[key].skus[sku].vendas += qtd;
+      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
     });
 
     estoqueRows.forEach(r => {
@@ -118,10 +120,11 @@ export default function Cobertura() {
       if (dataEstoque && dataStr !== dataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const skuPlat = r?.c?.[7]?.v || "";
       let desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
@@ -132,17 +135,19 @@ export default function Cobertura() {
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
       const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {} };
+      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
       if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
       agrupado[key].skus[sku].estoque += qtd;
+      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
     });
 
     caminhoRows.forEach(r => {
       const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const skuPlat = r?.c?.[8]?.v || "";
       let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
       const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[COL_CAMINHO.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_CAMINHO.QTD]?.v) || 0;
       const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
@@ -156,10 +161,11 @@ export default function Cobertura() {
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
       const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {} };
+      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
       if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
       if (agrupado[key].skus[sku].caminho === undefined) agrupado[key].skus[sku].caminho = 0;
       agrupado[key].skus[sku].caminho += qtd;
+      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
     });
 
     let linhas = Object.values(agrupado).map(l => {
@@ -167,7 +173,7 @@ export default function Cobertura() {
       const estoqueTotal = Object.values(l.skus).reduce((acc, s) => acc + s.estoque, 0);
       const caminhoTotal = Object.values(l.skus).reduce((acc, s) => acc + (s.caminho || 0), 0);
       const diasCobertos = media > 0 ? Math.round(estoqueTotal / media) : 0;
-      return { ...l, media, estoqueTotal, caminhoTotal, dias: diasCobertos, id: l.descricao + l.local };
+      return { ...l, media, estoqueTotal, caminhoTotal, dias: diasCobertos, id: l.descricao + l.local, platSkusArr: Array.from(l.platSkus || new Set()) };
     });
 
     // Filtro de Busca por Descrição ou SKU
@@ -175,7 +181,8 @@ export default function Cobertura() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
-        const skusArray = Object.keys(l.skus).map(s => s.toLowerCase());
+        const skusArray = Object.keys(l.skus).map(s => s.toLowerCase())
+          .concat((l.platSkusArr || []).map(s => s.toLowerCase()));
         
         return termos.every(termo => 
           descLower.includes(termo) || 

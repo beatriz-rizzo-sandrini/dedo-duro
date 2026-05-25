@@ -9,7 +9,7 @@ const SHEET_URLS = {
   estoque: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=ESTOQUE`,
   caminho: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=CAMINHO`,
   badstock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=badstock`,
-  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=MAPEAMENTO`
+  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=525427301`
 };
 
 const supabaseUrl = 'https://hpisoqyionulahtqfwsn.supabase.co';
@@ -75,7 +75,22 @@ function parseDateToSQL(f, v) {
 
 async function syncVendas() {
   console.log('🔄 Sincronizando Vendas...');
-  const rows = await fetchSheetData(SHEET_URLS.vendas);
+  const isFullSync = process.argv.includes('--full');
+  let url = SHEET_URLS.vendas;
+  if (!isFullSync) {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${day}`;
+    console.log(`   ⚡ Modo Otimizado Ativo: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
+    const query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
+    url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=vendas&tq=${query}`;
+  } else {
+    console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
+  }
+  const rows = await fetchSheetData(url);
   
   const insertData = [];
   
@@ -248,51 +263,134 @@ async function syncBadstock() {
   console.log(`✅ Badstock Sincronizado! (${dadosUnicosBadstock.length} registros únicos)`);
 }
 
-async function syncMapeamento() {
-  console.log('🔄 Sincronizando Mapeamento de SKUs...');
-  const rows = await fetchSheetData(SHEET_URLS.mapeamento);
-
-  if (rows.length === 0) {
-    console.log('   Nenhum dado encontrado na aba MAPEAMENTO. Pulando...');
-    return;
-  }
-
-  const insertData = [];
-
-  for (const r of rows) {
-    if (!r || !r.c) continue;
-    const skuSen = r.c[0]?.v || null;
-    const desc = r.c[1]?.v || null;
-    const plat = r.c[2]?.v || null;
-    const skuPlat = r.c[3]?.v || null;
-    const marca = null; // A planilha atual não tem coluna de marca
-
-    if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') { // ignora cabecalho
-      insertData.push({
-        sku_plataforma: String(skuPlat).trim(),
-        plataforma: String(plat).toUpperCase().trim(),
-        sku_senior: skuSen ? String(skuSen).trim() : null,
-        descricao_oficial: desc ? String(desc).trim() : null,
-        marca_oficial: marca
-      });
-    }
-  }
-
-  // Deduplica por sku_plataforma + plataforma
-  const mapa = {};
-  for (const item of insertData) {
-    const chave = `${item.sku_plataforma}|${item.plataforma}`;
-    mapa[chave] = item;
-  }
-  const dadosUnicos = Object.values(mapa);
-
-  if (dadosUnicos.length > 0) {
-    await upsertEmLotes('silver_mapeamento_sku', dadosUnicos, 'sku_plataforma, plataforma');
-    console.log(`✅ Mapeamento Sincronizado! (${dadosUnicos.length} registros únicos)`);
-  } else {
-    console.log(`   Nenhum registro válido extraído da aba MAPEAMENTO.`);
+function parseGoogleJSONFull(text) {
+  try {
+    const jsonStr = text.substring(47).slice(0, -2);
+    const data = JSON.parse(jsonStr);
+    return {
+      cols: data.table.cols || [],
+      rows: data.table.rows || []
+    };
+  } catch (error) {
+    console.error("Erro ao fazer parse do JSON completo do Google Sheets", error);
+    return { cols: [], rows: [] };
   }
 }
+
+async function fetchSheetDataFull(url) {
+  const response = await axios.get(url);
+  return parseGoogleJSONFull(response.data);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map(s => s.trim().replace(/^"|"$/g, ''));
+}
+
+function validarColunasMapeamento(headers) {
+  if (!headers || !Array.isArray(headers) || headers.length < 4) {
+    return false;
+  }
+  const label0 = (headers[0] || "").toUpperCase().trim();
+  const label1 = (headers[1] || "").toUpperCase().trim();
+  const label2 = (headers[2] || "").toUpperCase().trim();
+  const label3 = (headers[3] || "").toUpperCase().trim();
+
+  // Se carregou a aba de vendas por padrão (Causa 1), a coluna 0 será "DATA" ou "SKU"
+  if (label0 === "DATA" || label0 === "SKU") {
+    return false;
+  }
+
+  // Verifica se contém termos-chave esperados
+  const hasSenior = label0.includes("SENIOR") || label0.includes("SÊNIOR");
+  const hasDesc = label1.includes("DESC") || label1.includes("DESCRIÇÃO") || label1.includes("DESCRICAO") || label1.includes("NOME");
+  const hasPlat = label2.includes("PLAT");
+  const hasSkuPlat = label3.includes("PLAT");
+
+  return hasSenior && hasDesc && hasPlat && hasSkuPlat;
+}
+
+async function syncMapeamento() {
+  console.log('🔄 Sincronizando Mapeamento de SKUs (via CSV)...');
+  try {
+    const response = await axios.get(SHEET_URLS.mapeamento);
+    const csvText = response.data;
+    const rawLines = csvText.split(/\r?\n/);
+
+    if (rawLines.length === 0) {
+      console.log('   Nenhum dado encontrado no CSV. Pulando...');
+      return;
+    }
+
+    const headers = parseCSVLine(rawLines[0]);
+    if (!validarColunasMapeamento(headers)) {
+      console.warn('⚠️  [AVISO] A aba MAPEAMENTO não existe ou está com cabeçalhos inválidos!');
+      console.warn('   Os cabeçalhos esperados na primeira linha são: [SKU Sênior, Descrição Oficial (ou Nome Sênior), Plataforma, SKU Plataforma]');
+      console.warn('   ⚠️ Sincronização do de-para ABORTADA por segurança para não corromper os dados!');
+      return;
+    }
+
+    const insertData = [];
+
+    for (let i = 1; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      if (!line.trim()) continue;
+
+      const cols = parseCSVLine(line);
+      const skuSen = cols[0] || null;
+      const desc = cols[1] || null;
+      const plat = cols[2] || null;
+      const skuPlat = cols[3] || null;
+      const marca = null; // A planilha atual não tem coluna de marca
+
+      if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') {
+        insertData.push({
+          sku_plataforma: String(skuPlat).trim(),
+          plataforma: String(plat).toUpperCase().trim(),
+          sku_senior: skuSen ? String(skuSen).trim() : null,
+          descricao_oficial: desc ? String(desc).trim() : null,
+          marca_oficial: marca
+        });
+      }
+    }
+
+    // Deduplica por sku_plataforma + plataforma
+    const mapa = {};
+    for (const item of insertData) {
+      const chave = `${item.sku_plataforma}|${item.plataforma}`;
+      mapa[chave] = item;
+    }
+    const dadosUnicos = Object.values(mapa);
+
+    if (dadosUnicos.length > 0) {
+      console.log('   🧹 Limpando mapeamentos antigos da base de dados...');
+      await supabase.from('silver_mapeamento_sku').delete().neq('plataforma', 'FOR_DELETE_ALL');
+
+      await upsertEmLotes('silver_mapeamento_sku', dadosUnicos, 'sku_plataforma, plataforma');
+      console.log(`✅ Mapeamento Sincronizado! (${dadosUnicos.length} registros únicos obtidos de ${insertData.length} linhas do CSV)`);
+    } else {
+      console.log(`   Nenhum registro válido extraído da aba MAPEAMENTO.`);
+    }
+  } catch (error) {
+    console.error('❌ Erro na sincronização do mapeamento via CSV:', error.message);
+  }
+}
+
 
 
 // Sincronização Principal

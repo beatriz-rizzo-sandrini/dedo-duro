@@ -21,6 +21,7 @@ import { getLatestDates } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
+import { parseProductDescription } from '../utils/productParser';
 
 ChartJS.register(
   CategoryScale,
@@ -86,7 +87,7 @@ export default function Sellout() {
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const localEstoque = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = localEstoque.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[COL_ESTOQUE.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
 
       if (sku) {
         if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
@@ -124,12 +125,12 @@ export default function Sellout() {
       // Cria a data da venda no formato UTC midnight estável
       const dataVendaTime = Date.UTC(Number(y), Number(m) - 1, Number(d));
       
-      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const skuPlat = r?.c?.[6]?.v || "";
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
       const marca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").toUpperCase().trim();
       const lojaVenda = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const qtd = r?.c?.[COL_VENDAS.QTD]?.v || 0;
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       // Filtro de Loja (Buy Clock vs Sandrini)
       if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
@@ -138,9 +139,15 @@ export default function Sellout() {
       if (local) setLocais.add(local);
 
       if (!stats[sku]) {
+        const parsed = parseProductDescription(desc, sku);
+        const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
+        const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
+        const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
+
         stats[sku] = { 
           sku, 
-          descricao: desc, 
+          skuPlat,
+          descricao: cleanDesc, 
           marca, 
           vendas7d: 0, 
           vendas15d: 0, 
@@ -198,14 +205,22 @@ export default function Sellout() {
 
     // Filtro de Busca (na tabela)
     const filteredRows = rows.filter(r => {
-      const termo = busca.toLowerCase().trim();
       const hasFilter = filtroMarca.length > 0 || filtroLocal.length > 0;
       
       // Se há filtro ativo de marca/local, só mostra itens com venda no período filtrado
       if (hasFilter && r.vendasFiltradas === 0) return false;
-      // Sem busca, mostra apenas quem tem venda ou estoque
-      if (!termo) return r.vendasFiltradas > 0 || r.estoque > 0;
-      return r.sku.toLowerCase().includes(termo) || r.descricao.toLowerCase().includes(termo);
+      if (!busca) return r.vendasFiltradas > 0 || r.estoque > 0;
+
+      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const skuLower = (r.sku || "").toLowerCase();
+      const skuPlatLower = (r.skuPlat || "").toLowerCase();
+      const descLower = (r.descricao || "").toLowerCase();
+
+      return termos.every(termo => 
+        skuLower.includes(termo) || 
+        skuPlatLower.includes(termo) || 
+        descLower.includes(termo)
+      );
     });
 
     // Ordenação
@@ -326,17 +341,38 @@ export default function Sellout() {
     };
   }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, filtroDias, sortConfig]);
 
-  const handleExportData = (type) => {
-    const headers = ["SKU", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-    const exportData = dadosProcessados.linhas.map(r => [
-      r.sku,
-      r.descricao,
-      r.marca,
-      r.vendasFiltradas,
-      r.estoque,
-      r.share + "%"
-    ]);
-    handleExport(type, `Sellout_${filtroDias}d`, headers, exportData);
+  const handleExportData = (type, mode = 'detalhado') => {
+    if (mode === 'resumido') {
+      const headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque"];
+      const agrupado = {};
+      dadosProcessados.linhas.forEach(r => {
+        const baseTitle = r.descricao.split(' Tam ')[0].split(' Cor ')[0];
+        const key = `${baseTitle}|${r.marca}`;
+        if (!agrupado[key]) {
+          agrupado[key] = { baseTitle, marca: r.marca, vendas: 0, estoque: 0 };
+        }
+        agrupado[key].vendas += r.vendasFiltradas;
+        agrupado[key].estoque += r.estoque;
+      });
+      const exportData = Object.values(agrupado).map(a => [
+        a.baseTitle,
+        a.marca,
+        a.vendas,
+        a.estoque
+      ]);
+      handleExport(type, `Sellout_${filtroDias}d_Resumido`, headers, exportData);
+    } else {
+      const headers = ["SKU Sênior", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+      const exportData = dadosProcessados.linhas.map(r => [
+        r.sku,
+        r.descricao,
+        r.marca,
+        r.vendasFiltradas,
+        r.estoque,
+        r.share + "%"
+      ]);
+      handleExport(type, `Sellout_${filtroDias}d_Detalhado`, headers, exportData);
+    }
   };
 
   if (loading) {
@@ -389,16 +425,27 @@ export default function Sellout() {
             {isExportMenuOpen && (
               <motion.div 
                 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '180px' }}
+                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
               >
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('csv'); setIsExportMenuOpen(false); }}>
-                  <FileText size={16} color="#64748b" /> CSV
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (SKUS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
                 </div>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('xlsx'); setIsExportMenuOpen(false); }}>
-                  <FileSpreadsheet size={16} color="#10b981" /> Excel (XLSX)
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
                 </div>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => { handleExportData('pdf'); setIsExportMenuOpen(false); }}>
-                  <FileText size={16} color="#ef4444" /> PDF
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
                 </div>
               </motion.div>
             )}

@@ -3,14 +3,14 @@ import { supabase } from '../services/supabase.js';
 
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
-// Abas do Google Sheets (estoque atual, cobertura, badstock, sellout)
-const SHEETS_FROM_GS = ['estoque', 'badstock', 'caminho', 'sellout'];
+// Abas do Google Sheets (badstock, caminho, sellout) - estoque e vendas vem do Supabase
+const SHEETS_FROM_GS = ['sellout'];
 
 // Data de corte do histórico de vendas no Supabase
 const VENDAS_CUTOFF = '2026-03-29';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-const CACHE_KEY = '__dedo_duro_data_hybrid1__';
+const CACHE_KEY = '__dedo_duro_data_hybrid4__';
 
 // ── Google Sheets ─────────────────────────────────────────────────────────────
 
@@ -42,45 +42,129 @@ function sqlDateToBR(d) {
 }
 
 async function fetchVendasSupabase() {
-  const PAGE_SIZE = 1000;
-  let allData = [];
-  let from = 0;
-  let hasMore = true;
+  try {
+    console.log('[DataContext] Buscando vendas da API local (localhost:3001)...');
+    const res = await fetch('http://localhost:3001/api/vendas');
+    const data = await res.json();
+    return data.table.rows;
+  } catch (err) {
+    console.log('[DataContext] API Local offline. Buscando vendas do Supabase (produção)...');
+    const PAGE_SIZE = 1000;
+    let allData = [];
+    let from = 0;
+    let hasMore = true;
 
-  while (hasMore) {
-    const { data, error } = await supabase
-      .from('silver_vendas')
-      .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
-      .gte('data_venda', VENDAS_CUTOFF)
-      .order('data_venda', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('vw_vendas_consolidadas')
+        .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+        .gte('data_venda', VENDAS_CUTOFF)
+        .order('data_venda', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (error) {
-      console.warn('[DataContext] Falha ao buscar vendas do Supabase:', error?.message);
-      break;
+      if (error) {
+        console.warn('[DataContext] Falha ao buscar vendas do Supabase:', error?.message);
+        break;
+      }
+
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
     }
 
-    if (!data || data.length === 0) break;
+    console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
 
-    allData = allData.concat(data);
-    hasMore = data.length === PAGE_SIZE;
-    from += PAGE_SIZE;
+    // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
+    // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
+    return allData.map(r => ({
+      c: [
+        { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
+        { v: r.local_venda },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: Number(r.quantidade_vendida) || 0 },
+        { v: r.marca },
+      ]
+    }));
   }
+}
 
-  console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
+// ── Estoque do Supabase (tabela silver_estoque mapeada via view) ─────────────
 
-  // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
-  // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
-  return allData.map(r => ({
-    c: [
-      { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
-      { v: r.local_venda },
-      { v: r.sku_produto },
-      { v: r.descricao_produto },
-      { v: r.quantidade_vendida },
-      { v: r.marca },
-    ]
-  }));
+async function fetchEstoqueSupabase() {
+  try {
+    console.log('[DataContext] Buscando estoque da API local (localhost:3001)...');
+    const res = await fetch('http://localhost:3001/api/estoque');
+    const data = await res.json();
+    return data.table.rows;
+  } catch (err) {
+    console.log('[DataContext] API Local offline. Buscando estoque do Supabase (produção)...');
+    const PAGE_SIZE = 1000;
+    let allData = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('vw_estoque_consolidado')
+        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+        .order('id', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.warn('[DataContext] Falha ao buscar estoque do Supabase:', error?.message);
+        break;
+      }
+
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
+    }
+
+    console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros`);
+
+    // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam para o estoque:
+    // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor
+    return allData.map(r => ({
+      c: [
+        { v: r.data_atualizacao, f: r.data_atualizacao },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: r.local_estoque },
+        { v: r.marca },
+        { v: Number(r.quantidade_disponivel) || 0 },
+        { v: Number(r.valor_unitario) || 0 }
+      ]
+    }));
+  }
+}
+
+async function fetchCaminho() {
+  try {
+    console.log('[DataContext] Buscando caminho da API local (localhost:3001)...');
+    const res = await fetch('http://localhost:3001/api/caminho');
+    const data = await res.json();
+    return data.table.rows;
+  } catch (err) {
+    console.log('[DataContext] API Local offline. Buscando caminho do Google Sheets...');
+    return fetchSheet('caminho');
+  }
+}
+
+async function fetchBadstock() {
+  try {
+    console.log('[DataContext] Buscando badstock da API local (localhost:3001)...');
+    const res = await fetch('http://localhost:3001/api/badstock');
+    const data = await res.json();
+    return data.table.rows;
+  } catch (err) {
+    console.log('[DataContext] API Local offline. Buscando badstock do Google Sheets...');
+    return fetchSheet('badstock');
+  }
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -113,13 +197,16 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      // Busca em paralelo: Google Sheets (estoque/caminho/badstock/sellout) + Supabase (vendas)
-      const [gsResults, vendas] = await Promise.all([
+      // Busca em paralelo: Google Sheets (sellout) + Supabase/Local (vendas, estoque, caminho, badstock)
+      const [gsResults, vendas, estoque, caminho, badstock] = await Promise.all([
         Promise.all(SHEETS_FROM_GS.map(async name => ({ name, rows: await fetchSheet(name) }))),
         fetchVendasSupabase(),
+        fetchEstoqueSupabase(),
+        fetchCaminho(),
+        fetchBadstock(),
       ]);
 
-      const combined = { vendas };
+      const combined = { vendas, estoque, caminho, badstock };
       gsResults.forEach(({ name, rows }) => { combined[name] = rows; });
 
       setData(combined);

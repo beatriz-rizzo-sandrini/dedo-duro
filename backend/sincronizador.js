@@ -33,7 +33,22 @@ async function fetchSheetData(url) {
 
 async function syncVendas() {
   console.log('🔄 Sincronizando Vendas...');
-  const rows = await fetchSheetData(SHEET_URLS.vendas);
+  const isFullSync = process.argv.includes('--full');
+  let url = SHEET_URLS.vendas;
+  if (!isFullSync) {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${day}`;
+    console.log(`   ⚡ Modo Otimizado Ativo: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
+    const query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
+    url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=vendas&tq=${query}`;
+  } else {
+    console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
+  }
+  const rows = await fetchSheetData(url);
   
   // Truncate Bronze for fresh copy
   await pool.query('TRUNCATE TABLE bronze_vendas');
