@@ -11,6 +11,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
+import { parseProductDescription } from '../utils/productParser';
 
 export default function Cobertura() {
   const { data, loading, error } = useData();
@@ -83,6 +84,7 @@ export default function Cobertura() {
 
     const agrupado = {};
 
+    // 1. Processar Vendas
     vendasRows.forEach(r => {
       const dataStr = r?.c?.[COL_VENDAS.DATA]?.f;
       if (!dataStr) return;
@@ -106,17 +108,40 @@ export default function Cobertura() {
       if (dataIni && dataRow < new Date(dataIni)) return;
       if (dataFim && dataRow > new Date(dataFim)) return;
 
-      const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
-      agrupado[key].total += qtd;
-      if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
-      agrupado[key].skus[sku].vendas += qtd;
-      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${local}`;
+
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = { 
+          descricao: parsed.baseTitle, 
+          local, 
+          total: 0, // Total Vendas
+          cores: {}, 
+          id: prodKey, 
+          skusArr: [] 
+        };
+      }
+
+      agrupado[prodKey].total += qtd;
+      if (sku && !agrupado[prodKey].skusArr.includes(sku)) agrupado[prodKey].skusArr.push(sku);
+      if (skuPlat && !agrupado[prodKey].skusArr.includes(skuPlat)) agrupado[prodKey].skusArr.push(skuPlat);
+
+      const corKey = parsed.color;
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, totalCaminho: 0, variacoes: {} };
+      }
+      agrupado[prodKey].cores[corKey].totalVendas += qtd;
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = { sku, skuPlat, size: parsed.size, vendas: 0, estoque: 0, caminho: 0 };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].vendas += qtd;
     });
 
+    // 2. Processar Estoque
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      // Corrigido: Apenas filtra pela data mais recente para não somar histórico
       if (dataEstoque && dataStr !== dataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
@@ -134,13 +159,37 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
-      if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
-      agrupado[key].skus[sku].estoque += qtd;
-      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${local}`;
+
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = { 
+          descricao: parsed.baseTitle, 
+          local, 
+          total: 0, 
+          cores: {}, 
+          id: prodKey, 
+          skusArr: [] 
+        };
+      }
+
+      if (sku && !agrupado[prodKey].skusArr.includes(sku)) agrupado[prodKey].skusArr.push(sku);
+      if (skuPlat && !agrupado[prodKey].skusArr.includes(skuPlat)) agrupado[prodKey].skusArr.push(skuPlat);
+
+      const corKey = parsed.color;
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, totalCaminho: 0, variacoes: {} };
+      }
+      agrupado[prodKey].cores[corKey].totalEstoque += qtd;
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = { sku, skuPlat, size: parsed.size, vendas: 0, estoque: 0, caminho: 0 };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
     });
 
+    // 3. Processar Caminho (Reposição)
     caminhoRows.forEach(r => {
       const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
       const skuPlat = r?.c?.[8]?.v || "";
@@ -151,8 +200,7 @@ export default function Cobertura() {
       const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      if (status === 'FINALIZADO') return; // Só soma o que não foi finalizado
+      if (status === 'FINALIZADO') return;
 
       if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
       if (!sku && !desc) return;
@@ -160,20 +208,42 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const key = desc + "|" + local;
-      if (!agrupado[key]) agrupado[key] = { descricao: desc, local, total: 0, skus: {}, platSkus: new Set() };
-      if (!agrupado[key].skus[sku]) agrupado[key].skus[sku] = { vendas: 0, estoque: 0, caminho: 0 };
-      if (agrupado[key].skus[sku].caminho === undefined) agrupado[key].skus[sku].caminho = 0;
-      agrupado[key].skus[sku].caminho += qtd;
-      if (skuPlat) agrupado[key].platSkus.add(skuPlat);
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${local}`;
+
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = { 
+          descricao: parsed.baseTitle, 
+          local, 
+          total: 0, 
+          cores: {}, 
+          id: prodKey, 
+          skusArr: [] 
+        };
+      }
+
+      if (sku && !agrupado[prodKey].skusArr.includes(sku)) agrupado[prodKey].skusArr.push(sku);
+      if (skuPlat && !agrupado[prodKey].skusArr.includes(skuPlat)) agrupado[prodKey].skusArr.push(skuPlat);
+
+      const corKey = parsed.color;
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, totalCaminho: 0, variacoes: {} };
+      }
+      agrupado[prodKey].cores[corKey].totalCaminho += qtd;
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = { sku, skuPlat, size: parsed.size, vendas: 0, estoque: 0, caminho: 0 };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].caminho += qtd;
     });
 
     let linhas = Object.values(agrupado).map(l => {
       const media = diasPeriodo > 0 ? l.total / diasPeriodo : 0;
-      const estoqueTotal = Object.values(l.skus).reduce((acc, s) => acc + s.estoque, 0);
-      const caminhoTotal = Object.values(l.skus).reduce((acc, s) => acc + (s.caminho || 0), 0);
-      const diasCobertos = media > 0 ? Math.round(estoqueTotal / media) : 0;
-      return { ...l, media, estoqueTotal, caminhoTotal, dias: diasCobertos, id: l.descricao + l.local, platSkusArr: Array.from(l.platSkus || new Set()) };
+      const estoqueTotal = Object.values(l.cores).reduce((acc, c) => acc + c.totalEstoque, 0);
+      const caminhoTotal = Object.values(l.cores).reduce((acc, c) => acc + c.totalCaminho, 0);
+      const diasCobertos = media > 0 ? Math.round(estoqueTotal / media) : (estoqueTotal > 0 ? 9999 : 0);
+      return { ...l, media, estoqueTotal, caminhoTotal, dias: diasCobertos };
     });
 
     // Filtro de Busca por Descrição ou SKU
@@ -181,8 +251,7 @@ export default function Cobertura() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
-        const skusArray = Object.keys(l.skus).map(s => s.toLowerCase())
-          .concat((l.platSkusArr || []).map(s => s.toLowerCase()));
+        const skusArray = l.skusArr.map(s => s.toLowerCase());
         
         return termos.every(termo => 
           descLower.includes(termo) || 
@@ -218,34 +287,63 @@ export default function Cobertura() {
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
-  const handleExportData = (type) => {
-    const headers = ["SKU", "Descrição", "Local", "Vendas", "Média/Dia", "Estoque", "A Caminho", "Dias Cobertos", "Status"];
-    const exportData = [];
-    dadosProcessados.linhas.forEach(item => {
-      Object.entries(item.skus || {}).forEach(([sku, metrics]) => {
-        const media = dadosProcessados.diasPeriodo > 0 ? metrics.vendas / dadosProcessados.diasPeriodo : 0;
-        const estoque = metrics.estoque;
-        const dias = media > 0 ? Math.round(estoque / media) : (estoque > 0 ? -1 : 0);
-        
+  const handleExportData = (type, mode = 'detalhado') => {
+    if (mode === 'resumido') {
+      const headers = ["Descrição", "Local", "Vendas", "Média/Dia", "Estoque", "A Caminho", "Dias Cobertos", "Status"];
+      const exportData = dadosProcessados.linhas.map(item => {
         let statusStr = "Saudável";
-        if (dias <= 29 && dias !== -1) statusStr = "Ruptura";
-        else if (dias > 60 || dias === -1) statusStr = "Excesso";
-        if (dias === -1) statusStr = "Excesso Absoluto";
+        if (item.dias <= 29) statusStr = "Ruptura";
+        else if (item.dias > 60) statusStr = "Excesso";
+        if (item.dias === 9999) statusStr = "Excesso Absoluto";
 
-        exportData.push([
-          sku,
+        return [
           item.descricao,
           item.local,
-          metrics.vendas,
-          media.toFixed(2),
-          estoque,
-          metrics.caminho || 0,
-          dias === -1 ? "∞" : dias,
+          item.total,
+          item.media.toFixed(2),
+          item.estoqueTotal,
+          item.caminhoTotal,
+          item.dias === 9999 ? "∞" : item.dias,
           statusStr
-        ]);
+        ];
       });
-    });
-    handleExport(type, "Relatorio_Cobertura", headers, exportData);
+      handleExport(type, "Cobertura_Consolidada_Resumido", headers, exportData);
+    } else {
+      const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Local", "Vendas", "Média/Dia", "Estoque", "A Caminho", "Dias Cobertos", "Status"];
+      const exportData = [];
+      
+      dadosProcessados.linhas.forEach(item => {
+        Object.values(item.cores).forEach(corObj => {
+          Object.values(corObj.variacoes).forEach(v => {
+            const media = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
+            const dias = media > 0 ? Math.round(v.estoque / media) : (v.estoque > 0 ? 9999 : 0);
+            
+            let statusStr = "Saudável";
+            if (dias <= 29) statusStr = "Ruptura";
+            else if (dias > 60) statusStr = "Excesso";
+            if (dias === 9999) statusStr = "Excesso Absoluto";
+
+            const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+            const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+            const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
+
+            exportData.push([
+              v.sku,
+              v.skuPlat || '',
+              fullDesc,
+              item.local,
+              v.vendas,
+              media.toFixed(2),
+              v.estoque,
+              v.caminho,
+              dias === 9999 ? "∞" : dias,
+              statusStr
+            ]);
+          });
+        });
+      });
+      handleExport(type, "Cobertura_Consolidada_Detalhado", headers, exportData);
+    }
   };
 
   // Ao mudar filtros, reseta a página
@@ -281,16 +379,27 @@ export default function Cobertura() {
             {isExportMenuOpen && (
               <motion.div 
                 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '150px' }}
+                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
               >
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('csv'); setIsExportMenuOpen(false); }}>
-                  <FileText size={16} color="#64748b" /> CSV
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (CORES/TAMANHOS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
                 </div>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { handleExportData('xlsx'); setIsExportMenuOpen(false); }}>
-                  <FileSpreadsheet size={16} color="#10b981" /> Excel (XLSX)
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
                 </div>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => { handleExportData('pdf'); setIsExportMenuOpen(false); }}>
-                  <FileText size={16} color="#ef4444" /> PDF
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
                 </div>
               </motion.div>
             )}
@@ -436,35 +545,86 @@ export default function Cobertura() {
             exit={{ opacity: 0, height: 0 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '16px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <table style={{ width: '100%', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ color: '#94a3b8' }}>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>SKU</th>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Vendas</th>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Estoque</th>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>A Caminho</th>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Média SKU</th>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Cobertura</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(item.skus).map(([sku, dados]) => {
-                    const mediaSKU = dadosProcessados.diasPeriodo > 0 ? dados.vendas / dadosProcessados.diasPeriodo : 0;
-                    const cobertura = mediaSKU > 0 ? (dados.estoque / mediaSKU) : '∞';
-                    return (
-                      <tr key={sku}>
-                        <td style={{ padding: '8px 0', fontWeight: 500 }}>{sku}</td>
-                        <td>{dados.vendas.toLocaleString('pt-BR')}</td>
-                        <td>{dados.estoque.toLocaleString('pt-BR')}</td>
-                        <td>{dados.caminho > 0 ? <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>+{dados.caminho}</span> : '-'}</td>
-                        <td>{mediaSKU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                        <td>{cobertura === '∞' ? '∞' : Math.round(cobertura)}</td>
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                  {/* Cabeçalho da Cor */}
+                  <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>🎨</span>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                        Estoque: {corObj.totalEstoque.toLocaleString('pt-BR')} pçs
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                        Vendas: {corObj.totalVendas.toLocaleString('pt-BR')} pçs
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Tabela de Variações */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Sênior</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Plataforma</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>A Caminho</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Cobertura</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {Object.values(corObj.variacoes).map((v) => {
+                        const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
+                        const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
+                        
+                        let badgeColor = '#64748b', badgeBg = '#f1f5f9';
+                        if (typeof coberturaSKU === 'number') {
+                          if (coberturaSKU <= 29) { badgeColor = '#b91c1c'; badgeBg = '#fecaca'; }
+                          else if (coberturaSKU > 60) { badgeColor = '#b45309'; badgeBg = '#fde68a'; }
+                          else { badgeColor = '#15803d'; badgeBg = '#bbf7d0'; }
+                        } else if (coberturaSKU === '∞') {
+                          badgeColor = '#b45309'; badgeBg = '#fde68a';
+                        }
+
+                        return (
+                          <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                            <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                              <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                {v.size || 'Único'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                              {v.sku}
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                              {v.skuPlat || '-'}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.vendas.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.estoque.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600 }}>
+                              {v.caminho > 0 ? <span style={{ color: '#8b5cf6' }}>+{v.caminho} un</span> : '-'}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right' }}>
+                              <span style={{ background: badgeBg, color: badgeColor, padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' }}>
+                                {coberturaSKU} {typeof coberturaSKU === 'number' ? 'dias' : ''}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -475,22 +635,46 @@ export default function Cobertura() {
             exit={{ opacity: 0, height: 0 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                {Object.entries(item.skus).map(([sku, dados]) => {
-                  const mediaSKU = dadosProcessados.diasPeriodo > 0 ? dados.vendas / dadosProcessados.diasPeriodo : 0;
-                  const cobertura = mediaSKU > 0 ? (dados.estoque / mediaSKU) : '∞';
-                  return (
-                    <div key={sku} style={{ background: 'white', borderRadius: '8px', padding: '12px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
-                      <div style={{ fontWeight: 700, marginBottom: '8px', color: '#0f172a' }}>{sku}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Vendas</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{dados.vendas.toLocaleString('pt-BR')}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Estoque</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{dados.estoque.toLocaleString('pt-BR')}</span></div>
-                      {dados.caminho > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>A Caminho</span><span style={{ fontWeight: 600, color: '#8b5cf6' }}>+{dados.caminho}</span></div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}><span>Cobertura</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{cobertura === '∞' ? '∞' : Math.round(cobertura)} dias</span></div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Object.values(item.cores).map((corObj) => (
+                <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  {/* Cabeçalho Cor */}
+                  <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                      {corObj.totalEstoque} pçs
+                    </span>
+                  </div>
+                  
+                  {/* Lista de Variações Mobile */}
+                  <div style={{ padding: '0 14px' }}>
+                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => {
+                      const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
+                      const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
+                      return (
+                        <div key={v.sku} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {v.size || 'Único'}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '12px' }}>{v.sku}</span>
+                            </div>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#3b82f6' }}>
+                              {coberturaSKU} {typeof coberturaSKU === 'number' ? 'dias' : ''}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                            <span>Vendas: {v.vendas} pçs</span>
+                            <span>Estoque: {v.estoque} pçs</span>
+                            {v.caminho > 0 && <span style={{ color: '#8b5cf6' }}>Caminho: +{v.caminho}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}

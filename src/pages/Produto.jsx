@@ -8,6 +8,7 @@ import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
+import { parseProductDescription } from '../utils/productParser';
 
 function SkuRow({ s, loc, addToCart }) {
   const [repoQtd, setRepoQtd] = React.useState(s.reposicaoSugerida);
@@ -28,6 +29,9 @@ function SkuRow({ s, loc, addToCart }) {
         )}
         {s.isRuptura && ' 🔴'} 
         {s.isBad && ' ⛔'}
+      </td>
+      <td style={{ padding: '10px 8px', fontWeight: 600, color: '#475569' }}>
+        🎨 {toTitleCase(s.color)} - {s.size}
       </td>
       <td>{s.estoque}</td>
       <td>{s.vendas}</td>
@@ -102,8 +106,14 @@ export default function Produto() {
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const nome = (r?.c?.[COL_ESTOQUE.DESC]?.v || "").toLowerCase();
-      if (nome.includes(termo)) setSug.add(r?.c?.[COL_ESTOQUE.DESC]?.v);
+      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const parsed = parseProductDescription(rawDesc, sku);
+      const nome = parsed.baseTitle.toLowerCase();
+
+      if (nome.includes(termo) || rawDesc.toLowerCase().includes(termo) || sku.toLowerCase().includes(termo)) {
+        setSug.add(parsed.baseTitle);
+      }
     });
     return Array.from(setSug).sort().slice(0, 50);
   }, [termoBusca, estoqueRows, selectedCompany]);
@@ -116,8 +126,11 @@ export default function Produto() {
         String(r?.c?.[7]?.v || "").trim().toUpperCase() === sku
       );
       if (item) {
-        setProdutoSelecionado(item?.c?.[COL_ESTOQUE.DESC]?.v);
-        setTermoBusca(item?.c?.[COL_ESTOQUE.DESC]?.v);
+        const rawDesc = item?.c?.[COL_ESTOQUE.DESC]?.v || "";
+        const rawSku = item?.c?.[COL_ESTOQUE.SKU]?.v || "";
+        const parsed = parseProductDescription(rawDesc, rawSku);
+        setProdutoSelecionado(parsed.baseTitle);
+        setTermoBusca(parsed.baseTitle);
       } else alert("SKU não encontrado.");
     }
   };
@@ -137,22 +150,32 @@ export default function Produto() {
 
     // 1. Processar Estoque
     estoqueRows.forEach(r => {
-      const desc = (r?.c?.[COL_ESTOQUE.DESC]?.v || "").toLowerCase().trim();
+      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const parsed = parseProductDescription(rawDesc, sku);
+      const desc = parsed.baseTitle.toLowerCase().trim();
       if (desc !== descSelecionada) return;
 
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "OUTROS").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
-      // VALOR é o custo unitário — multiplica pela qtd para obter o valor real em estoque
       const custoUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
       const valorEstoque = custoUnitario * qtd;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0, skuPlat: "" };
+      if (!skusMapByLocal[local][sku]) {
+        skusMapByLocal[local][sku] = { 
+          estoque: 0, 
+          vendas: 0, 
+          valor: 0, 
+          skuPlat: "", 
+          color: parsed.color, 
+          size: parsed.size 
+        };
+      }
 
       skusMapByLocal[local][sku].estoque += qtd;
       skusMapByLocal[local][sku].valor += valorEstoque;
@@ -169,19 +192,30 @@ export default function Produto() {
       const dataVenda = new Date(`${y}-${m}-${d}`);
       if (dataIni && dataFim && (dataVenda < new Date(dataIni) || dataVenda > new Date(dataFim))) return;
 
-      const descVenda = (r?.c?.[COL_VENDAS.DESC]?.v || "").toLowerCase().trim();
+      const rawDesc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const parsed = parseProductDescription(rawDesc, sku);
+      const descVenda = parsed.baseTitle.toLowerCase().trim();
       if (descVenda !== descSelecionada) return;
 
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "OUTROS").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const skuPlat = r?.c?.[6]?.v || "";
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) skusMapByLocal[local][sku] = { estoque: 0, vendas: 0, valor: 0, skuPlat: "" };
+      if (!skusMapByLocal[local][sku]) {
+        skusMapByLocal[local][sku] = { 
+          estoque: 0, 
+          vendas: 0, 
+          valor: 0, 
+          skuPlat: "", 
+          color: parsed.color, 
+          size: parsed.size 
+        };
+      }
 
       skusMapByLocal[local][sku].vendas += qtd;
       if (skuPlat && !skusMapByLocal[local][sku].skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
@@ -206,6 +240,8 @@ export default function Produto() {
           vendas: info.vendas,
           cobertura: media > 0 ? info.estoque / media : (info.vendas > 0 ? 0 : -1),
           reposicaoSugerida: finalRepo,
+          color: info.color || 'SEM COR',
+          size: info.size || 'Único',
           isBad: badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === local),
           isRuptura: info.estoque === 0 && info.vendas > 0
         };
@@ -337,7 +373,7 @@ export default function Produto() {
                         <td colSpan={7} style={{ padding: 0 }}>
                           <div style={{ background: '#f8fafc', padding: '15px 20px', borderBottom: '2px solid #cbd5e1' }}>
                             <table style={{ width: '100%', fontSize: '13px' }}>
-                              <thead><tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}><th style={{ textAlign: 'left', padding: '8px' }}>SKU</th><th style={{ textAlign: 'left', padding: '8px' }}>ESTOQUE</th><th style={{ textAlign: 'left', padding: '8px' }}>VENDAS</th><th style={{ textAlign: 'left', padding: '8px' }}>COBERTURA</th><th style={{ textAlign: 'left', padding: '8px' }}>ADD REPOSIÇÃO</th></tr></thead>
+                              <thead><tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}><th style={{ textAlign: 'left', padding: '8px' }}>SKU</th><th style={{ textAlign: 'left', padding: '8px' }}>VARIAÇÃO</th><th style={{ textAlign: 'left', padding: '8px' }}>ESTOQUE</th><th style={{ textAlign: 'left', padding: '8px' }}>VENDAS</th><th style={{ textAlign: 'left', padding: '8px' }}>COBERTURA</th><th style={{ textAlign: 'left', padding: '8px' }}>ADD REPOSIÇÃO</th></tr></thead>
                               <tbody>
                                 {loc.skus.map((s, i) => (
                                   <SkuRow key={`${loc.local}-${s.sku}`} s={s} loc={loc} addToCart={addToCart} />

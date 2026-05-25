@@ -331,6 +331,13 @@ export default function Alertas() {
             onSort: () => requestSort('sku'),
           },
           {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição {getSortIcon('descricao')}</div>,
+            rawLabel: 'Descrição',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          {
             key: 'local',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
             rawLabel: 'Local',

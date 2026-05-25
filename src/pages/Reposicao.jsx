@@ -9,6 +9,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_CAMINHO } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
+import MobileTable from '../components/MobileTable';
 
 export default function Reposicao() {
   const { data, loading, error } = useData();
@@ -20,9 +21,9 @@ export default function Reposicao() {
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [busca, setBusca] = useState('');
+  const [visao, setVisao] = useState('envio'); // 'envio' ou 'produto'
   
   const [expandedEnvio, setExpandedEnvio] = useState(null);
-  const [expandedDesc, setExpandedDesc] = useState(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,9 +64,8 @@ export default function Reposicao() {
   }, [caminhoRows, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
-    if (!caminhoRows.length) return { envios: [], totalGeral: 0 };
+    if (!caminhoRows.length) return { envios: [], produtos: [], totalGeral: 0 };
     
-    // Optional: SKU to Desc map if some descriptions are missing (using only 'caminho' for now, could use others if needed)
     const skuToDesc = {};
     caminhoRows.forEach(r => {
       const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
@@ -75,6 +75,7 @@ export default function Reposicao() {
 
     let totalGeral = 0;
     const agrupadoEnvio = {};
+    const agrupadoProduto = {};
 
     const inicioTime = dataIni ? new Date(`${dataIni}T00:00:00`).getTime() : 0;
     const fimTime = dataFim ? new Date(`${dataFim}T23:59:59`).getTime() : Infinity;
@@ -95,9 +96,6 @@ export default function Reposicao() {
       if (!descricao) descricao = `SKU: ${sku}`;
 
       const parsed = parseProductDescription(descricao, sku);
-      const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
-      const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
-      const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
 
       let previsaoRaw = r?.c?.[COL_CAMINHO.PREVISAO]?.v || "";
       let previsao = "";
@@ -135,89 +133,241 @@ export default function Reposicao() {
 
       totalGeral += quantidade;
 
+      // 1. Agrupamento por Envio/NF
       const chaveEnvio = `${local}||${envio}||${status}||${previsao}`;
-
       if (!agrupadoEnvio[chaveEnvio]) {
-        agrupadoEnvio[chaveEnvio] = { id: chaveEnvio, local, envio, status, previsao, total: 0, descricoes: {} };
+        agrupadoEnvio[chaveEnvio] = { id: chaveEnvio, local, envio, status, previsao, total: 0, modelos: {} };
       }
       agrupadoEnvio[chaveEnvio].total += quantidade;
 
-      if (!agrupadoEnvio[chaveEnvio].descricoes[cleanDesc]) {
-        agrupadoEnvio[chaveEnvio].descricoes[cleanDesc] = { descricao: cleanDesc, total: 0, skus: [] };
+      const modelKey = parsed.baseTitle;
+      if (!agrupadoEnvio[chaveEnvio].modelos[modelKey]) {
+        agrupadoEnvio[chaveEnvio].modelos[modelKey] = {
+          baseTitle: parsed.baseTitle,
+          total: 0,
+          cores: {}
+        };
       }
-      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].total += quantidade;
-      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].skus.push({ sku, skuPlat, quantidade, status, previsao });
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].total += quantidade;
+
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey]) {
+        agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey] = {
+          cor: corKey,
+          total: 0,
+          variacoes: []
+        };
+      }
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey].total += quantidade;
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey].variacoes.push({
+        sku,
+        skuPlat,
+        size: parsed.size || 'U',
+        quantidade
+      });
+
+      // 2. Agrupamento por Produto/Modelo
+      const chaveProd = `${parsed.baseTitle}|${local}`;
+      if (!agrupadoProduto[chaveProd]) {
+        agrupadoProduto[chaveProd] = {
+          id: chaveProd,
+          descricao: parsed.baseTitle,
+          local,
+          total: 0,
+          statusSet: new Set(),
+          previsoesSet: new Set(),
+          enviosSet: new Set(),
+          cores: {},
+          skusArr: []
+        };
+      }
+      agrupadoProduto[chaveProd].total += quantidade;
+      if (status) agrupadoProduto[chaveProd].statusSet.add(status);
+      if (previsao) agrupadoProduto[chaveProd].previsoesSet.add(previsao);
+      if (envio) agrupadoProduto[chaveProd].enviosSet.add(envio);
+      agrupadoProduto[chaveProd].skusArr.push(sku);
+      if (skuPlat) agrupadoProduto[chaveProd].skusArr.push(skuPlat);
+      if (envio) agrupadoProduto[chaveProd].skusArr.push(envio);
+
+      if (!agrupadoProduto[chaveProd].cores[corKey]) {
+        agrupadoProduto[chaveProd].cores[corKey] = {
+          cor: corKey,
+          total: 0,
+          variacoes: {}
+        };
+      }
+      agrupadoProduto[chaveProd].cores[corKey].total += quantidade;
+
+      const varKey = `${sku}|${parsed.size || 'U'}|${envio}`;
+      if (!agrupadoProduto[chaveProd].cores[corKey].variacoes[varKey]) {
+        agrupadoProduto[chaveProd].cores[corKey].variacoes[varKey] = {
+          sku,
+          skuPlat,
+          size: parsed.size || 'U',
+          quantidade: 0,
+          envio,
+          previsao,
+          status
+        };
+      }
+      agrupadoProduto[chaveProd].cores[corKey].variacoes[varKey].quantidade += quantidade;
     });
 
-    let envios = Object.values(agrupadoEnvio);
+    // Converter para arrays
+    let envios = Object.values(agrupadoEnvio).map(env => {
+      const listaProdutos = Object.values(env.modelos)
+        .map(m => `${toTitleCase(m.baseTitle)} (${m.total})`)
+        .join(', ');
+      return { ...env, listaProdutos };
+    });
 
+    let produtos = Object.values(agrupadoProduto).map(p => {
+      const statusList = Array.from(p.statusSet);
+      const statusGeral = statusList.length === 1 ? statusList[0] : statusList.includes('A CAMINHO') ? 'A CAMINHO' : statusList[0] || '-';
+      
+      const previsaoList = Array.from(p.previsoesSet);
+      const previsaoGeral = previsaoList.length === 1 ? previsaoList[0] : previsaoList.sort((a,b) => {
+        const [da, ma, ya] = a.split('/');
+        const [db, mb, yb] = b.split('/');
+        return new Date(`${ya}-${ma}-${da}`).getTime() - new Date(`${yb}-${mb}-${db}`).getTime();
+      })[0] || '-';
+
+      const enviosList = Array.from(p.enviosSet).join(', ');
+
+      return {
+        ...p,
+        statusGeral,
+        previsaoGeral,
+        enviosList
+      };
+    });
+
+    // Aplicar buscas
     if (busca) {
       const termos = busca.toLowerCase().trim().split(/\s+/);
+      
       envios = envios.filter(env => {
         let matches = false;
         const envioLower = (env.envio || "").toLowerCase();
         
-        Object.values(env.descricoes).forEach(desc => {
-          const descLower = (desc.descricao || "").toLowerCase();
-          const skusArray = desc.skus.map(s => (s.sku || "").toLowerCase())
-            .concat(desc.skus.map(s => (s.skuPlat || "").toLowerCase()));
+        Object.values(env.modelos).forEach(model => {
+          const modelLower = model.baseTitle.toLowerCase();
+          let skusArray = [];
+          Object.values(model.cores).forEach(c => {
+            c.variacoes.forEach(v => {
+              if (v.sku) skusArray.push(v.sku.toLowerCase());
+              if (v.skuPlat) skusArray.push(v.skuPlat.toLowerCase());
+            });
+          });
           
-          const thisDescMatches = termos.every(termo => 
+          const thisModelMatches = termos.every(termo => 
             envioLower.includes(termo) ||
-            descLower.includes(termo) || 
+            modelLower.includes(termo) || 
             skusArray.some(sku => sku.includes(termo))
           );
-          if (thisDescMatches) matches = true;
+          if (thisModelMatches) matches = true;
         });
         return matches;
       });
+
+      produtos = produtos.filter(p => {
+        const descLower = p.descricao.toLowerCase();
+        const localLower = p.local.toLowerCase();
+        const skusLower = p.skusArr.map(s => s.toLowerCase());
+
+        return termos.every(termo =>
+          descLower.includes(termo) ||
+          localLower.includes(termo) ||
+          skusLower.some(sku => sku.includes(termo))
+        );
+      });
     }
 
+    // Aplicar ordenação
     if (sortConfig.key) {
-      envios.sort((a, b) => {
+      const sortFn = (a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
+        
+        if (sortConfig.key === 'descricao') {
+          aVal = a.descricao || a.local;
+          bVal = b.descricao || b.local;
+        } else if (sortConfig.key === 'previsao') {
+          aVal = a.previsao || a.previsaoGeral;
+          bVal = b.previsao || b.previsaoGeral;
+        } else if (sortConfig.key === 'status') {
+          aVal = a.status || a.statusGeral;
+          bVal = b.status || b.statusGeral;
+        } else if (sortConfig.key === 'envio') {
+          aVal = a.envio || a.enviosList;
+          bVal = b.envio || b.enviosList;
+        }
+
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
         if (typeof bVal === 'string') bVal = bVal.toLowerCase();
         
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
-      });
+      };
+
+      envios.sort(sortFn);
+      produtos.sort(sortFn);
     }
 
-    return { envios, totalGeral };
+    return { envios, produtos, totalGeral };
   }, [caminhoRows, filtroLocal, filtroStatus, dataIni, dataFim, busca, sortConfig, selectedCompany]);
 
   // Paginação
-  const totalPaginas = Math.ceil(dadosProcessados.envios.length / itensPorPagina);
-  const linhasPaginadas = dadosProcessados.envios.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
+  const totalPaginas = Math.ceil((visao === 'envio' ? dadosProcessados.envios.length : dadosProcessados.produtos.length) / itensPorPagina);
+  const linhasPaginadas = (visao === 'envio' ? dadosProcessados.envios : dadosProcessados.produtos).slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
-      const headers = ["Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade Total"];
-      const exportData = dadosProcessados.envios.map(item => [
-        item.local,
-        item.envio,
-        item.status,
-        item.previsao,
-        item.total
-      ]);
-      handleExport(type, "Relatorio_Reposicao_Resumido", headers, exportData);
+      if (visao === 'envio') {
+        const headers = ["Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade Total"];
+        const exportData = dadosProcessados.envios.map(item => [
+          item.local,
+          item.envio,
+          item.status,
+          item.previsao,
+          item.total
+        ]);
+        handleExport(type, "Relatorio_Reposicao_Resumido_Lotes", headers, exportData);
+      } else {
+        const headers = ["Descrição do Produto", "Local de Destino", "Envio (NFs)", "Status Geral", "Previsão Geral", "Quantidade A Caminho"];
+        const exportData = dadosProcessados.produtos.map(item => [
+          item.descricao,
+          item.local,
+          item.enviosList,
+          item.statusGeral,
+          item.previsaoGeral,
+          item.total
+        ]);
+        handleExport(type, "Relatorio_Reposicao_Resumido_Produtos", headers, exportData);
+      }
     } else {
-      const headers = ["SKU Sênior", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
+      const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
       const exportData = [];
       dadosProcessados.envios.forEach(item => {
-        Object.values(item.descricoes).forEach(d => {
-          d.skus.forEach(s => {
-            exportData.push([
-              s.sku,
-              item.local,
-              item.envio,
-              item.status,
-              item.previsao,
-              s.quantidade
-            ]);
+        Object.values(item.modelos).forEach(model => {
+          Object.values(model.cores).forEach(corObj => {
+            corObj.variacoes.forEach(v => {
+              const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+              const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+              const fullDesc = `${model.baseTitle}${colorPart}${sizePart}`;
+              
+              exportData.push([
+                v.sku,
+                v.skuPlat || '-',
+                toTitleCase(fullDesc),
+                item.local,
+                item.envio,
+                item.status,
+                item.previsao,
+                v.quantidade
+              ]);
+            });
           });
         });
       });
@@ -227,7 +377,8 @@ export default function Reposicao() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filtroLocal, filtroStatus, dataIni, dataFim, busca, selectedCompany]);
+    setExpandedEnvio(null);
+  }, [filtroLocal, filtroStatus, dataIni, dataFim, busca, selectedCompany, visao]);
 
   if (loading) {
     return (
@@ -248,7 +399,58 @@ export default function Reposicao() {
           <h1>Reposição A Caminho</h1>
           <p>Acompanhamento de pedidos em trânsito</p>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          
+          {/* Seletor de Visão */}
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '10px', border: '1px solid #e2e8f0', gap: '4px', alignItems: 'center', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)' }}>
+            <button 
+              className="btn-padrao" 
+              style={{ 
+                background: visao === 'envio' ? 'white' : 'transparent', 
+                color: visao === 'envio' ? '#8b5cf6' : '#64748b',
+                boxShadow: visao === 'envio' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+                minHeight: 'auto',
+                lineHeight: '1.2'
+              }}
+              onClick={() => setVisao('envio')}
+            >
+              📦 Lotes (NF)
+            </button>
+            <button 
+              className="btn-padrao"
+              style={{ 
+                background: visao === 'produto' ? 'white' : 'transparent', 
+                color: visao === 'produto' ? '#8b5cf6' : '#64748b',
+                boxShadow: visao === 'produto' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+                minHeight: 'auto',
+                lineHeight: '1.2'
+              }}
+              onClick={() => setVisao('produto')}
+            >
+              👟 Por Produto
+            </button>
+          </div>
+
           <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
             <Truck size={24} />
             <div>
@@ -256,6 +458,7 @@ export default function Reposicao() {
               <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')}</div>
             </div>
           </div>
+
           <div style={{ position: 'relative' }}>
             <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
               <Download size={18} /> Exportar
@@ -276,7 +479,7 @@ export default function Reposicao() {
                 <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
                   <FileText size={14} color="#ef4444" /> PDF
                 </div>
-                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (LOTES)</div>
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO ({visao === 'envio' ? 'LOTES' : 'MODELOS'})</div>
                 <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
                   <FileText size={14} color="#64748b" /> CSV
                 </div>
@@ -297,7 +500,7 @@ export default function Reposicao() {
         <CompanySelector />
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '280px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PESQUISAR (SKU OU DESCRIÇÃO)</label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PESQUISAR (SKU, DESCRIÇÃO OU NF)</label>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
             <input 
@@ -351,96 +554,355 @@ export default function Reposicao() {
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th onClick={() => requestSort('local')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local de Destino {getSortIcon('local')}</div>
-            </th>
-            <th onClick={() => requestSort('envio')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Envio (NF) {getSortIcon('envio')}</div>
-            </th>
-            <th onClick={() => requestSort('total')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total de Peças {getSortIcon('total')}</div>
-            </th>
-            <th onClick={() => requestSort('status')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status {getSortIcon('status')}</div>
-            </th>
-            <th onClick={() => requestSort('previsao')} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Previsão {getSortIcon('previsao')}</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhasPaginadas.map((env, idx) => {
-            const isEnvExpanded = expandedEnvio === env.id;
-            return (
-              <React.Fragment key={env.id}>
-                <tr style={{ cursor: 'pointer', background: isEnvExpanded ? '#f8fafc' : 'transparent' }} onClick={() => setExpandedEnvio(isEnvExpanded ? null : env.id)}>
-                  <td style={{ fontWeight: 600 }}>{toTitleCase(env.local)}</td>
-                  <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{env.envio}</span></td>
-                  <td style={{ fontWeight: 600 }}>{env.total.toLocaleString('pt-BR')}</td>
-                  <td>
-                    <span style={{ 
-                      background: env.status.includes('CONFER') ? '#fef08a' : env.status === 'FINALIZADO' ? '#bbf7d0' : env.status === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
-                      color: env.status.includes('CONFER') ? '#a16207' : env.status === 'FINALIZADO' ? '#166534' : env.status === 'A CAMINHO' ? '#991b1b' : '#475569', 
-                      padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
-                    }}>
-                      {env.status}
-                    </span>
-                  </td>
-                  <td>{env.previsao}</td>
-                </tr>
-                {isEnvExpanded && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 0 }}>
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div style={{ padding: '0', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', fontSize: '13px' }}>
+      <MobileTable
+        columns={visao === 'envio' ? [
+          {
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local de Destino {getSortIcon('local')}</div>,
+            rawLabel: 'Local de Destino',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.local)}</span>,
+            onSort: () => requestSort('local'),
+          },
+          {
+            key: 'envio',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Envio (NF) {getSortIcon('envio')}</div>,
+            rawLabel: 'Envio (NF)',
+            render: (row) => <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>{row.envio}</span>,
+            onSort: () => requestSort('envio'),
+          },
+          {
+            key: 'listaProdutos',
+            label: 'Produtos no Envio',
+            rawLabel: 'Produtos no Envio',
+            render: (row) => (
+              <span style={{ 
+                fontSize: '12px', 
+                color: '#475569', 
+                maxWidth: '300px', 
+                display: 'inline-block', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis' 
+              }} title={row.listaProdutos}>
+                {row.listaProdutos}
+              </span>
+            ),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total de Peças {getSortIcon('total')}</div>,
+            rawLabel: 'Total de Peças',
+            render: (row) => <span style={{ fontWeight: 600 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('total'),
+          },
+          {
+            key: 'status',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status {getSortIcon('status')}</div>,
+            rawLabel: 'Status',
+            render: (row) => (
+              <span style={{ 
+                background: row.status.includes('CONFER') ? '#fef08a' : row.status === 'FINALIZADO' ? '#bbf7d0' : row.status === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
+                color: row.status.includes('CONFER') ? '#a16207' : row.status === 'FINALIZADO' ? '#166534' : row.status === 'A CAMINHO' ? '#991b1b' : '#475569', 
+                padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
+              }}>
+                {row.status}
+              </span>
+            ),
+            onSort: () => requestSort('status'),
+          },
+          {
+            key: 'previsao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Previsão {getSortIcon('previsao')}</div>,
+            rawLabel: 'Previsão',
+            render: (row) => row.previsao,
+            onSort: () => requestSort('previsao'),
+          },
+        ] : [
+          {
+            key: 'descricao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>,
+            rawLabel: 'Produto',
+            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            onSort: () => requestSort('descricao'),
+          },
+          {
+            key: 'local',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+            rawLabel: 'Local',
+            render: (row) => toTitleCase(row.local),
+            onSort: () => requestSort('local'),
+          },
+          {
+            key: 'envio',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Envios (NFs) {getSortIcon('envio')}</div>,
+            rawLabel: 'Envios (NFs)',
+            render: (row) => <span style={{ color: '#475569', fontSize: '12px' }}>{row.enviosList}</span>,
+            onSort: () => requestSort('envio'),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total A Caminho {getSortIcon('total')}</div>,
+            rawLabel: 'Total A Caminho',
+            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            onSort: () => requestSort('total'),
+          },
+          {
+            key: 'status',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status Geral {getSortIcon('status')}</div>,
+            rawLabel: 'Status Geral',
+            render: (row) => (
+              <span style={{ 
+                background: row.statusGeral.includes('CONFER') ? '#fef08a' : row.statusGeral === 'FINALIZADO' ? '#bbf7d0' : row.statusGeral === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
+                color: row.statusGeral.includes('CONFER') ? '#a16207' : row.statusGeral === 'FINALIZADO' ? '#166534' : row.statusGeral === 'A CAMINHO' ? '#991b1b' : '#475569', 
+                padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px' 
+              }}>
+                {row.statusGeral}
+              </span>
+            ),
+            onSort: () => requestSort('status'),
+          },
+          {
+            key: 'previsao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Previsão {getSortIcon('previsao')}</div>,
+            rawLabel: 'Previsão',
+            render: (row) => row.previsaoGeral,
+            onSort: () => requestSort('previsao'),
+          },
+        ]}
+        rows={linhasPaginadas}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setExpandedEnvio(expandedEnvio === row.id ? null : row.id)}
+        isExpanded={(row) => expandedEnvio === row.id}
+        renderExpandedDesktop={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {visao === 'envio' ? (
+                Object.values(item.modelos).map((model) => (
+                  <div key={model.baseTitle} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden', padding: '16px' }}>
+                    {/* Cabeçalho do Modelo */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '18px' }}>👟</span>
+                        <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>{toTitleCase(model.baseTitle)}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#8b5cf6', background: '#f5f3ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ddd6fe' }}>
+                        {model.total.toLocaleString('pt-BR')} peças
+                      </span>
+                    </div>
+
+                    {/* Cores do Modelo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {Object.values(model.cores).map((corObj) => (
+                        <div key={corObj.cor} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                          {/* Cabeçalho da Cor */}
+                          <div style={{ padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '14px' }}>🎨</span>
+                              <span style={{ fontWeight: 600, color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#4b5563', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px' }}>
+                              {corObj.total.toLocaleString('pt-BR')} un
+                            </span>
+                          </div>
+
+                          {/* Tabela de Tamanhos */}
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+                                <th style={{ padding: '8px 16px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px' }}>Tamanho</th>
+                                <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Sênior</th>
+                                <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Plataforma</th>
+                                <th style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px' }}>Quantidade</th>
+                              </tr>
+                            </thead>
                             <tbody>
-                              {Object.values(env.descricoes).map((desc, dIdx) => {
-                                const isDescExpanded = expandedDesc === `${env.id}-${desc.descricao}`;
-                                return (
-                                  <React.Fragment key={dIdx}>
-                                    <tr style={{ cursor: 'pointer', background: '#e2e8f0' }} onClick={() => setExpandedDesc(isDescExpanded ? null : `${env.id}-${desc.descricao}`)}>
-                                      <td style={{ padding: '12px 40px', fontWeight: 600, width: '40%' }}>{toTitleCase(desc.descricao)}</td>
-                                      <td style={{ padding: '12px 20px', fontWeight: 600 }}>{desc.total.toLocaleString('pt-BR')} peças</td>
-                                    </tr>
-                                    {isDescExpanded && desc.skus.map((skuItem, sIdx) => (
-                                      <tr key={sIdx}>
-                                        <td style={{ padding: '8px 80px', color: '#64748b' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            SKU: <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.sku}</span>
-                                          </div>
-                                        </td>
-                                        <td style={{ padding: '8px 20px' }}>{skuItem.quantidade.toLocaleString('pt-BR')} un</td>
-                                      </tr>
-                                    ))}
-                                  </React.Fragment>
-                                );
-                              })}
+                              {corObj.variacoes.map((v, idx) => (
+                                <tr key={v.sku + idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                                    <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center' }}>
+                                      {v.size || 'U'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                                    {v.sku}
+                                  </td>
+                                  <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                                    {v.skuPlat || '-'}
+                                  </td>
+                                  <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                    {v.quantidade.toLocaleString('pt-BR')} un
+                                  </td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
-                      </motion.div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            )
-          })}
-          {linhasPaginadas.length === 0 && (
-            <tr>
-              <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Nenhum dado encontrado para os filtros aplicados.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    {/* Cabeçalho da Cor */}
+                    <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#8b5cf6', background: '#f5f3ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ddd6fe' }}>
+                        {corObj.total.toLocaleString('pt-BR')} peças
+                      </span>
+                    </div>
+
+                    {/* Tabela de Variações */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px' }}>Tamanho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Sênior</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Plataforma</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '150px' }}>Envio (NF)</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '120px' }}>Previsão</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '120px' }}>Status</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px' }}>Quantidade</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.values(corObj.variacoes).map((v, idx) => (
+                          <tr key={v.sku + idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                            <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                              <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                {v.size || 'U'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                              {v.sku}
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                              {v.skuPlat || '-'}
+                            </td>
+                            <td style={{ padding: '10px 20px' }}>
+                              <span style={{ background: '#f1f5f9', padding: '3px 6px', borderRadius: '4px', fontWeight: 600, fontSize: '12px', color: '#475569' }}>
+                                {v.envio || '-'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', color: '#475569' }}>
+                              {v.previsao}
+                            </td>
+                            <td style={{ padding: '10px 20px' }}>
+                              <span style={{ 
+                                background: v.status.includes('CONFER') ? '#fef08a' : v.status === 'FINALIZADO' ? '#bbf7d0' : v.status === 'A CAMINHO' ? '#fecaca' : '#e2e8f0', 
+                                color: v.status.includes('CONFER') ? '#a16207' : v.status === 'FINALIZADO' ? '#166534' : v.status === 'A CAMINHO' ? '#991b1b' : '#475569', 
+                                padding: '3px 6px', borderRadius: '4px', fontWeight: 600, fontSize: '11px' 
+                              }}>
+                                {v.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.quantidade.toLocaleString('pt-BR')} un
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+        renderExpanded={(item) => (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {visao === 'envio' ? (
+                Object.values(item.modelos).map((model) => (
+                  <div key={model.baseTitle} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                      <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>{toTitleCase(model.baseTitle)}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#8b5cf6', background: '#f5f3ff', padding: '2px 8px', borderRadius: '12px' }}>
+                        {model.total} peças
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {Object.values(model.cores).map((corObj) => (
+                        <div key={corObj.cor} style={{ border: '1px solid #f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ padding: '6px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563' }}>{corObj.total} un</span>
+                          </div>
+                          <div style={{ padding: '0 10px' }}>
+                            {corObj.variacoes.map((v, idx, arr) => (
+                              <div key={v.sku + idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '24px', padding: '2px 4px', borderRadius: '4px', textAlign: 'center', fontSize: '11px' }}>
+                                    {v.size || 'U'}
+                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                                    {v.skuPlat && <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '9px' }}>Plat: {v.skuPlat}</span>}
+                                  </div>
+                                </div>
+                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '12px' }}>{v.quantidade} un</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', background: '#f5f3ff', padding: '2px 8px', borderRadius: '12px' }}>
+                        {corObj.total} un
+                      </span>
+                    </div>
+
+                    <div style={{ padding: '0 14px' }}>
+                      {Object.values(corObj.variacoes).map((v, idx, arr) => (
+                        <div key={v.sku + idx} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {v.size || 'U'}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '12px' }}>{v.sku}</span>
+                            </div>
+                            <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
+                              {v.quantidade} un
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                            <span>NF: {v.envio || '-'}</span>
+                            <span>Previsão: {v.previsao}</span>
+                            <span style={{ fontWeight: 600, color: v.status === 'A CAMINHO' ? '#b91c1c' : '#15803d' }}>{v.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>

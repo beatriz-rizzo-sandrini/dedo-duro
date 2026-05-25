@@ -5,6 +5,7 @@
  * - size (extracted size, e.g. "44", "G")
  */
 const SKU_COLOR_MAP = {
+  "00": "SEM COR",
   "AA": "PTO", "AB": "BCO", "AC": "AZ", "AD": "MAR", "AE": "CZ", "AF": "VM", "AG": "BGE", "AH": "MRM",
   "AI": "VDM", "AJ": "VD", "AK": "BDO", "AL": "AZE", "AM": "VDL", "AN": "VIN", "AO": "AZC", "AP": "AZR",
   "AQ": "NAV", "AR": "RS", "AS": "RSC", "AT": "AM", "AU": "AM", "AV": "LRJ", "AW": "VDC", "AX": "CHO",
@@ -91,12 +92,26 @@ export function parseProductDescription(desc, sku = '') {
   let size = '';
   let color = '';
 
-  // 1. Check if SKU matches the standard Senior SKU pattern
+  // 1. Check if SKU matches the standard Senior SKU pattern or custom kit SKU pattern
   let isSeniorSKU = false;
   let skuColor = '';
   let skuSize = '';
 
-  if (sku.length === 23) {
+  const kitMatch = sku.match(/^([A-Z0-9]+?)(CS|PT|BC|CZ|AZ|VM|VD|AA|AB|AC|AD)TOT(GG|G|M|P)$/i);
+  if (kitMatch) {
+    isSeniorSKU = true;
+    const rawColor = kitMatch[2].toUpperCase();
+    skuSize = kitMatch[3].toUpperCase();
+    if (rawColor === 'CS') {
+      skuColor = 'SORT';
+    } else if (rawColor === 'PT') {
+      skuColor = 'PTO';
+    } else if (rawColor === 'BC') {
+      skuColor = 'BCO';
+    } else {
+      skuColor = SKU_COLOR_MAP[rawColor] || rawColor;
+    }
+  } else if (sku.length === 23) {
     const block = sku.substring(11, 17);
     const p1 = block.substring(0, 2);
     const p2 = block.substring(2, 4);
@@ -105,19 +120,19 @@ export function parseProductDescription(desc, sku = '') {
     if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
       isSeniorSKU = true;
       const colors = [];
-      if (p1 !== 'CN') colors.push(SKU_COLOR_MAP[p1]);
-      if (p2 !== 'CN') colors.push(SKU_COLOR_MAP[p2]);
-      if (p3 !== 'CN') colors.push(SKU_COLOR_MAP[p3]);
+      if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
+      if (p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
+      if (p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
       
       const uniqueColors = Array.from(new Set(colors));
-      skuColor = uniqueColors.join('/').toUpperCase();
+      skuColor = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
       skuSize = sku.substring(17, 19);
     }
   } else if (sku.length === 22) {
     const block = sku.substring(14, 16);
     if (SKU_COLOR_MAP[block]) {
       isSeniorSKU = true;
-      skuColor = SKU_COLOR_MAP[block] !== 'CN' ? SKU_COLOR_MAP[block].toUpperCase() : 'SEM COR';
+      skuColor = (block !== 'CN' && block !== '00') ? SKU_COLOR_MAP[block].toUpperCase() : 'SEM COR';
       skuSize = sku.substring(16, 18);
     }
   }
