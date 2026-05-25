@@ -139,15 +139,35 @@ export default function Reposicao() {
       const chaveEnvio = `${local}||${envio}||${status}||${previsao}`;
 
       if (!agrupadoEnvio[chaveEnvio]) {
-        agrupadoEnvio[chaveEnvio] = { id: chaveEnvio, local, envio, status, previsao, total: 0, descricoes: {} };
+        agrupadoEnvio[chaveEnvio] = { id: chaveEnvio, local, envio, status, previsao, total: 0, modelos: {} };
       }
       agrupadoEnvio[chaveEnvio].total += quantidade;
 
-      if (!agrupadoEnvio[chaveEnvio].descricoes[cleanDesc]) {
-        agrupadoEnvio[chaveEnvio].descricoes[cleanDesc] = { descricao: cleanDesc, total: 0, skus: [] };
+      const modelKey = parsed.baseTitle;
+      if (!agrupadoEnvio[chaveEnvio].modelos[modelKey]) {
+        agrupadoEnvio[chaveEnvio].modelos[modelKey] = {
+          baseTitle: parsed.baseTitle,
+          total: 0,
+          cores: {}
+        };
       }
-      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].total += quantidade;
-      agrupadoEnvio[chaveEnvio].descricoes[cleanDesc].skus.push({ sku, skuPlat, quantidade, status, previsao });
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].total += quantidade;
+
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey]) {
+        agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey] = {
+          cor: corKey,
+          total: 0,
+          variacoes: []
+        };
+      }
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey].total += quantidade;
+      agrupadoEnvio[chaveEnvio].modelos[modelKey].cores[corKey].variacoes.push({
+        sku,
+        skuPlat,
+        size: parsed.size || 'U',
+        quantidade
+      });
     });
 
     let envios = Object.values(agrupadoEnvio);
@@ -158,17 +178,22 @@ export default function Reposicao() {
         let matches = false;
         const envioLower = (env.envio || "").toLowerCase();
         
-        Object.values(env.descricoes).forEach(desc => {
-          const descLower = (desc.descricao || "").toLowerCase();
-          const skusArray = desc.skus.map(s => (s.sku || "").toLowerCase())
-            .concat(desc.skus.map(s => (s.skuPlat || "").toLowerCase()));
+        Object.values(env.modelos).forEach(model => {
+          const modelLower = model.baseTitle.toLowerCase();
+          let skusArray = [];
+          Object.values(model.cores).forEach(c => {
+            c.variacoes.forEach(v => {
+              if (v.sku) skusArray.push(v.sku.toLowerCase());
+              if (v.skuPlat) skusArray.push(v.skuPlat.toLowerCase());
+            });
+          });
           
-          const thisDescMatches = termos.every(termo => 
+          const thisModelMatches = termos.every(termo => 
             envioLower.includes(termo) ||
-            descLower.includes(termo) || 
+            modelLower.includes(termo) || 
             skusArray.some(sku => sku.includes(termo))
           );
-          if (thisDescMatches) matches = true;
+          if (thisModelMatches) matches = true;
         });
         return matches;
       });
@@ -209,18 +234,24 @@ export default function Reposicao() {
       const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade"];
       const exportData = [];
       dadosProcessados.envios.forEach(item => {
-        Object.values(item.descricoes).forEach(d => {
-          d.skus.forEach(s => {
-            exportData.push([
-              s.sku,
-              s.skuPlat || '-',
-              toTitleCase(d.descricao),
-              item.local,
-              item.envio,
-              item.status,
-              item.previsao,
-              s.quantidade
-            ]);
+        Object.values(item.modelos).forEach(model => {
+          Object.values(model.cores).forEach(corObj => {
+            corObj.variacoes.forEach(v => {
+              const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+              const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+              const fullDesc = `${model.baseTitle}${colorPart}${sizePart}`;
+              
+              exportData.push([
+                v.sku,
+                v.skuPlat || '-',
+                toTitleCase(fullDesc),
+                item.local,
+                item.envio,
+                item.status,
+                item.previsao,
+                v.quantidade
+              ]);
+            });
           });
         });
       });
@@ -411,43 +442,71 @@ export default function Reposicao() {
             exit={{ opacity: 0, height: 0 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Descrição do Produto</th>
-                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa', width: '220px' }}>SKU Sênior</th>
-                      <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa', width: '220px' }}>SKU Plataforma</th>
-                      <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Quantidade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.values(env.descricoes).map((desc) => (
-                      <React.Fragment key={desc.descricao}>
-                        {desc.skus.map((skuItem, sIdx) => (
-                          <tr key={skuItem.sku + sIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            {sIdx === 0 && (
-                              <td style={{ padding: '10px 20px', fontWeight: 600, color: '#1e293b' }} rowSpan={desc.skus.length}>
-                                {toTitleCase(desc.descricao)}
-                              </td>
-                            )}
-                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569' }}>
-                              {skuItem.sku}
-                            </td>
-                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
-                              {skuItem.skuPlat || '-'}
-                            </td>
-                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                              {skuItem.quantidade.toLocaleString('pt-BR')} un
-                            </td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
+            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {Object.values(env.modelos).map((model) => (
+                <div key={model.baseTitle} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden', padding: '16px' }}>
+                  {/* Cabeçalho do Modelo */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>👟</span>
+                      <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>{toTitleCase(model.baseTitle)}</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#8b5cf6', background: '#f5f3ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ddd6fe' }}>
+                      {model.total.toLocaleString('pt-BR')} peças
+                    </span>
+                  </div>
+
+                  {/* Cores do Modelo */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {Object.values(model.cores).map((corObj) => (
+                      <div key={corObj.cor} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                        {/* Cabeçalho da Cor */}
+                        <div style={{ padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '14px' }}>🎨</span>
+                            <span style={{ fontWeight: 600, color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#4b5563', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px' }}>
+                            {corObj.total.toLocaleString('pt-BR')} un
+                          </span>
+                        </div>
+
+                        {/* Tabela de Tamanhos */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+                              <th style={{ padding: '8px 16px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px' }}>Tamanho</th>
+                              <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Sênior</th>
+                              <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>SKU Plataforma</th>
+                              <th style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px' }}>Quantidade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {corObj.variacoes.map((v, idx) => (
+                              <tr key={v.sku + idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                                  <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center' }}>
+                                    {v.size || 'U'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                                  {v.sku}
+                                </td>
+                                <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
+                                  {v.skuPlat || '-'}
+                                </td>
+                                <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                  {v.quantidade.toLocaleString('pt-BR')} un
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -459,17 +518,40 @@ export default function Reposicao() {
             style={{ overflow: 'hidden' }}
           >
             <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {Object.values(env.descricoes).map((desc) => (
-                <div key={desc.descricao} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>{toTitleCase(desc.descricao)}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {desc.skus.map((skuItem, sIdx) => (
-                      <div key={skuItem.sku + sIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', borderTop: sIdx > 0 ? '1px solid #f1f5f9' : 'none', paddingTop: sIdx > 0 ? '6px' : '0' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontFamily: 'monospace', color: '#475569' }}>{skuItem.sku}</span>
-                          {skuItem.skuPlat && <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '10px' }}>Plat: {skuItem.skuPlat}</span>}
+              {Object.values(env.modelos).map((model) => (
+                <div key={model.baseTitle} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  {/* Cabeçalho do Modelo */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>{toTitleCase(model.baseTitle)}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#8b5cf6', background: '#f5f3ff', padding: '2px 8px', borderRadius: '12px' }}>
+                      {model.total} peças
+                    </span>
+                  </div>
+
+                  {/* Cores */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {Object.values(model.cores).map((corObj) => (
+                      <div key={corObj.cor} style={{ border: '1px solid #f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                        <div style={{ padding: '6px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563' }}>{corObj.total} un</span>
                         </div>
-                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{skuItem.quantidade} un</span>
+                        <div style={{ padding: '0 10px' }}>
+                          {corObj.variacoes.map((v, idx, arr) => (
+                            <div key={v.sku + idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '24px', padding: '2px 4px', borderRadius: '4px', textAlign: 'center', fontSize: '11px' }}>
+                                  {v.size || 'U'}
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                                  {v.skuPlat && <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '9px' }}>Plat: {v.skuPlat}</span>}
+                                </div>
+                              </div>
+                              <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '12px' }}>{v.quantidade} un</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
