@@ -92,12 +92,26 @@ export function parseProductDescription(desc, sku = '') {
   let size = '';
   let color = '';
 
-  // 1. Check if SKU matches the standard Senior SKU pattern
+  // 1. Check if SKU matches the standard Senior SKU pattern or custom kit SKU pattern
   let isSeniorSKU = false;
   let skuColor = '';
   let skuSize = '';
 
-  if (sku.length === 23) {
+  const kitMatch = sku.match(/^([A-Z0-9]+?)(CS|PT|BC|CZ|AZ|VM|VD|AA|AB|AC|AD)TOT(GG|G|M|P)$/i);
+  if (kitMatch) {
+    isSeniorSKU = true;
+    const rawColor = kitMatch[2].toUpperCase();
+    skuSize = kitMatch[3].toUpperCase();
+    if (rawColor === 'CS') {
+      skuColor = 'SORT';
+    } else if (rawColor === 'PT') {
+      skuColor = 'PTO';
+    } else if (rawColor === 'BC') {
+      skuColor = 'BCO';
+    } else {
+      skuColor = SKU_COLOR_MAP[rawColor] || rawColor;
+    }
+  } else if (sku.length === 23) {
     const block = sku.substring(11, 17);
     const p1 = block.substring(0, 2);
     const p2 = block.substring(2, 4);
