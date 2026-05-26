@@ -180,6 +180,20 @@ export function parseProductDescription(desc, sku = '') {
       }
     }
 
+    // Pre-replace multi-word color names with their single-word abbreviations to handle slashes correctly
+    const multiWordColors = [
+      'AZUL CLARO', 'AZUL ESCURO', 'AZUL ROYAL', 'AZUL NAVY', 'AZUL BEBÊ',
+      'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA',
+      'ROSA CLARO', 'ROSA ESCURO',
+      'MARROM CLARO', 'MARROM ESCURO',
+      'OFF WHITE', 'OFF-WHITE',
+      'PLEIN AIR', 'PLAIN AIR', 'FLAMENGO SCARLET'
+    ];
+    for (const phrase of multiWordColors) {
+      const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
+      baseTitle = baseTitle.replace(regex, COLOR_ABBR_MAP[phrase] || phrase);
+    }
+
     const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
     const slashMatch = baseTitle.match(colorSlashRegex);
     if (slashMatch) {
