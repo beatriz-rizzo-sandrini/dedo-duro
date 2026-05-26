@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase.js';
 
-const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
+const SPREADSHEET_ID = '1A_K3440z4w-vwryh3SgssPIa4MlsZn3k987ksbx80vU';
 
 // Abas do Google Sheets (badstock, caminho, sellout) - estoque e vendas vem do Supabase
 const SHEETS_FROM_GS = ['sellout'];
@@ -151,7 +151,7 @@ async function fetchCaminho() {
     return data.table.rows;
   } catch (err) {
     console.log('[DataContext] API Local offline. Buscando caminho do Google Sheets...');
-    return fetchSheet('caminho');
+    return fetchSheet('CAMINHO');
   }
 }
 
@@ -163,7 +163,7 @@ async function fetchBadstock() {
     return data.table.rows;
   } catch (err) {
     console.log('[DataContext] API Local offline. Buscando badstock do Google Sheets...');
-    return fetchSheet('badstock');
+    return fetchSheet('BAD STOCK');
   }
 }
 

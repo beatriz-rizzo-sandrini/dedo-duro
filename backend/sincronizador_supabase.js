@@ -2,14 +2,14 @@ const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
 const cron = require('node-cron');
 
-const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
+const SPREADSHEET_ID = '1A_K3440z4w-vwryh3SgssPIa4MlsZn3k987ksbx80vU';
 
 const SHEET_URLS = {
-  vendas: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=vendas`,
+  vendas: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=VENDAS`,
   estoque: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=ESTOQUE`,
   caminho: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=CAMINHO`,
-  badstock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=badstock`,
-  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=525427301`
+  badstock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=BAD STOCK`,
+  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=230578226`
 };
 
 const supabaseUrl = 'https://hpisoqyionulahtqfwsn.supabase.co';
