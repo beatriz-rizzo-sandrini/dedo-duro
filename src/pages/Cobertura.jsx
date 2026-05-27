@@ -109,7 +109,7 @@ export default function Cobertura() {
       if (dataIni && dataRow < new Date(dataIni)) return;
       if (dataFim && dataRow > new Date(dataFim)) return;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -161,7 +161,7 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -210,7 +210,7 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {

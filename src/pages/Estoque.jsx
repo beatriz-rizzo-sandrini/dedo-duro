@@ -121,7 +121,7 @@ export default function Estoque() {
       totalGeral += quantidade;
       totalCustoGeral += custoLinha;
 
-      const parsed = parseProductDescription(descricao, sku);
+      const parsed = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"));
 
       // Group by Base Title + Local (Model & Platform level)
       const prodKey = `${parsed.baseTitle}|${local}`;

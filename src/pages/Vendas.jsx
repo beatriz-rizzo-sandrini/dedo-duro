@@ -151,7 +151,7 @@ export default function Vendas() {
       if (dateRow < inicioTime) return;
       if (dateRow > fimTime) return;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
 
       if (busca) {
         const termos = busca.toLowerCase().trim().split(/\s+/);

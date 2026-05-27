@@ -95,7 +95,7 @@ export default function Reposicao() {
       if (!sku && !descricao) return;
       if (!descricao) descricao = `SKU: ${sku}`;
 
-      const parsed = parseProductDescription(descricao, sku);
+      const parsed = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"));
 
       let previsaoRaw = r?.c?.[COL_CAMINHO.PREVISAO]?.v || "";
       let previsao = "";

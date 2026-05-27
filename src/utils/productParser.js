@@ -80,13 +80,63 @@ const COLOR_ABBR_MAP = {
   'SORTIDO': 'SORT', 'SORTIDOS': 'SORT'
 };
 
-export function parseProductDescription(desc, sku = '') {
+export function parseProductDescription(desc, sku = '', isWatch = false) {
   if (!desc) {
     return {
       baseTitle: sku || 'Produto Sem Descrição',
       color: 'SEM COR',
       size: 'U',
       descricaoFormatada: sku || 'Produto Sem Descrição'
+    };
+  }
+
+  // Identificação automática caso isWatch não seja passado
+  let isWatchObj = isWatch;
+  if (!isWatchObj) {
+    const descUpper = desc.toUpperCase();
+    if (descUpper.includes('RELOGIO') || descUpper.includes('RELÓGIO') || descUpper.includes('WATCH') || descUpper.includes('PERFUME')) {
+      isWatchObj = true;
+    }
+  }
+
+  sku = String(sku).trim();
+
+  if (isWatchObj) {
+    let title = desc.trim();
+    // Limpezas básicas de parâmetros do Sheets para relógios
+    title = title.replace(/(?:Cor|Tamanho|Tam|Ref|cós|cos)\s*:\s*.*$/i, '');
+    title = title.replace(/;\s*.*$/i, '');
+    title = title.replace(/[\s\-,;:]+$/, '').trim();
+
+    const toTitleCase = (str) => {
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => {
+          const cleanWord = word.replace(/[()]/g, '');
+          if (word.startsWith('(') && word.endsWith(')')) {
+            return word.toUpperCase();
+          }
+          if (['chm', 'tc', 'sp', 'mg', 'ch30475g', 'ca31426d', 'rchch22788b'].includes(cleanWord.toLowerCase())) {
+            return word.toUpperCase();
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(' ');
+    };
+
+    const titleCased = toTitleCase(title);
+    
+    // Adiciona o SKU na descrição base do relógio para agrupamento único
+    const baseTitle = sku && !titleCased.toUpperCase().includes(sku.toUpperCase())
+      ? `${titleCased} (${sku})`
+      : titleCased;
+
+    return {
+      baseTitle,
+      color: 'SEM COR',
+      size: 'U',
+      descricaoFormatada: baseTitle
     };
   }
 

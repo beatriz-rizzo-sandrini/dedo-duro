@@ -117,7 +117,7 @@ export default function Sellout() {
         if (marca) setMarcas.add(marca);
         if (local) setLocais.add(local);
 
-        const parsed = parseProductDescription(rawDesc, sku);
+        const parsed = parseProductDescription(rawDesc, sku, local.includes("BUY CLOCK"));
         const prodKey = `${parsed.baseTitle}|${marca}`;
 
         if (!stats[prodKey]) {
@@ -195,7 +195,7 @@ export default function Sellout() {
       // Filtra vendas de hoje em diante (fora do período encerrado)
       if (dataVendaTime > ontemTime) return;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${marca}`;
 
       if (!stats[prodKey]) {

@@ -149,7 +149,7 @@ export default function Alertas() {
       }
 
       if (alertaT && (tipoAlerta === "todos" || tipoAlerta === alertaT)) {
-        const parsed = parseProductDescription(descricao, sku);
+        const parsed = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"));
         const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
         const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
         const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;

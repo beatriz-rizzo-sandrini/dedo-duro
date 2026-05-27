@@ -185,7 +185,7 @@ export default function Produto() {
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -255,7 +255,7 @@ export default function Produto() {
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = parseProductDescription(desc, sku);
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
