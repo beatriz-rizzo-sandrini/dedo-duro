@@ -17,7 +17,7 @@ import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, Arro
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import HeaderDates from '../components/HeaderDates';
-import { getLatestDates } from '../utils/dateUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
@@ -96,11 +96,13 @@ export default function Sellout() {
     const d30Time = hojeUTC - (30 * 24 * 60 * 60 * 1000);
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     // 1. Processar Estoque primeiro para registrar todos os produtos e suas variações
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();

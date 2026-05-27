@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
-import { getLatestDates } from '../utils/dateUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
@@ -20,6 +20,7 @@ export default function Estoque() {
   const vendasRows = data.vendas || [];
 
   const [filtroLocal, setFiltroLocal] = useState('');
+  const [filtroMarca, setFiltroMarca] = useState('');
   const [busca, setBusca] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -55,10 +56,31 @@ export default function Estoque() {
     return Array.from(setLocais);
   }, [estoqueRows, selectedCompany]);
 
+  const marcas = useMemo(() => {
+    if (!estoqueRows) return [];
+    const setMarcas = new Set();
+    const { dataEstoque } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
+    
+    estoqueRows.forEach(r => {
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
+
+      const m = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    return Array.from(setMarcas).sort();
+  }, [estoqueRows, vendasRows, selectedCompany]);
+
   const dadosProcessados = useMemo(() => {
-    if (!estoqueRows) return { linhas: [], totalGeral: 0, dataEstoque: "", dataVendas: "" };
+    if (!estoqueRows) return { linhas: [], totalGeral: 0, totalCustoGeral: 0, dataEstoque: "", dataVendas: "" };
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
@@ -68,12 +90,14 @@ export default function Estoque() {
     });
 
     let totalGeral = 0;
+    let totalCustoGeral = 0;
     const agrupado = {};
 
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
       // Corrigido: Filtra pela data para não somar histórico
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const skuPlat = r?.c?.[7]?.v || "";
@@ -81,8 +105,11 @@ export default function Estoque() {
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const quantidade = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
+      const valorUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
+      const marca = (r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").trim().toUpperCase();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (filtroMarca && marca !== filtroMarca) return;
 
       if (!descricao && skuToDesc[sku]) descricao = skuToDesc[sku];
       if (!sku && !descricao) return;
@@ -90,7 +117,9 @@ export default function Estoque() {
 
       if (filtroLocal && local !== filtroLocal) return;
 
+      const custoLinha = quantidade * valorUnitario;
       totalGeral += quantidade;
+      totalCustoGeral += custoLinha;
 
       const parsed = parseProductDescription(descricao, sku);
 
@@ -100,13 +129,16 @@ export default function Estoque() {
         agrupado[prodKey] = {
           descricao: parsed.baseTitle,
           local: local,
+          marca: r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca",
           total: 0,
+          custoTotal: 0,
           cores: {},
           skusArr: [],
           id: prodKey
         };
       }
       agrupado[prodKey].total += quantidade;
+      agrupado[prodKey].custoTotal += custoLinha;
       agrupado[prodKey].skusArr.push(sku);
       if (skuPlat) agrupado[prodKey].skusArr.push(skuPlat);
 
@@ -116,10 +148,12 @@ export default function Estoque() {
         agrupado[prodKey].cores[corKey] = {
           cor: corKey,
           total: 0,
+          custoTotal: 0,
           variacoes: {}
         };
       }
       agrupado[prodKey].cores[corKey].total += quantidade;
+      agrupado[prodKey].cores[corKey].custoTotal += custoLinha;
 
       // Group by variation
       const varKey = `${sku}|${parsed.size}`;
@@ -127,10 +161,13 @@ export default function Estoque() {
         agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku: sku,
           size: parsed.size,
-          total: 0
+          total: 0,
+          valorUnitario: valorUnitario,
+          custoTotal: 0
         };
       }
       agrupado[prodKey].cores[corKey].variacoes[varKey].total += quantidade;
+      agrupado[prodKey].cores[corKey].variacoes[varKey].custoTotal += custoLinha;
     });
 
     let linhas = Object.values(agrupado);
@@ -163,8 +200,8 @@ export default function Estoque() {
       });
     }
 
-    return { linhas, totalGeral, dataEstoque, dataVendas };
-  }, [estoqueRows, vendasRows, filtroLocal, busca, sortConfig, selectedCompany]);
+    return { linhas, totalGeral, totalCustoGeral, dataEstoque, dataVendas };
+  }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
@@ -205,7 +242,7 @@ export default function Estoque() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filtroLocal, busca, selectedCompany]);
+  }, [filtroLocal, filtroMarca, busca, selectedCompany]);
 
   if (loading) {
     return (
@@ -229,12 +266,19 @@ export default function Estoque() {
           <p>Visão geral dos produtos em armazém</p>
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
           <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
             <Package size={24} />
             <div>
               <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL EM ESTOQUE</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')}</div>
+              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+            </div>
+          </div>
+          <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
+            <span style={{ fontSize: '24px' }}>💰</span>
+            <div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>CUSTO TOTAL DO ESTOQUE</div>
+              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
             </div>
           </div>
           <div style={{ position: 'relative' }}>
@@ -292,14 +336,30 @@ export default function Estoque() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
+          <Select 
+            options={[
+              { value: '', label: 'Todas as Marcas' },
+              ...marcas.map(m => ({ value: m, label: toTitleCase(m) }))
+            ]}
+            value={{ value: filtroMarca, label: filtroMarca ? toTitleCase(filtroMarca) : 'Todas as Marcas' }}
+            onChange={opt => setFiltroMarca(opt.value)}
+            isSearchable={true}
+            placeholder="Todas as Marcas"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL</label>
           <Select 
             options={[
-              { value: '', label: 'Todos' },
+              { value: '', label: 'Todos os Locais' },
               ...locais.map(l => ({ value: l, label: toTitleCase(l) }))
             ]}
-            value={{ value: filtroLocal, label: filtroLocal ? toTitleCase(filtroLocal) : 'Todos' }}
+            value={{ value: filtroLocal, label: filtroLocal ? toTitleCase(filtroLocal) : 'Todos os Locais' }}
             onChange={opt => setFiltroLocal(opt.value)}
             isSearchable={true}
             placeholder="Todos os Locais"
@@ -315,7 +375,12 @@ export default function Estoque() {
             key: 'descricao',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>,
             rawLabel: 'Produto',
-            render: (row) => <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>,
+            render: (row) => (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.3px' }}>Marca: {row.marca || 'Sem Marca'}</span>
+              </div>
+            ),
             onSort: () => requestSort('descricao'),
           },
           ...(!filtroLocal ? [{
@@ -326,10 +391,17 @@ export default function Estoque() {
             onSort: () => requestSort('local'),
           }] : []),
           {
+            key: 'custoTotal',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Custo Total {getSortIcon('custoTotal')}</div>,
+            rawLabel: 'Custo Total',
+            render: (row) => <span style={{ fontWeight: 800, color: '#1e293b' }}>{row.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>,
+            onSort: () => requestSort('custoTotal'),
+          },
+          {
             key: 'total',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total em Estoque {getSortIcon('total')}</div>,
             rawLabel: 'Total em Estoque',
-            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')}</span>,
+            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')} pçs</span>,
             onSort: () => requestSort('total'),
           },
         ]}
@@ -353,17 +425,24 @@ export default function Estoque() {
                       <span style={{ fontSize: '16px' }}>🎨</span>
                       <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
                     </div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
-                      {corObj.total.toLocaleString('pt-BR')} peças
-                    </span>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '4px 10px', borderRadius: '20px' }}>
+                        {corObj.total.toLocaleString('pt-BR')} peças
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                        Custo: {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Tabela de Variações */}
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Tamanho</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
                         <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Unit.</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Total</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Qtd em Estoque</th>
                       </tr>
                     </thead>
@@ -388,6 +467,12 @@ export default function Estoque() {
                           </td>
                           <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
                             {v.sku}
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#475569', fontWeight: 500 }}>
+                            {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#047857', fontWeight: 600 }}>
+                            {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
                           <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
                             {v.total.toLocaleString('pt-BR')} peças
@@ -414,9 +499,14 @@ export default function Estoque() {
                   {/* Cabeçalho Cor */}
                   <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
-                      {corObj.total} pçs
-                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '12px' }}>
+                        {corObj.total} pçs
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '12px' }}>
+                        {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Lista de Variações Mobile */}
@@ -440,11 +530,13 @@ export default function Estoque() {
                           </span>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                            <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                           </div>
                         </div>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
-                          {v.total} pçs
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>{v.total} pçs</span>
+                          <span style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>Total: {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
                       </div>
                     ))}
                   </div>

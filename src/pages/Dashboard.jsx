@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity } from 'lucide-react';
+import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity, FileSpreadsheet } from 'lucide-react';
 import './Dashboard.css';
 
 const cards = [
@@ -12,6 +12,7 @@ const cards = [
   { id: 'reposicao', title: 'Reposição', desc: 'Reposição a caminho', icon: Truck, path: '/reposicao', className: 'card-reposicao' },
   { id: 'sellout', title: 'Sellout', desc: 'Análise de Sellout', icon: Activity, path: '/sellout', className: 'card-sellout' },
   { id: 'alertas', title: 'Alertas', desc: 'Alertas de estoque', icon: Bell, path: '/alertas', className: 'card-alertas' },
+  { id: 'planilha', title: 'Planilha', desc: 'Planilha de Apoio Externa', icon: FileSpreadsheet, path: '/planilha', className: 'card-planilha' },
 ];
 
 const containerVariants = {

@@ -2,14 +2,14 @@ const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
 const cron = require('node-cron');
 
-const SPREADSHEET_ID = '1A_K3440z4w-vwryh3SgssPIa4MlsZn3k987ksbx80vU';
+const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
 const SHEET_URLS = {
   vendas: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=VENDAS`,
   estoque: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=ESTOQUE`,
   caminho: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=CAMINHO`,
   badstock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=BAD STOCK`,
-  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=230578226`
+  mapeamento: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=525427301`
 };
 
 const supabaseUrl = 'https://hpisoqyionulahtqfwsn.supabase.co';
@@ -168,11 +168,15 @@ async function syncEstoque() {
     }
   }
 
-  // Deduplica por data+sku+local (pega o último valor encontrado)
+  // Deduplica por data+sku+local (soma as quantidades para preservar o total correto)
   const mapaEstoque = {};
   for (const item of insertData) {
     const chave = `${item.data_atualizacao}|${item.sku_produto}|${item.local_estoque}`;
-    mapaEstoque[chave] = item;
+    if (mapaEstoque[chave]) {
+      mapaEstoque[chave].quantidade_disponivel += item.quantidade_disponivel;
+    } else {
+      mapaEstoque[chave] = { ...item };
+    }
   }
   const dadosUnicosEstoque = Object.values(mapaEstoque);
 
@@ -359,11 +363,50 @@ async function syncMapeamento() {
       const marca = null; // A planilha atual não tem coluna de marca
 
       if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') {
+        let finalSkuSen = skuSen ? String(skuSen).trim() : null;
+        let finalDesc = desc ? String(desc).trim() : null;
+
+        // CORREÇÃO DE SEGURANÇA: Evitar mapear produtos Dry Fit da Sandrini para SKU Sênior da Lupo
+        const isSandriniDry = 
+          (skuPlat.toUpperCase().includes('DRY') || skuPlat.toUpperCase().includes('2350') || skuPlat.toUpperCase().includes('2351') || skuPlat.toUpperCase().includes('2352') || skuPlat.toUpperCase().includes('2353') || skuPlat.toUpperCase().includes('2355')) && 
+          !skuPlat.toUpperCase().startsWith('LP') && 
+          !skuPlat.toUpperCase().startsWith('KLP');
+
+        const isMappedToLupo = 
+          finalSkuSen && 
+          (finalSkuSen.toUpperCase().startsWith('LP') || finalSkuSen.toUpperCase().startsWith('KLP') || (finalDesc && finalDesc.toUpperCase().includes('LUPO')));
+
+        if (isSandriniDry && isMappedToLupo) {
+          const skuPlatUpper = skuPlat.toUpperCase().trim();
+          finalSkuSen = skuPlatUpper; // Sênior = Plataforma para não misturar com Lupo
+
+          if (skuPlatUpper.startsWith('K4') || skuPlatUpper.startsWith('KIT4')) {
+            finalDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
+          } else if (skuPlatUpper.startsWith('K2') || skuPlatUpper.startsWith('KIT2')) {
+            finalDesc = 'Kit 2 Camisetas Dry Sandrini Manga Curta';
+          } else if (skuPlatUpper.startsWith('K3') || skuPlatUpper.startsWith('KIT3')) {
+            finalDesc = 'Kit 3 Camisetas Dry Sandrini Manga Curta';
+          } else if (skuPlatUpper.startsWith('K5') || skuPlatUpper.startsWith('KIT5')) {
+            finalDesc = 'Kit 5 Camisetas Dry Sandrini Manga Curta';
+          } else if (skuPlatUpper.startsWith('K8') || skuPlatUpper.startsWith('KIT8')) {
+            finalDesc = 'Kit 8 Camisetas Dry Sandrini Manga Curta';
+          } else if (skuPlatUpper.startsWith('K') || skuPlatUpper.includes('KIT')) {
+            finalDesc = 'Kit Camisetas Dry Sandrini Manga Curta';
+          } else {
+            // Individual
+            if (skuPlatUpper.includes('2351') || skuPlatUpper.includes('2352') || skuPlatUpper.includes('2353') || skuPlatUpper.includes('ML')) {
+              finalDesc = 'Camiseta Dry Fit Sandrini M.l';
+            } else {
+              finalDesc = 'Camiseta Dry Fit Sandrini M.c';
+            }
+          }
+        }
+
         insertData.push({
           sku_plataforma: String(skuPlat).trim(),
           plataforma: String(plat).toUpperCase().trim(),
-          sku_senior: skuSen ? String(skuSen).trim() : null,
-          descricao_oficial: desc ? String(desc).trim() : null,
+          sku_senior: finalSkuSen,
+          descricao_oficial: finalDesc,
           marca_oficial: marca
         });
       }

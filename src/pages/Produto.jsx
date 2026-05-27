@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
-import { getLatestDates } from '../utils/dateUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
@@ -123,11 +123,13 @@ export default function Produto() {
     }
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
@@ -166,7 +168,8 @@ export default function Produto() {
 
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase();
       const skuPlat = r?.c?.[7]?.v || "";
