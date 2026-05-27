@@ -200,7 +200,14 @@ export default function Estoque() {
       });
     }
 
-    return { linhas, totalGeral, totalCustoGeral, dataEstoque, dataVendas };
+    let finalTotalGeral = 0;
+    let finalTotalCustoGeral = 0;
+    linhas.forEach(l => {
+      finalTotalGeral += l.total;
+      finalTotalCustoGeral += l.custoTotal;
+    });
+
+    return { linhas, totalGeral: finalTotalGeral, totalCustoGeral: finalTotalCustoGeral, dataEstoque, dataVendas };
   }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany]);
 
   // Paginação
