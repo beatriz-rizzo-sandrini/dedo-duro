@@ -42,129 +42,99 @@ function sqlDateToBR(d) {
 }
 
 async function fetchVendasSupabase() {
-  try {
-    console.log('[DataContext] Buscando vendas da API local (localhost:3001)...');
-    const res = await fetch('http://localhost:3001/api/vendas');
-    const data = await res.json();
-    return data.table.rows;
-  } catch (err) {
-    console.log('[DataContext] API Local offline. Buscando vendas do Supabase (produção)...');
-    const PAGE_SIZE = 1000;
-    let allData = [];
-    let from = 0;
-    let hasMore = true;
+  const PAGE_SIZE = 1000;
+  let allData = [];
+  let from = 0;
+  let hasMore = true;
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('vw_vendas_consolidadas')
-        .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
-        .gte('data_venda', VENDAS_CUTOFF)
-        .order('data_venda', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('vw_vendas_consolidadas')
+      .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+      .gte('data_venda', VENDAS_CUTOFF)
+      .order('data_venda', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
 
-      if (error) {
-        console.warn('[DataContext] Falha ao buscar vendas do Supabase:', error?.message);
-        break;
-      }
-
-      if (!data || data.length === 0) break;
-
-      allData = allData.concat(data);
-      hasMore = data.length === PAGE_SIZE;
-      from += PAGE_SIZE;
+    if (error) {
+      console.warn('[DataContext] Falha ao buscar vendas do Supabase:', error?.message);
+      break;
     }
 
-    console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
+    if (!data || data.length === 0) break;
 
-    // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
-    // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
-    return allData.map(r => ({
-      c: [
-        { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
-        { v: r.local_venda },
-        { v: r.sku_produto },
-        { v: r.descricao_produto },
-        { v: Number(r.quantidade_vendida) || 0 },
-        { v: r.marca },
-      ]
-    }));
+    allData = allData.concat(data);
+    hasMore = data.length === PAGE_SIZE;
+    from += PAGE_SIZE;
   }
+
+  console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
+
+  // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
+  // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
+  return allData.map(r => ({
+    c: [
+      { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
+      { v: r.local_venda },
+      { v: r.sku_produto },
+      { v: r.descricao_produto },
+      { v: Number(r.quantidade_vendida) || 0 },
+      { v: r.marca },
+    ]
+  }));
 }
 
 // ── Estoque do Supabase (tabela silver_estoque mapeada via view) ─────────────
 
 async function fetchEstoqueSupabase() {
-  try {
-    console.log('[DataContext] Buscando estoque da API local (localhost:3001)...');
-    const res = await fetch('http://localhost:3001/api/estoque');
-    const data = await res.json();
-    return data.table.rows;
-  } catch (err) {
-    console.log('[DataContext] API Local offline. Buscando estoque do Supabase (produção)...');
-    const PAGE_SIZE = 1000;
-    let allData = [];
-    let from = 0;
-    let hasMore = true;
+  const PAGE_SIZE = 1000;
+  let allData = [];
+  let from = 0;
+  let hasMore = true;
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('vw_estoque_consolidado')
-        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
-        .order('id', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('vw_estoque_consolidado')
+      .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+      .order('id', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
 
-      if (error) {
-        console.warn('[DataContext] Falha ao buscar estoque do Supabase:', error?.message);
-        break;
-      }
-
-      if (!data || data.length === 0) break;
-
-      allData = allData.concat(data);
-      hasMore = data.length === PAGE_SIZE;
-      from += PAGE_SIZE;
+    if (error) {
+      console.warn('[DataContext] Falha ao buscar estoque do Supabase:', error?.message);
+      break;
     }
 
-    console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros`);
+    if (!data || data.length === 0) break;
 
-    // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam para o estoque:
-    // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor
-    return allData.map(r => ({
-      c: [
-        { v: r.data_atualizacao, f: r.data_atualizacao },
-        { v: r.sku_produto },
-        { v: r.descricao_produto },
-        { v: r.local_estoque },
-        { v: r.marca },
-        { v: Number(r.quantidade_disponivel) || 0 },
-        { v: Number(r.valor_unitario) || 0 }
-      ]
-    }));
+    allData = allData.concat(data);
+    hasMore = data.length === PAGE_SIZE;
+    from += PAGE_SIZE;
   }
+
+  console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros`);
+
+  // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam para o estoque:
+  // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor
+  return allData.map(r => ({
+    c: [
+      { v: r.data_atualizacao, f: r.data_atualizacao },
+      { v: r.sku_produto },
+      { v: r.descricao_produto },
+      { v: r.local_estoque },
+      { v: r.marca },
+      { v: Number(r.quantidade_disponivel) || 0 },
+      { v: Number(r.valor_unitario) || 0 }
+    ]
+  }));
 }
 
 async function fetchCaminho() {
-  try {
-    console.log('[DataContext] Buscando caminho da API local (localhost:3001)...');
-    const res = await fetch('http://localhost:3001/api/caminho');
-    const data = await res.json();
-    return data.table.rows;
-  } catch (err) {
-    console.log('[DataContext] API Local offline. Buscando caminho do Google Sheets...');
-    return fetchSheet('caminho');
-  }
+  console.log('[DataContext] Buscando caminho do Google Sheets...');
+  return fetchSheet('CAMINHO');
 }
 
 async function fetchBadstock() {
-  try {
-    console.log('[DataContext] Buscando badstock da API local (localhost:3001)...');
-    const res = await fetch('http://localhost:3001/api/badstock');
-    const data = await res.json();
-    return data.table.rows;
-  } catch (err) {
-    console.log('[DataContext] API Local offline. Buscando badstock do Google Sheets...');
-    return fetchSheet('badstock');
-  }
+  console.log('[DataContext] Buscando badstock do Google Sheets...');
+  return fetchSheet('BAD STOCK');
 }
 
 async function fetchMapeamentosSupabase() {
@@ -211,7 +181,8 @@ export function DataProvider({ children }) {
   const [lastFetch, setLastFetch] = useState(null);
 
   const fetchAll = async (force = false) => {
-    if (!force) {
+    const isDev = import.meta.env.DEV;
+    if (!force && !isDev) {
       try {
         const cached = sessionStorage.getItem(CACHE_KEY);
         if (cached) {

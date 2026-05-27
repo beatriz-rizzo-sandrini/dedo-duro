@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
-import { getLatestDates } from '../utils/dateUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
@@ -61,6 +61,7 @@ export default function Cobertura() {
     if (!vendasRows.length && !estoqueRows.length) return { linhas: [], diasPeriodo: 30, dataEstoque: "" };
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
@@ -142,7 +143,8 @@ export default function Cobertura() {
     // 2. Processar Estoque
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const skuPlat = r?.c?.[7]?.v || "";
@@ -578,7 +580,18 @@ export default function Cobertura() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.values(corObj.variacoes).map((v) => {
+                      {Object.values(corObj.variacoes).sort((a, b) => {
+                        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                        const aVal = String(a.size || '').toUpperCase().trim();
+                        const bVal = String(b.size || '').toUpperCase().trim();
+                        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                        if (sizeWeights[aVal] !== undefined) return -1;
+                        if (sizeWeights[bVal] !== undefined) return 1;
+                        const aNum = parseFloat(aVal);
+                        const bNum = parseFloat(bVal);
+                        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                        return aVal.localeCompare(bVal);
+                      }).map((v) => {
                         const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
                         const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
                         
@@ -648,7 +661,18 @@ export default function Cobertura() {
                   
                   {/* Lista de Variações Mobile */}
                   <div style={{ padding: '0 14px' }}>
-                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => {
+                    {Object.values(corObj.variacoes).sort((a, b) => {
+                      const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                      const aVal = String(a.size || '').toUpperCase().trim();
+                      const bVal = String(b.size || '').toUpperCase().trim();
+                      if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                      if (sizeWeights[aVal] !== undefined) return -1;
+                      if (sizeWeights[bVal] !== undefined) return 1;
+                      const aNum = parseFloat(aVal);
+                      const bNum = parseFloat(bVal);
+                      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                      return aVal.localeCompare(bVal);
+                    }).map((v, vIdx, arr) => {
                       const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
                       const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
                       return (

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Download, AlertTriangle, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
-import { getLatestDates } from '../utils/dateUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
@@ -62,6 +62,7 @@ export default function Alertas() {
     if (!estoqueRows.length || !vendasRows.length) return { alertas: [], total: 0, dataEstoque: "" };
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
@@ -93,6 +94,9 @@ export default function Alertas() {
     const temReposicaoCentral = (sku) => {
       const estoqueCentral = estoqueRows.filter(r => {
         const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+        const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+        const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+        if (normDataEstoque && normDataStr !== normDataEstoque) return false;
         return ["STAND BY", "EXP MINAS"].includes(local) && (r?.c?.[COL_ESTOQUE.SKU]?.v || "") === sku;
       }).reduce((soma, r) => soma + (Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0), 0);
       return estoqueCentral > 0;
@@ -102,8 +106,8 @@ export default function Alertas() {
 
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
-      // Corrigido: Filtra pela data para não somar histórico
-      if (dataEstoque && dataStr !== dataEstoque) return;
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";

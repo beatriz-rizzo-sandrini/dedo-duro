@@ -25,11 +25,11 @@ const COLOR_ABBR_MAP = {
   'CZ': 'CZ', 'CZA': 'CZ', 'CNZA': 'CZ', 'CINZA': 'CZ',
   'GRF': 'GRF', 'GP': 'GRF', 'GRAFITE': 'GRF',
   'AZ': 'AZ', 'AZL': 'AZ', 'AZUL': 'AZ',
-  'AZC': 'AZC', 'AZUL CLARO': 'AZC',
+  'AZC': 'AZC', 'AZUL CLARO': 'AZC', 'PLEIN AIR': 'AZC', 'PLAIN AIR': 'AZC', 'PLEINAIR': 'AZC', 'PLAINAIR': 'AZC',
   'AZR': 'AZR', 'AZUL ROYAL': 'AZR',
   'NAV': 'NAV', 'AZUL NAVY': 'NAV',
   'MAR': 'MAR', 'MARINHO': 'MAR',
-  'VM': 'VM', 'VERMELHO': 'VM',
+  'VM': 'VM', 'VERMELHO': 'VM', 'SCARLET': 'VM', 'FLAMENGO SCARLET': 'VM', 'FLAMENGOSCARLET': 'VM',
   'VD': 'VD', 'VERDE': 'VD',
   'RS': 'RS', 'ROSA': 'RS',
   'RSE': 'RSE', 'ROSA ESCURO': 'RSE',
@@ -74,7 +74,10 @@ const COLOR_ABBR_MAP = {
   'PNK': 'PNK', 'PINK': 'PNK',
   'LRJ': 'LRJ', 'LARANJA': 'LRJ',
   'LRJA': 'LRJ', 'GEL': 'GEL', 'GELO': 'GEL',
-  'CAR': 'CAR', 'CARAMELO': 'CAR'
+  'CAR': 'CAR', 'CARAMELO': 'CAR',
+  'ALL BLACK': 'PTO', 'ALLBLACK': 'PTO',
+  'MILITAR': 'VDM', 'SORTIDOG': 'SORT',
+  'SORTIDO': 'SORT', 'SORTIDOS': 'SORT'
 };
 
 export function parseProductDescription(desc, sku = '') {
@@ -88,14 +91,104 @@ export function parseProductDescription(desc, sku = '') {
   }
 
   sku = String(sku).trim();
-  let baseTitle = desc.trim();
   let size = '';
   let color = '';
+
+  // 0. Extração precoce do tamanho a partir da descrição original
+  const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
+  const originalSizeMatch = desc.match(sizeRegex);
+  if (originalSizeMatch) {
+    size = originalSizeMatch[1].toUpperCase();
+  } else {
+    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+    const originalEndSizeMatch = desc.match(endSizeRegex);
+    if (originalEndSizeMatch) {
+      size = originalEndSizeMatch[1].toUpperCase();
+    }
+  }
+
+  // Extração precoce de cor a partir da descrição original (padrão Cor:xxx)
+  const corParamRegex = /\b(?:Cor|Cores)\s*:\s*([^;]+)/i;
+  const originalCorMatch = desc.match(corParamRegex);
+  if (originalCorMatch) {
+    color = originalCorMatch[1].toUpperCase().trim();
+  }
+
+  let cleanDesc = desc.trim();
+  // Remove raw parameter garbage from Google Sheets (e.g. Cor:sortidos;tamanho...)
+  cleanDesc = cleanDesc.replace(/(?:Cor|Tamanho|Tam|Ref|cós|cos)\s*:\s*.*$/i, '');
+  cleanDesc = cleanDesc.replace(/;\s*.*$/i, '');
+  cleanDesc = cleanDesc.replace(/[\s\-,;:]+$/, '').trim();
+
+  let baseTitle = cleanDesc;
 
   // 1. Check if SKU matches the standard Senior SKU pattern or custom kit SKU pattern
   let isSeniorSKU = false;
   let skuColor = '';
   let skuSize = '';
+
+  // Sandrini Custom SKU Parser (e.g. CAMISETADRY2350CPTOTP, K4CAMISETADRY2350CSORT1TG)
+  let isSandriniSKU = false;
+  const skuUpper = sku.toUpperCase();
+  if (skuUpper.includes('DRY') || skuUpper.includes('2350') || skuUpper.includes('2351') || skuUpper.includes('2352') || skuUpper.includes('2353') || skuUpper.includes('2355')) {
+    if (!skuUpper.startsWith('LP') && !skuUpper.startsWith('KLP')) {
+      isSandriniSKU = true;
+      
+      const isKit = skuUpper.startsWith('K') || skuUpper.includes('KIT');
+      
+      if (isKit) {
+        const sizeMatch = skuUpper.match(/T?(GG|G|M|P|XG)$/);
+        size = sizeMatch ? sizeMatch[1] : 'U';
+        
+        const prefixMatch = skuUpper.match(/^(K\d+)?(?:CAMISETADRY|CAMIDRY|CAMISETAS|CAMISADRY)235\d/);
+        const prefix = prefixMatch ? prefixMatch[0] : '';
+        const colorBlock = skuUpper.substring(prefix.length, skuUpper.length - (sizeMatch ? sizeMatch[0].length : 0));
+        
+        let cleanColor = colorBlock.replace(/^C/, '');
+        if (cleanColor.startsWith('SORT') || cleanColor === 'CS') {
+          color = 'SORT';
+        } else if (cleanColor === 'PTO' || cleanColor === 'PT') {
+          color = 'PTO';
+        } else if (cleanColor === 'BCO' || cleanColor === 'BC') {
+          color = 'BCO';
+        } else if (cleanColor === 'CZ') {
+          color = 'CZ';
+        } else if (cleanColor === 'MAR') {
+          color = 'MAR';
+        } else {
+          const foundColors = [];
+          const possibleColors = ['PTO', 'PT', 'BCO', 'BC', 'MAR', 'CZ', 'AZ', 'VM', 'VD', 'RS'];
+          let remaining = cleanColor;
+          while (remaining.length > 0) {
+            let matched = false;
+            for (const pc of possibleColors) {
+              if (remaining.startsWith(pc)) {
+                foundColors.push(COLOR_ABBR_MAP[pc] || pc);
+                remaining = remaining.substring(pc.length);
+                matched = true;
+                break;
+              }
+            }
+            if (!matched) {
+              foundColors.push(remaining);
+              break;
+            }
+          }
+          color = foundColors.length > 0 ? foundColors.join('/') : 'SORT';
+        }
+      } else {
+        const match = skuUpper.match(/C?([A-Z]{2,4})T?([GPM]|GG|XG)$/);
+        if (match) {
+          const rawColor = match[1];
+          size = match[2];
+          color = COLOR_ABBR_MAP[rawColor] || rawColor;
+        } else {
+          size = 'U';
+          color = 'SEM COR';
+        }
+      }
+    }
+  }
 
   const kitMatch = sku.match(/^([A-Z0-9]+?)(CS|PT|BC|CZ|AZ|VM|VD|AA|AB|AC|AD)TOT(GG|G|M|P)$/i);
   if (kitMatch) {
@@ -164,33 +257,81 @@ export function parseProductDescription(desc, sku = '') {
       return true;
     });
     baseTitle = cleanedWords.join(' ');
-  } else {
-    // Fallback parsing
+  } else if (isSandriniSKU) {
+    // Already extracted color and size from SKU!
+    // Clean up baseTitle
     const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
-    const sizeMatch = baseTitle.match(sizeRegex);
-    if (sizeMatch) {
-      size = sizeMatch[1].toUpperCase();
-      baseTitle = baseTitle.replace(sizeRegex, '').trim();
-    } else {
-      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
-      const endSizeMatch = baseTitle.match(endSizeRegex);
-      if (endSizeMatch) {
-        size = endSizeMatch[1].toUpperCase();
-        baseTitle = baseTitle.replace(endSizeRegex, '').trim();
+    baseTitle = baseTitle.replace(sizeRegex, '');
+
+    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+    baseTitle = baseTitle.replace(endSizeRegex, '');
+
+    // Se a descrição tiver 'LUPO' por conta de mapeamento incorreto na planilha, forçamos para ser Sandrini
+    if (baseTitle.toUpperCase().includes('DRY') && baseTitle.toUpperCase().includes('LUPO')) {
+      baseTitle = 'Camiseta Dry Fit Sandrini M.c';
+      if (skuUpper.includes('2351') || skuUpper.includes('2352') || skuUpper.includes('2353') || skuUpper.includes('ML')) {
+        baseTitle = 'Camiseta Dry Fit Sandrini M.l';
       }
     }
-
-    const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
-    const slashMatch = baseTitle.match(colorSlashRegex);
-    if (slashMatch) {
-      color = slashMatch[1].trim();
-      baseTitle = baseTitle.replace(colorSlashRegex, '').trim();
+  } else {
+    // Fallback parsing
+    if (!size) {
+      const sizeMatch = baseTitle.match(sizeRegex);
+      if (sizeMatch) {
+        size = sizeMatch[1].toUpperCase();
+        baseTitle = baseTitle.replace(sizeRegex, '').trim();
+      } else {
+        const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+        const endSizeMatch = baseTitle.match(endSizeRegex);
+        if (endSizeMatch) {
+          size = endSizeMatch[1].toUpperCase();
+          baseTitle = baseTitle.replace(endSizeRegex, '').trim();
+        }
+      }
     } else {
+      // Remove any size suffix from baseTitle if we already have it pre-extracted
+      baseTitle = baseTitle.replace(sizeRegex, '').trim();
+      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+      baseTitle = baseTitle.replace(endSizeRegex, '').trim();
+    }
+
+    // Pre-replace multi-word color names with their single-word abbreviations to handle slashes correctly
+    const multiWordColors = [
+      'AZUL CLARO', 'AZUL ESCURO', 'AZUL ROYAL', 'AZUL NAVY', 'AZUL BEBÊ',
+      'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA',
+      'ROSA CLARO', 'ROSA ESCURO',
+      'MARROM CLARO', 'MARROM ESCURO',
+      'OFF WHITE', 'OFF-WHITE',
+      'PLEIN AIR', 'PLAIN AIR', 'FLAMENGO SCARLET'
+    ];
+    for (const phrase of multiWordColors) {
+      const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
+      baseTitle = baseTitle.replace(regex, COLOR_ABBR_MAP[phrase] || phrase);
+    }
+
+    if (!color || color === 'SEM COR') {
+      const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
+      const slashMatch = baseTitle.match(colorSlashRegex);
+      if (slashMatch) {
+        color = slashMatch[1].trim();
+        baseTitle = baseTitle.replace(colorSlashRegex, '').trim();
+      } else {
+        const commonColors = Object.keys(COLOR_ABBR_MAP);
+        for (const c of commonColors) {
+          const colorWordRegex = new RegExp(`\\b${c}\\b`, 'i');
+          if (colorWordRegex.test(baseTitle)) {
+            color = c;
+            baseTitle = baseTitle.replace(colorWordRegex, '').trim();
+            break;
+          }
+        }
+      }
+    } else {
+      // Remove color word from baseTitle if we already have it pre-extracted
       const commonColors = Object.keys(COLOR_ABBR_MAP);
       for (const c of commonColors) {
         const colorWordRegex = new RegExp(`\\b${c}\\b`, 'i');
         if (colorWordRegex.test(baseTitle)) {
-          color = c;
           baseTitle = baseTitle.replace(colorWordRegex, '').trim();
           break;
         }
@@ -213,8 +354,13 @@ export function parseProductDescription(desc, sku = '') {
 
   baseTitle = baseTitle.replace(/\s+/g, ' ');
 
-  if (baseTitle.toUpperCase().includes('SD2513')) {
+  const baseTitleUpper = baseTitle.toUpperCase();
+  if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
     baseTitle = 'Tenis Sandrini Aero Run (SD2513)';
+  } else if (baseTitleUpper.includes('A623') || skuUpper.includes('A623')) {
+    baseTitle = 'Tenis Sandrini Spryte (A623)';
+  } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046')) {
+    baseTitle = 'Kit 2 Shorts Sandrini Tactel Elástico (77046)';
   }
 
   const toTitleCase = (str) => {

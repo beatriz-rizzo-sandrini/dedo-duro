@@ -9,6 +9,7 @@ import Reposicao from './pages/Reposicao';
 import Produto from './pages/Produto';
 import Alertas from './pages/Alertas';
 import Sellout from './pages/Sellout';
+import Planilha from './pages/Planilha';
 import './index.css';
 import { CompanyProvider } from './contexts/CompanyContext.jsx';
 import { DataProvider } from './contexts/DataContext.jsx';
@@ -28,6 +29,7 @@ function App() {
               <Route path="reposicao" element={<Reposicao />} />
               <Route path="sellout" element={<Sellout />} />
               <Route path="alertas" element={<Alertas />} />
+              <Route path="planilha" element={<Planilha />} />
             </Route>
           </Routes>
         </BrowserRouter>

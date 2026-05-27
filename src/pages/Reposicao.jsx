@@ -721,7 +721,18 @@ export default function Reposicao() {
                               </tr>
                             </thead>
                             <tbody>
-                              {corObj.variacoes.map((v, idx) => (
+                              {corObj.variacoes.sort((a, b) => {
+                                const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                                const aVal = String(a.size || '').toUpperCase().trim();
+                                const bVal = String(b.size || '').toUpperCase().trim();
+                                if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                                if (sizeWeights[aVal] !== undefined) return -1;
+                                if (sizeWeights[bVal] !== undefined) return 1;
+                                const aNum = parseFloat(aVal);
+                                const bNum = parseFloat(bVal);
+                                if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                                return aVal.localeCompare(bVal);
+                              }).map((v, idx) => (
                                 <tr key={v.sku + idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                   <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                                     <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center' }}>
@@ -774,7 +785,18 @@ export default function Reposicao() {
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.values(corObj.variacoes).map((v, idx) => (
+                        {Object.values(corObj.variacoes).sort((a, b) => {
+                          const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                          const aVal = String(a.size || '').toUpperCase().trim();
+                          const bVal = String(b.size || '').toUpperCase().trim();
+                          if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                          if (sizeWeights[aVal] !== undefined) return -1;
+                          if (sizeWeights[bVal] !== undefined) return 1;
+                          const aNum = parseFloat(aVal);
+                          const bNum = parseFloat(bVal);
+                          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                          return aVal.localeCompare(bVal);
+                        }).map((v, idx) => (
                           <tr key={v.sku + idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                             <td style={{ padding: '10px 20px', textAlign: 'center' }}>
                               <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
@@ -843,7 +865,18 @@ export default function Reposicao() {
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563' }}>{corObj.total} un</span>
                           </div>
                           <div style={{ padding: '0 10px' }}>
-                            {corObj.variacoes.map((v, idx, arr) => (
+                            {corObj.variacoes.sort((a, b) => {
+                              const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                              const aVal = String(a.size || '').toUpperCase().trim();
+                              const bVal = String(b.size || '').toUpperCase().trim();
+                              if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                              if (sizeWeights[aVal] !== undefined) return -1;
+                              if (sizeWeights[bVal] !== undefined) return 1;
+                              const aNum = parseFloat(aVal);
+                              const bNum = parseFloat(bVal);
+                              if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                              return aVal.localeCompare(bVal);
+                            }).map((v, idx, arr) => (
                               <div key={v.sku + idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '24px', padding: '2px 4px', borderRadius: '4px', textAlign: 'center', fontSize: '11px' }}>
@@ -874,7 +907,18 @@ export default function Reposicao() {
                     </div>
 
                     <div style={{ padding: '0 14px' }}>
-                      {Object.values(corObj.variacoes).map((v, idx, arr) => (
+                      {Object.values(corObj.variacoes).sort((a, b) => {
+                        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                        const aVal = String(a.size || '').toUpperCase().trim();
+                        const bVal = String(b.size || '').toUpperCase().trim();
+                        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                        if (sizeWeights[aVal] !== undefined) return -1;
+                        if (sizeWeights[bVal] !== undefined) return 1;
+                        const aNum = parseFloat(aVal);
+                        const bNum = parseFloat(bVal);
+                        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                        return aVal.localeCompare(bVal);
+                      }).map((v, idx, arr) => (
                         <div key={v.sku + idx} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

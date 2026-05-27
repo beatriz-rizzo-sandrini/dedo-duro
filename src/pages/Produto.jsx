@@ -1,14 +1,16 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
+import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import HeaderDates from '../components/HeaderDates';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK } from '../utils/sheetColumns';
+import { COL_ESTOQUE, COL_VENDAS, COL_BADSTOCK, COL_CAMINHO } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
+import MobileTable from '../components/MobileTable';
 
 function SkuRow({ s, loc, addToCart }) {
   const [repoQtd, setRepoQtd] = React.useState(s.reposicaoSugerida);
@@ -20,37 +22,42 @@ function SkuRow({ s, loc, addToCart }) {
 
   return (
     <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-      <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+      <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+        <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+          {s.size || 'Único'}
+        </span>
+      </td>
+      <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
         {s.sku} 
         {s.skuPlat && s.skuPlat !== s.sku && (
-          <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b', display: 'block', marginTop: '2px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
             Plat: {s.skuPlat}
           </span>
         )}
         {s.isRuptura && ' 🔴'} 
         {s.isBad && ' ⛔'}
       </td>
-      <td style={{ padding: '10px 8px', fontWeight: 600, color: '#475569' }}>
-        🎨 {toTitleCase(s.color)} - {s.size}
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.estoque} un</td>
+      <td style={{ textAlign: 'center', padding: '10px 20px', fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#475569' }}>
+        {s.aCaminho > 0 ? `${s.aCaminho} un` : '-'}
       </td>
-      <td>{s.estoque}</td>
-      <td>{s.vendas}</td>
-      <td>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura)}</td>
-      <td>
-        <div style={{ display: 'flex', gap: '8px' }}>
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.vendas} un</td>
+      <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.cobertura === -1 ? "∞" : Math.round(s.cobertura) + " dias"}</td>
+      <td style={{ padding: '10px 20px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
             type="number"
             className="input-padrao"
-            style={{ width: '70px', padding: '4px' }}
+            style={{ width: '70px', padding: '4px 8px', minHeight: '32px' }}
             value={repoQtd}
             onChange={e => setRepoQtd(Number(e.target.value))}
           />
           <button
             className="btn-padrao"
-            style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-            onClick={() => addToCart(s, loc.local, repoQtd)}
+            style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '32px' }}
+            onClick={() => addToCart(s, loc, repoQtd)}
           >
-            <ShoppingCart size={14} /> Add
+            <ShoppingCart size={13} /> Add
           </button>
         </div>
       </td>
@@ -66,26 +73,32 @@ export default function Produto() {
   const vendasRows = data.vendas || [];
   const badStockRows = data.badstock || [];
 
-  const [termoBusca, setTermoBusca] = useState('');
-  const [skuBusca, setSkuBusca] = useState('');
-  const [produtoSelecionado, setProdutoSelecionado] = useState('');
-
-  const [showSugestoes, setShowSugestoes] = useState(false);
-  const dropdownRef = useRef(null);
+  const [busca, setBusca] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [carrinho, setCarrinho] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [diasCobertura, setDiasCobertura] = useState(60);
 
-  const [expandedLocal, setExpandedLocal] = useState(null);
-  const [carrinho, setCarrinho] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'reposicaoTotal', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itensPorPagina, setItensPorPagina] = useState(10);
 
-  useEffect(() => {
-    function handleClickOutside(e) { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowSugestoes(false); }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return <ArrowUpDown size={14} style={{ opacity: 0.3 }} />;
+    if (sortConfig.direction === 'asc') return <ArrowUp size={14} />;
+    return <ArrowDown size={14} />;
+  };
 
   useEffect(() => {
     if (!dataIni && !dataFim) {
@@ -97,94 +110,131 @@ export default function Produto() {
     }
   }, [dataIni, dataFim]);
 
-  const sugestoes = useMemo(() => {
-    const termo = termoBusca.toLowerCase().trim();
-    if (!termo) return [];
-    const setSug = new Set();
-    estoqueRows.forEach(r => {
-      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
-      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
-      const parsed = parseProductDescription(rawDesc, sku);
-      const nome = parsed.baseTitle.toLowerCase();
-
-      if (nome.includes(termo) || rawDesc.toLowerCase().includes(termo) || sku.toLowerCase().includes(termo)) {
-        setSug.add(parsed.baseTitle);
-      }
-    });
-    return Array.from(setSug).sort().slice(0, 50);
-  }, [termoBusca, estoqueRows, selectedCompany]);
-
-  const handleSkuSearch = (e) => {
-    if (e.key === 'Enter') {
-      const sku = skuBusca.trim().toUpperCase();
-      const item = estoqueRows.find(r => 
-        String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase() === sku ||
-        String(r?.c?.[7]?.v || "").trim().toUpperCase() === sku
-      );
-      if (item) {
-        const rawDesc = item?.c?.[COL_ESTOQUE.DESC]?.v || "";
-        const rawSku = item?.c?.[COL_ESTOQUE.SKU]?.v || "";
-        const parsed = parseProductDescription(rawDesc, rawSku);
-        setProdutoSelecionado(parsed.baseTitle);
-        setTermoBusca(parsed.baseTitle);
-      } else alert("SKU não encontrado.");
-    }
-  };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [busca, dataIni, dataFim, diasCobertura, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
-    if (!produtoSelecionado || !estoqueRows.length) return null;
-    const descSelecionada = produtoSelecionado.toLowerCase().trim();
+    if (!estoqueRows.length && !vendasRows.length) return null;
 
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
       diasPeriodo = (new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24) + 1;
     }
 
-    const skusMapByLocal = {};
-    let valorTotalGeral = 0;
-    const skusUnicosSet = new Set();
+    const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
-    // 1. Processar Estoque
+    const skuToDesc = {};
     estoqueRows.forEach(r => {
-      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
-      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
-      const parsed = parseProductDescription(rawDesc, sku);
-      const desc = parsed.baseTitle.toLowerCase().trim();
-      if (desc !== descSelecionada) return;
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
-      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "OUTROS").toUpperCase().trim();
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      if (sku && desc) skuToDesc[sku] = desc;
+    });
+    vendasRows.forEach(r => {
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
+    const caminhoRows = data.caminho || [];
+    caminhoRows.forEach(r => {
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
+
+    const aCaminhoMap = {};
+    caminhoRows.forEach(r => {
+      const sku = String(r?.c?.[COL_CAMINHO.SKU]?.v || "").trim().toUpperCase();
+      const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v || "OUTROS").toUpperCase().trim();
+      const qtd = Number(r?.c?.[COL_CAMINHO.QTD]?.v) || 0;
+      const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v || "").toUpperCase().trim();
+
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
+      if (status === 'FINALIZADO') return;
+
+      if (!aCaminhoMap[local]) aCaminhoMap[local] = {};
+      if (!aCaminhoMap[local][sku]) aCaminhoMap[local][sku] = 0;
+      aCaminhoMap[local][sku] += qtd;
+    });
+
+    const agrupado = {};
+
+    estoqueRows.forEach(r => {
+      const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
+      const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
+      if (normDataEstoque && normDataStr !== normDataEstoque) return;
+
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "").trim().toUpperCase();
       const skuPlat = r?.c?.[7]?.v || "";
+      let desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "OUTROS").toUpperCase().trim();
+      const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
       const custoUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
-      const valorEstoque = custoUnitario * qtd;
 
-      if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) {
-        skusMapByLocal[local][sku] = { 
-          estoque: 0, 
-          vendas: 0, 
-          valor: 0, 
-          skuPlat: "", 
-          color: parsed.color, 
-          size: parsed.size 
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+
+      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      if (!sku && !desc) return;
+      if (!desc) desc = `SKU: ${sku}`;
+
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${local}`;
+
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = {
+          descricao: parsed.baseTitle,
+          local,
+          valorEstoque: 0,
+          estoqueTotal: 0,
+          vendasTotal: 0,
+          caminhoTotal: 0,
+          reposicaoTotal: 0,
+          id: prodKey,
+          cores: {}
         };
       }
 
-      skusMapByLocal[local][sku].estoque += qtd;
-      skusMapByLocal[local][sku].valor += valorEstoque;
-      if (skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
-      valorTotalGeral += valorEstoque;
-      skusUnicosSet.add(sku);
+      agrupado[prodKey].estoqueTotal += qtd;
+      agrupado[prodKey].valorEstoque += (custoUnitario * qtd);
+
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = {
+          cor: corKey,
+          totalEstoque: 0,
+          totalCaminho: 0,
+          totalVendas: 0,
+          totalReposicao: 0,
+          variacoes: {}
+        };
+      }
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
+          sku,
+          skuPlat: skuPlat,
+          estoque: 0,
+          vendas: 0,
+          aCaminho: 0,
+          color: corKey,
+          size: parsed.size
+        };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
+      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      }
     });
 
-    // 2. Processar Vendas
     vendasRows.forEach(r => {
       const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
       if (!dataStr) return;
@@ -192,99 +242,223 @@ export default function Produto() {
       const dataVenda = new Date(`${y}-${m}-${d}`);
       if (dataIni && dataFim && (dataVenda < new Date(dataIni) || dataVenda > new Date(dataFim))) return;
 
-      const rawDesc = r?.c?.[COL_VENDAS.DESC]?.v || "";
-      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
-      const parsed = parseProductDescription(rawDesc, sku);
-      const descVenda = parsed.baseTitle.toLowerCase().trim();
-      if (descVenda !== descSelecionada) return;
-
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "").trim().toUpperCase();
+      const skuPlat = r?.c?.[6]?.v || "";
+      let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "OUTROS").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      const skuPlat = r?.c?.[6]?.v || "";
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
-      if (!skusMapByLocal[local]) skusMapByLocal[local] = {};
-      if (!skusMapByLocal[local][sku]) {
-        skusMapByLocal[local][sku] = { 
-          estoque: 0, 
-          vendas: 0, 
-          valor: 0, 
-          skuPlat: "", 
-          color: parsed.color, 
-          size: parsed.size 
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+
+      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      if (!sku && !desc) return;
+      if (!desc) desc = `SKU: ${sku}`;
+
+      const parsed = parseProductDescription(desc, sku);
+      const prodKey = `${parsed.baseTitle}|${local}`;
+
+      if (!agrupado[prodKey]) {
+        agrupado[prodKey] = {
+          descricao: parsed.baseTitle,
+          local,
+          valorEstoque: 0,
+          estoqueTotal: 0,
+          vendasTotal: 0,
+          caminhoTotal: 0,
+          reposicaoTotal: 0,
+          id: prodKey,
+          cores: {}
         };
       }
 
-      skusMapByLocal[local][sku].vendas += qtd;
-      if (skuPlat && !skusMapByLocal[local][sku].skuPlat) skusMapByLocal[local][sku].skuPlat = skuPlat;
+      agrupado[prodKey].vendasTotal += qtd;
+
+      const corKey = parsed.color || 'SEM COR';
+      if (!agrupado[prodKey].cores[corKey]) {
+        agrupado[prodKey].cores[corKey] = {
+          cor: corKey,
+          totalEstoque: 0,
+          totalCaminho: 0,
+          totalVendas: 0,
+          totalReposicao: 0,
+          variacoes: {}
+        };
+      }
+
+      const varKey = `${sku}|${parsed.size}`;
+      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
+          sku,
+          skuPlat: skuPlat,
+          estoque: 0,
+          vendas: 0,
+          aCaminho: 0,
+          color: corKey,
+          size: parsed.size
+        };
+      }
+      agrupado[prodKey].cores[corKey].variacoes[varKey].vendas += qtd;
+      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
+        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      }
     });
 
-    const locais = Object.entries(skusMapByLocal).map(([local, skus]) => {
-      let localVendas = 0, localEstoque = 0, localValor = 0, localReposicaoSugerida = 0;
-      const skusArray = Object.entries(skus).map(([sku, info]) => {
-        localVendas += info.vendas;
-        localEstoque += info.estoque;
-        localValor += info.valor;
+    let linhas = Object.values(agrupado).map(prod => {
+      let localACaminho = 0;
+      let localReposicao = 0;
 
-        const media = info.vendas / diasPeriodo;
-        const repo = Math.round((media * diasCobertura) - info.estoque);
-        const finalRepo = repo > 0 ? repo : 0;
-        localReposicaoSugerida += finalRepo;
+      const coresArray = Object.values(prod.cores).map(corObj => {
+        let corACaminho = 0;
+        let corReposicao = 0;
 
-        return {
-          sku, 
-          skuPlat: info.skuPlat,
-          estoque: info.estoque, 
-          vendas: info.vendas,
-          cobertura: media > 0 ? info.estoque / media : (info.vendas > 0 ? 0 : -1),
-          reposicaoSugerida: finalRepo,
-          color: info.color || 'SEM COR',
-          size: info.size || 'Único',
-          isBad: badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === local),
-          isRuptura: info.estoque === 0 && info.vendas > 0
-        };
+        const variacoesArray = Object.values(corObj.variacoes).map(v => {
+          const aCaminho = aCaminhoMap[prod.local]?.[v.sku] || 0;
+          localACaminho += aCaminho;
+          corACaminho += aCaminho;
+          v.aCaminho = aCaminho;
+
+          const media = v.vendas / diasPeriodo;
+          const repo = Math.round((media * diasCobertura) - v.estoque - aCaminho);
+          const finalRepo = repo > 0 ? repo : 0;
+          localReposicao += finalRepo;
+          corReposicao += finalRepo;
+          v.reposicaoSugerida = finalRepo;
+
+          v.cobertura = media > 0 ? v.estoque / media : (v.vendas > 0 ? 0 : -1);
+          v.isBad = badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === v.sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === prod.local);
+          v.isRuptura = v.estoque === 0 && v.vendas > 0;
+
+          return v;
+        });
+
+        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+        variacoesArray.sort((a, b) => {
+          const aVal = String(a.size || '').toUpperCase().trim();
+          const bVal = String(b.size || '').toUpperCase().trim();
+          if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+          if (sizeWeights[aVal] !== undefined) return -1;
+          if (sizeWeights[bVal] !== undefined) return 1;
+          const aNum = parseFloat(aVal);
+          const bNum = parseFloat(bVal);
+          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+          return aVal.localeCompare(bVal);
+        });
+
+        corObj.variacoes = variacoesArray;
+        corObj.totalEstoque = variacoesArray.reduce((acc, v) => acc + v.estoque, 0);
+        corObj.totalCaminho = corACaminho;
+        corObj.totalVendas = variacoesArray.reduce((acc, v) => acc + v.vendas, 0);
+        corObj.totalReposicao = corReposicao;
+
+        return corObj;
       });
 
-      return {
-        local, valor: localValor, estoque: localEstoque, vendas: localVendas,
-        cobertura: (localVendas / diasPeriodo) > 0 ? localEstoque / (localVendas / diasPeriodo) : -1,
-        reposicaoSugerida: localReposicaoSugerida,
-        skus: skusArray.sort((a, b) => b.vendas - a.vendas)
-      };
+      prod.caminhoTotal = localACaminho;
+      prod.reposicaoTotal = localReposicao;
+      prod.cores = coresArray;
+
+      const mediaLocal = prod.vendasTotal / diasPeriodo;
+      prod.cobertura = mediaLocal > 0 ? prod.estoqueTotal / mediaLocal : -1;
+
+      return prod;
     });
 
-    return { locais, valorTotalGeral, skusUnicos: skusUnicosSet.size };
-  }, [produtoSelecionado, estoqueRows, vendasRows, badStockRows, dataIni, dataFim, diasCobertura, selectedCompany]);
+    if (busca) {
+      const termos = busca.toLowerCase().trim().split(/\s+/);
+      linhas = linhas.filter(item => {
+        const descLower = item.descricao.toLowerCase();
+        const localLower = item.local.toLowerCase();
+        const skuMatch = item.cores.some(c => 
+          c.variacoes.some(v => 
+            v.sku.toLowerCase().includes(termos[0]) || 
+            (v.skuPlat && v.skuPlat.toLowerCase().includes(termos[0]))
+          )
+        );
 
-  const addToCart = (skuObj, local, customRepo) => {
-    if (carrinho.find(c => c.sku === skuObj.sku && c.local === local)) return alert("Já está no carrinho!");
+        return termos.every(termo => 
+          descLower.includes(termo) || 
+          localLower.includes(termo) || 
+          skuMatch
+        );
+      });
+    }
+
+    if (sortConfig.key) {
+      linhas.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    const totalGeralEstoque = linhas.reduce((acc, l) => acc + l.estoqueTotal, 0);
+    const totalGeralValor = linhas.reduce((acc, l) => acc + l.valorEstoque, 0);
+    const totalGeralSkus = linhas.reduce((acc, l) => acc + l.cores.reduce((sum, c) => sum + c.variacoes.length, 0), 0);
+
+    return { 
+      linhas, 
+      totalGeralEstoque, 
+      totalGeralValor, 
+      totalGeralSkus,
+      dataEstoque,
+      dataVendas
+    };
+  }, [estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany, busca, sortConfig]);
+
+  const addToCart = (skuObj, localObj, customRepo) => {
+    if (carrinho.find(c => c.sku === skuObj.sku && c.local === localObj.local)) return alert("Já está no carrinho!");
     setCarrinho(prev => [...prev, {
-      produto: produtoSelecionado, local, sku: skuObj.sku, estoque: skuObj.estoque,
-      vendas: skuObj.vendas, cobertura: skuObj.cobertura === -1 ? "∞" : Math.round(skuObj.cobertura), reposicao: customRepo
+      produto: skuObj.color && skuObj.color !== 'SEM COR' ? `${localObj.descricao} ${skuObj.color}` : localObj.descricao, 
+      local: localObj.local, 
+      sku: skuObj.sku, 
+      estoque: skuObj.estoque,
+      vendas: skuObj.vendas, 
+      cobertura: skuObj.cobertura === -1 ? "∞" : Math.round(skuObj.cobertura), 
+      reposicao: customRepo
     }]);
   };
 
   const addAll = (localObj) => {
-    const novos = localObj.skus
-      .filter(s => !carrinho.find(c => c.sku === s.sku && c.local === localObj.local))
-      .map(s => ({
-        produto: produtoSelecionado, local: localObj.local, sku: s.sku, estoque: s.estoque,
-        vendas: s.vendas, cobertura: s.cobertura === -1 ? "∞" : Math.round(s.cobertura), reposicao: s.reposicaoSugerida
-      }));
+    const novos = [];
+    localObj.cores.forEach(corObj => {
+      corObj.variacoes.forEach(s => {
+        if (!carrinho.find(c => c.sku === s.sku && c.local === localObj.local)) {
+          novos.push({
+            produto: s.color && s.color !== 'SEM COR' ? `${localObj.descricao} ${s.color}` : localObj.descricao, 
+            local: localObj.local, 
+            sku: s.sku, 
+            estoque: s.estoque,
+            vendas: s.vendas, 
+            cobertura: s.cobertura === -1 ? "∞" : Math.round(s.cobertura), 
+            reposicao: s.reposicaoSugerida
+          });
+        }
+      });
+    });
     if (novos.length) setCarrinho(p => [...p, ...novos]);
   };
 
   if (loading) return <div className="header-main"><h1>Carregando dados das planilhas...</h1></div>;
+  if (error) return <div style={{ color: 'red', padding: '40px' }}>Erro: {error}</div>;
+
+  const totalPaginas = dadosProcessados && busca.trim() ? Math.ceil(dadosProcessados.linhas.length / itensPorPagina) : 0;
+  const linhasPaginadas = dadosProcessados && busca.trim() ? dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina) : [];
 
   return (
-    <div className="header-main" style={{ paddingBottom: '100px' }}>
-      {/* ── Cabeçalho com botão carrinho integrado ── */}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="header-main" style={{ paddingBottom: '100px' }}>
       <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <h1>Análise de Produto</h1>
-          <p>Visão detalhada de estoque e performance por SKU (Google Sheets 📊)</p>
+          <p>Análise de vendas, cobertura de estoque e sugestão de reposição inteligente</p>
+          {busca.trim() && dadosProcessados && (
+            <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
+          )}
         </div>
         <button
           onClick={() => setIsCartOpen(true)}
@@ -296,100 +470,310 @@ export default function Produto() {
 
       <div className="filters-container" style={{ marginBottom: '30px' }}>
         <CompanySelector />
-        <div style={{ flex: '1 1 200px', position: 'relative' }} ref={dropdownRef}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>BUSCAR PRODUTO</label>
+        
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>BUSCA (PRODUTO, LOCAL OU SKU)</label>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
-            <input type="text" className="input-padrao" style={{ width: '100%', paddingLeft: '42px' }} placeholder="Digite parte do nome..." value={termoBusca} onChange={e => { setTermoBusca(e.target.value); setShowSugestoes(true); }} onFocus={() => setShowSugestoes(true)} />
+            <input 
+              type="text" 
+              className="input-padrao" 
+              style={{ width: '100%', paddingLeft: '42px' }} 
+              placeholder="Digite para buscar..." 
+              value={busca} 
+              onChange={e => setBusca(e.target.value)} 
+            />
           </div>
-          {showSugestoes && sugestoes.length > 0 && (
-            <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', maxHeight: '250px', overflowY: 'auto', padding: 0, listStyle: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-              {sugestoes.map((s, i) => <li key={i} style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }} onClick={() => { setProdutoSelecionado(s); setTermoBusca(s); setShowSugestoes(false); }}>{toTitleCase(s)}</li>)}
-            </ul>
-          )}
         </div>
-        <div style={{ flex: '1 1 150px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>BUSCAR POR SKU</label>
-          <input type="text" className="input-padrao" style={{ width: '100%' }} placeholder="Aperte Enter..." value={skuBusca} onChange={e => setSkuBusca(e.target.value)} onKeyDown={handleSkuSearch} />
-        </div>
+
         <div style={{ flex: '1 1 250px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>PERÍODO VENDAS</label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PERÍODO VENDAS</label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataIni} onChange={e => setDataIni(e.target.value)} />
             <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataFim} onChange={e => setDataFim(e.target.value)} />
           </div>
         </div>
+
         <div style={{ flex: '0 0 120px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>DIAS ALVO</label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DIAS ALVO</label>
           <input type="number" className="input-padrao" style={{ width: '100%' }} value={diasCobertura} onChange={e => setDiasCobertura(Number(e.target.value))} />
         </div>
       </div>
 
-      {dadosProcessados && (
+      {busca.trim() && dadosProcessados ? (
         <>
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
-            <div style={{ flex: '2 1 200px', background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>PRODUTO SELECIONADO</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px' }}>{toTitleCase(produtoSelecionado)}</div>
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ESTOQUE FÍSICO</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{dadosProcessados.totalGeralEstoque.toLocaleString('pt-BR')} un</div>
             </div>
-            <div style={{ flex: '1 1 100px', background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>TOTAL SKUs</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>{dadosProcessados.skusUnicos}</div>
+            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>TOTAL SKUs</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6', marginTop: '4px' }}>{dadosProcessados.totalGeralSkus.toLocaleString('pt-BR')}</div>
             </div>
-            <div style={{ flex: '1 1 100px', background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>VALOR TOTAL</div>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{dadosProcessados.valorTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            <div style={{ flex: '1 1 200px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', textAlign: 'right' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>VALOR TOTAL ESTOQUE</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>{dadosProcessados.totalGeralValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
             </div>
           </div>
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>LOCAL</th>
-                <th>VALOR DO ESTOQUE</th>
-                <th>ESTOQUE ATUAL</th>
-                <th>VENDAS (31D)</th>
-                <th>COBERTURA</th>
-                <th>REPOSIÇÃO SUGERIDA</th>
-                <th>AÇÕES</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dadosProcessados.locais.map((loc, idx) => {
-                const isExp = expandedLocal === loc.local;
-                return (
-                  <React.Fragment key={loc.local}>
-                    <tr onClick={() => setExpandedLocal(isExp ? null : loc.local)} style={{ cursor: 'pointer', background: isExp ? '#f1f5f9' : 'none' }}>
-                      <td style={{ fontWeight: 700 }}><ChevronRight size={18} style={{ transform: isExp ? 'rotate(90deg)' : 'none', marginRight: '8px' }} />{toTitleCase(loc.local)}</td>
-                      <td>{loc.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                      <td>{loc.estoque} un</td>
-                      <td>{loc.vendas} un</td>
-                      <td>{loc.cobertura === -1 ? "∞" : Math.round(loc.cobertura) + " dias"}</td>
-                      <td style={{ fontWeight: 600, color: loc.reposicaoSugerida > 0 ? '#e74c3c' : '#64748b' }}>{loc.reposicaoSugerida || '-'}</td>
-                      <td><button className="btn-padrao" onClick={e => { e.stopPropagation(); addAll(loc); }}><ShoppingCart size={14} /> Todos</button></td>
-                    </tr>
-                    {isExp && (
-                      <tr>
-                        <td colSpan={7} style={{ padding: 0 }}>
-                          <div style={{ background: '#f8fafc', padding: '15px 20px', borderBottom: '2px solid #cbd5e1' }}>
-                            <table style={{ width: '100%', fontSize: '13px' }}>
-                              <thead><tr style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}><th style={{ textAlign: 'left', padding: '8px' }}>SKU</th><th style={{ textAlign: 'left', padding: '8px' }}>VARIAÇÃO</th><th style={{ textAlign: 'left', padding: '8px' }}>ESTOQUE</th><th style={{ textAlign: 'left', padding: '8px' }}>VENDAS</th><th style={{ textAlign: 'left', padding: '8px' }}>COBERTURA</th><th style={{ textAlign: 'left', padding: '8px' }}>ADD REPOSIÇÃO</th></tr></thead>
-                              <tbody>
-                                {loc.skus.map((s, i) => (
-                                  <SkuRow key={`${loc.local}-${s.sku}`} s={s} loc={loc} addToCart={addToCart} />
-                                ))}
-                              </tbody>
-                            </table>
+          <MobileTable
+            columns={[
+              {
+                key: 'descricao',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Produto {getSortIcon('descricao')}</div>,
+                rawLabel: 'Produto',
+                render: (row) => <span style={{ fontWeight: 600, color: '#1e293b' }}>{toTitleCase(row.descricao)}</span>,
+                onSort: () => requestSort('descricao'),
+              },
+              {
+                key: 'local',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
+                rawLabel: 'Local',
+                render: (row) => toTitleCase(row.local),
+                onSort: () => requestSort('local'),
+              },
+              {
+                key: 'valorEstoque',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Valor Estoque {getSortIcon('valorEstoque')}</div>,
+                rawLabel: 'Valor Estoque',
+                render: (row) => row.valorEstoque.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                onSort: () => requestSort('valorEstoque'),
+              },
+              {
+                key: 'estoqueTotal',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Estoque {getSortIcon('estoqueTotal')}</div>,
+                rawLabel: 'Estoque',
+                render: (row) => `${row.estoqueTotal} un`,
+                onSort: () => requestSort('estoqueTotal'),
+              },
+              {
+                key: 'caminhoTotal',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>A Caminho {getSortIcon('caminhoTotal')}</div>,
+                rawLabel: 'A Caminho',
+                render: (row) => row.caminhoTotal > 0 ? <span style={{ fontWeight: 600, color: '#3b82f6' }}>{row.caminhoTotal} un</span> : '-',
+                onSort: () => requestSort('caminhoTotal'),
+              },
+              {
+                key: 'vendasTotal',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Vendas {getSortIcon('vendasTotal')}</div>,
+                rawLabel: 'Vendas',
+                render: (row) => `${row.vendasTotal} un`,
+                onSort: () => requestSort('vendasTotal'),
+              },
+              {
+                key: 'cobertura',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Cobertura {getSortIcon('cobertura')}</div>,
+                rawLabel: 'Cobertura',
+                render: (row) => row.cobertura === -1 ? '∞' : `${Math.round(row.cobertura)} dias`,
+                onSort: () => requestSort('cobertura'),
+              },
+              {
+                key: 'reposicaoTotal',
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Reposição Sugerida {getSortIcon('reposicaoTotal')}</div>,
+                rawLabel: 'Reposição Sugerida',
+                render: (row) => <span style={{ fontWeight: 700, color: row.reposicaoTotal > 0 ? '#e74c3c' : '#64748b' }}>{row.reposicaoTotal || '-'}</span>,
+                onSort: () => requestSort('reposicaoTotal'),
+              },
+              {
+                key: 'acoes',
+                label: 'Ações',
+                render: (row) => (
+                  <button 
+                    className="btn-padrao" 
+                    onClick={e => { e.stopPropagation(); addAll(row); }}
+                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    <ShoppingCart size={13} /> Todos
+                  </button>
+                )
+              }
+            ]}
+            rows={linhasPaginadas}
+            keyExtractor={(row) => row.id}
+            onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+            isExpanded={(row) => expandedId === row.id}
+            renderExpandedDesktop={(row) => (
+              <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {row.cores.map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    {/* Cabeçalho da Cor */}
+                    <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                          Estoque: {corObj.totalEstoque} un
+                        </span>
+                        {corObj.totalCaminho > 0 && (
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                            A Caminho: {corObj.totalCaminho} un
+                          </span>
+                        )}
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: corObj.totalReposicao > 0 ? '#ef4444' : '#64748b', background: corObj.totalReposicao > 0 ? '#fef2f2' : '#f8fafc', padding: '4px 10px', borderRadius: '20px', border: corObj.totalReposicao > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
+                          Sugestão: {corObj.totalReposicao} un
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Tabela de Variações */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Tamanho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Estoque</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>A Caminho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Vendas</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Cobertura</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '180px', background: '#fafafa' }}>Add Reposição</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {corObj.variacoes.map((s) => (
+                          <SkuRow key={`${row.local}-${s.sku}`} s={s} loc={row} addToCart={addToCart} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )}
+            renderExpanded={(row) => (
+              <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {row.cores.map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    {/* Cabeçalho Cor Mobile */}
+                    <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                        {corObj.totalEstoque} un
+                      </span>
+                    </div>
+
+                    {/* Lista de Variações Mobile */}
+                    <div style={{ padding: '0 14px' }}>
+                      {corObj.variacoes.map((s, sIdx, arr) => (
+                        <div key={s.sku} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0', borderBottom: sIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {s.size || 'U'}
+                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{s.sku}</span>
+                                {s.skuPlat && s.skuPlat !== s.sku && (
+                                  <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '10px' }}>Plat: {s.skuPlat}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {s.isRuptura && <span style={{ fontSize: '10px', color: '#ef4444', background: '#fee2e2', padding: '1px 5px', borderRadius: '4px' }}>🔴 Ruptura</span>}
+                              {s.isBad && <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}>⛔ Bad</span>}
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px', textAlign: 'center', fontSize: '11px', background: '#f8fafc', padding: '6px', borderRadius: '4px' }}>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>ESTOQUE</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.estoque}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>A CAMINHO</div>
+                              <div style={{ fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#94a3b8' }}>{s.aCaminho > 0 ? s.aCaminho : '-'}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>VENDAS</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.vendas}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 600 }}>COBERTURA</div>
+                              <div style={{ fontWeight: 600, color: '#334155' }}>{s.cobertura === -1 ? '∞' : Math.round(s.cobertura)}</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                            <input
+                              type="number"
+                              className="input-padrao"
+                              style={{ flex: 1, padding: '4px 8px', minHeight: '32px', fontSize: '12px' }}
+                              defaultValue={s.reposicaoSugerida}
+                              id={`mob-repo-${row.local}-${s.sku}`}
+                            />
+                            <button
+                              className="btn-padrao"
+                              style={{ padding: '4px 10px', flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', minHeight: '32px', fontSize: '12px' }}
+                              onClick={() => {
+                                const val = Number(document.getElementById(`mob-repo-${row.local}-${s.sku}`)?.value || 0);
+                                addToCart(s, row, val);
+                              }}
+                            >
+                              <ShoppingCart size={12} /> Add
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+            <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Mostrar 
+              <select 
+                className="input-padrao" 
+                style={{ width: 'auto', padding: '6px 30px 6px 12px' }} 
+                value={itensPorPagina} 
+                onChange={e => { setItensPorPagina(Number(e.target.value)); setCurrentPage(1); }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={999999}>Todos</option>
+              </select>
+              linhas
+            </div>
+
+            {totalPaginas > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                  disabled={currentPage === 1}
+                  style={{ padding: '8px', borderRadius: '8px', background: currentPage === 1 ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronRight size={20} color={currentPage === 1 ? '#94a3b8' : '#0f172a'} style={{ transform: 'rotate(180deg)' }} />
+                </button>
+                
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
+                  Página {currentPage} de {totalPaginas}
+                </span>
+
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))} 
+                  disabled={currentPage === totalPaginas}
+                  style={{ padding: '8px', borderRadius: '8px', background: currentPage === totalPaginas ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === totalPaginas ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronRight size={20} color={currentPage === totalPaginas ? '#94a3b8' : '#0f172a'} />
+                </button>
+              </div>
+            )}
+          </div>
         </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1', padding: '40px', textAlign: 'center', margin: '20px 0' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔎</div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#334155', margin: '0 0 8px 0' }}>Análise de Produto</h3>
+          <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
+            Digite no campo de busca acima para carregar e analisar as informações do produto desejado.
+          </p>
+        </div>
       )}
 
       {isCartOpen && (
@@ -419,6 +803,6 @@ export default function Produto() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
