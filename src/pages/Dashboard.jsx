@@ -12,7 +12,7 @@ const cards = [
   { id: 'reposicao', title: 'Reposição', desc: 'Reposição a caminho', icon: Truck, path: '/reposicao', className: 'card-reposicao' },
   { id: 'sellout', title: 'Sellout', desc: 'Análise de Sellout', icon: Activity, path: '/sellout', className: 'card-sellout' },
   { id: 'alertas', title: 'Alertas', desc: 'Alertas de estoque', icon: Bell, path: '/alertas', className: 'card-alertas' },
-  { id: 'planilha', title: 'Planilha', desc: 'Planilha de Apoio Externa', icon: FileSpreadsheet, path: '/planilha', className: 'card-planilha' },
+  { id: 'planilha', title: 'Pedidos', desc: 'Pedidos para fornecedores', icon: FileSpreadsheet, path: '/planilha', className: 'card-planilha' },
 ];
 
 const containerVariants = {

@@ -32,7 +32,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { to: "/reposicao", icon: <Truck size={20} />, label: "Reposição" },
     { to: "/sellout", icon: <Activity size={20} />, label: "Sellout" },
     { to: "/alertas", icon: <Bell size={20} />, label: "Alertas" },
-    { to: "/planilha", icon: <FileSpreadsheet size={20} />, label: "Planilha de Apoio" },
+    { to: "/planilha", icon: <FileSpreadsheet size={20} />, label: "Pedidos" },
   ];
 
   return (
