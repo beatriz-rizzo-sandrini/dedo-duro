@@ -179,3 +179,85 @@ body {
     justify-content: center;
   }
 }
+
+/* ─── PRINTING STYLES (EXECUTIVE SCREENSHOT LOOK) ─── */
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background-color: white !important;
+    color: #0f172a !important;
+    font-size: 11px !important;
+  }
+
+  /* Hide navigation sidebar and collapsed hamburger button completely */
+  .sidebar,
+  .hamburger-btn,
+  .toggle-btn,
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  /* Make main content occupy the full width and reset margins */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide filters and page control action buttons */
+  .filters-container,
+  .page-header-row > div:last-child,
+  .btn-padrao,
+  select,
+  input {
+    display: none !important;
+  }
+
+  /* Force background colors and browser gradients to print exactly as they appear on screen */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Retain elegant borders and remove screen-specific heavy drop shadows */
+  div[style*="background: white"],
+  .data-table,
+  th {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  /* Prevent row and card contents from breaking across pages in an ugly manner */
+  tr,
+  .mobile-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force the gorgeous horizontal desktop table layout and hide mobile card list */
+  .desktop-table {
+    display: table !important;
+  }
+  
+  .mobile-cards {
+    display: none !important;
+  }
+
+  /* Force cards grid template (KPIs) to fit perfectly on A4 landscape */
+  div[style*="gridTemplateColumns"] {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Hide the charts grid container entirely from print */
+  .charts-print-hide {
+    display: none !important;
+  }
+}

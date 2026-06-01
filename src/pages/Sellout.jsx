@@ -13,7 +13,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Select from 'react-select';
-import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import HeaderDates from '../components/HeaderDates';
@@ -49,6 +49,9 @@ export default function Sellout() {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'vendasFiltradas', direction: 'desc' });
   const [expandedId, setExpandedId] = useState(null);
+  const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
+  const [pendingExportType, setPendingExportType] = useState('csv');
+  const [pendingExportMode, setPendingExportMode] = useState('detalhado');
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -69,8 +72,9 @@ export default function Sellout() {
   const dadosProcessados = useMemo(() => {
     if (!vendasRows.length) return { 
       linhas: [], 
-      marcasRanking: [], 
+      linhasTudo: [],
       totalVendasPeriodo: 0,
+      totalVendasPeriodoTudo: 0,
       chartMarcaData: null,
       chartTopProdData: null,
       marcasOptions: [],
@@ -128,6 +132,7 @@ export default function Sellout() {
             vendas15d: 0,
             vendas30d: 0,
             vendasFiltradas: 0,
+            vendasPeriodo: 0,
             totalSempre: 0,
             totalEstoque: 0,
             cores: {},
@@ -144,7 +149,7 @@ export default function Sellout() {
 
         const corKey = parsed.color;
         if (!stats[prodKey].cores[corKey]) {
-          stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, variacoes: {} };
+          stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, vendasPeriodo: 0, totalEstoque: 0, variacoes: {} };
         }
         stats[prodKey].cores[corKey].totalEstoque += qtd;
 
@@ -158,6 +163,7 @@ export default function Sellout() {
             vendas15d: 0, 
             vendas30d: 0, 
             vendasFiltradas: 0, 
+            vendasPeriodo: 0,
             totalSempre: 0, 
             estoque: 0 
           };
@@ -165,12 +171,6 @@ export default function Sellout() {
         stats[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
       }
     });
-
-    let totalGeralPeriodo = 0;
-    const vendasPorMarca = {};
-    const vendasPorProduto = {};
-    const vendasPorLocal = {};
-    const vendasPorData = {};
 
     // 2. Processar Vendas
     vendasRows.forEach(r => {
@@ -206,6 +206,7 @@ export default function Sellout() {
           vendas15d: 0, 
           vendas30d: 0, 
           vendasFiltradas: 0,
+          vendasPeriodo: 0,
           totalSempre: 0,
           totalEstoque: 0,
           cores: {},
@@ -224,7 +225,7 @@ export default function Sellout() {
 
       const corKey = parsed.color;
       if (!stats[prodKey].cores[corKey]) {
-        stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, totalEstoque: 0, variacoes: {} };
+        stats[prodKey].cores[corKey] = { cor: corKey, totalVendas: 0, vendasPeriodo: 0, totalEstoque: 0, variacoes: {} };
       }
 
       const varKey = `${sku}|${parsed.size}`;
@@ -237,6 +238,7 @@ export default function Sellout() {
           vendas15d: 0, 
           vendas30d: 0, 
           vendasFiltradas: 0, 
+          vendasPeriodo: 0,
           totalSempre: 0, 
           estoque: 0 
         };
@@ -247,45 +249,33 @@ export default function Sellout() {
       if (dataVendaTime >= d30Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas30d += qtd;
       stats[prodKey].cores[corKey].variacoes[varKey].totalSempre += qtd;
 
-      // Filtros de Seleção (Marca e Local)
-      const passLocal = filtroLocal.length === 0 || filtroLocal.some(l => l.value === local);
-      const passMarcaFiltro = filtroMarca.length === 0 || filtroMarca.some(m => m.value === marca);
+      // Check date filter for period (ignores brand/local selection)
+      let considerarPeriodo = false;
+      if (filtroDias === '7' && dataVendaTime >= d7Time) considerarPeriodo = true;
+      else if (filtroDias === '15' && dataVendaTime >= d15Time) considerarPeriodo = true;
+      else if (filtroDias === '30' && dataVendaTime >= d30Time) considerarPeriodo = true;
+      else if (filtroDias === 'all') considerarPeriodo = true;
 
-      if (passLocal && passMarcaFiltro) {
-        let considerar = false;
-        if (filtroDias === '7' && dataVendaTime >= d7Time) considerar = true;
-        else if (filtroDias === '15' && dataVendaTime >= d15Time) considerar = true;
-        else if (filtroDias === '30' && dataVendaTime >= d30Time) considerar = true;
-        else if (filtroDias === 'all') considerar = true;
+      if (considerarPeriodo) {
+        stats[prodKey].vendasPeriodo += qtd;
+        stats[prodKey].cores[corKey].vendasPeriodo += qtd;
+        stats[prodKey].cores[corKey].variacoes[varKey].vendasPeriodo += qtd;
 
-        if (considerar) {
+        // Apply local & brand selection filters
+        const passLocal = filtroLocal.length === 0 || filtroLocal.some(l => l.value === local);
+        const passMarcaFiltro = filtroMarca.length === 0 || filtroMarca.some(m => m.value === marca);
+
+        if (passLocal && passMarcaFiltro) {
           stats[prodKey].vendasFiltradas += qtd;
           stats[prodKey].cores[corKey].totalVendas += qtd;
           stats[prodKey].cores[corKey].variacoes[varKey].vendasFiltradas += qtd;
-          totalGeralPeriodo += qtd;
-
-          // Agrupamento para Gráficos
-          if (!vendasPorMarca[marca]) vendasPorMarca[marca] = 0;
-          vendasPorMarca[marca] += qtd;
-
-          if (!vendasPorProduto[parsed.baseTitle]) vendasPorProduto[parsed.baseTitle] = 0;
-          vendasPorProduto[parsed.baseTitle] += qtd;
-
-          if (!vendasPorLocal[local]) vendasPorLocal[local] = 0;
-          vendasPorLocal[local] += qtd;
-
-          if (!vendasPorData[dataStr]) vendasPorData[dataStr] = 0;
-          vendasPorData[dataStr] += qtd;
         }
       }
     });
 
-    const rows = Object.values(stats).map(s => {
-      const share = totalGeralPeriodo > 0 ? ((s.vendasFiltradas / totalGeralPeriodo) * 100).toFixed(1) : 0;
-      return { ...s, share: Number(share) };
-    });
+    const rows = Object.values(stats);
 
-    // Filtro de Busca (na tabela)
+    // 3. Filtro de Busca (na tabela) para gerar filteredRows
     let filteredRows = rows.filter(r => {
       const hasFilter = filtroMarca.length > 0 || filtroLocal.length > 0;
       
@@ -303,11 +293,14 @@ export default function Sellout() {
       );
     });
 
-    // KPI stats
+    // 4. Calcular KPIs dinamicamente com base em filteredRows
+    const totalGeralPeriodo = filteredRows.reduce((sum, r) => sum + r.vendasFiltradas, 0);
+    const totalEstoque = filteredRows.reduce((sum, r) => sum + r.totalEstoque, 0);
+
     let skusComVenda = 0;
     let skusRuptura = 0;
     
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       Object.values(r.cores).forEach(c => {
         Object.values(c.variacoes).forEach(v => {
           if (v.vendasFiltradas > 0) {
@@ -320,9 +313,69 @@ export default function Sellout() {
       });
     });
 
-    // Ordenação
+    const numDias = filtroDias === 'all' ? 30 : Number(filtroDias);
+    const vmd = (totalGeralPeriodo / numDias).toFixed(1);
+
+    // Recalcular Share dinâmico para os itens filtrados
+    const finalFilteredRows = filteredRows.map(r => {
+      const share = totalGeralPeriodo > 0 ? ((r.vendasFiltradas / totalGeralPeriodo) * 100).toFixed(1) : 0;
+      return { ...r, share: Number(share) };
+    });
+
+    // 5. Agrupar dados de gráficos baseando-se estritamente em filteredRows
+    const activeProdKeys = new Set(filteredRows.map(r => r.id));
+    const vendasPorMarca = {};
+    const vendasPorProduto = {};
+    const vendasPorLocal = {};
+    const vendasPorData = {};
+
+    vendasRows.forEach(r => {
+      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
+      if (!dataStr) return;
+      const [d, m, y] = dataStr.split("/");
+      const dataVendaTime = Date.UTC(Number(y), Number(m) - 1, Number(d));
+      
+      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
+      const marca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const lojaVenda = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
+
+      if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
+      if (dataVendaTime > ontemTime) return;
+
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const prodKey = `${parsed.baseTitle}|${marca}`;
+
+      if (activeProdKeys.has(prodKey)) {
+        const passLocal = filtroLocal.length === 0 || filtroLocal.some(l => l.value === local);
+        const passMarcaFiltro = filtroMarca.length === 0 || filtroMarca.some(m => m.value === marca);
+
+        if (passLocal && passMarcaFiltro) {
+          let considerar = false;
+          if (filtroDias === '7' && dataVendaTime >= d7Time) considerar = true;
+          else if (filtroDias === '15' && dataVendaTime >= d15Time) considerar = true;
+          else if (filtroDias === '30' && dataVendaTime >= d30Time) considerar = true;
+          else if (filtroDias === 'all') considerar = true;
+
+          if (considerar) {
+            vendasPorMarca[marca] = (vendasPorMarca[marca] || 0) + qtd;
+            vendasPorProduto[parsed.baseTitle] = (vendasPorProduto[parsed.baseTitle] || 0) + qtd;
+            vendasPorLocal[local] = (vendasPorLocal[local] || 0) + qtd;
+            vendasPorData[dataStr] = (vendasPorData[dataStr] || 0) + qtd;
+          }
+        }
+      }
+    });
+
+    // 6. Preparar linhasTudo para a exportação de tudo (respeitando companhia e período)
+    const linhasTudo = rows.filter(r => r.vendasPeriodo > 0 || r.totalEstoque > 0);
+    const totalVendasPeriodoTudo = linhasTudo.reduce((sum, r) => sum + (r.vendasPeriodo || 0), 0);
+
+    // Ordenação de finalFilteredRows
     if (sortConfig.key) {
-      filteredRows.sort((a, b) => {
+      finalFilteredRows.sort((a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
         if (typeof aVal === 'string') {
@@ -339,7 +392,7 @@ export default function Sellout() {
     const bgColors = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#6366f1', '#14b8a6', '#f43f5e'];
     
     let chartMarcaData = null;
-    let chartType = 'doughnut'; // default
+    let chartType = 'doughnut';
     const isSingleMarca = filtroMarca.length === 1;
     const isSingleLocal = filtroLocal.length === 1;
 
@@ -385,7 +438,7 @@ export default function Sellout() {
       if (outras.length > 0) {
         labels.push('Outras');
         values.push(outras.reduce((acc, m) => acc + vendasPorMarca[m], 0));
-        colors.push('#94a3b8'); // Gray for others
+        colors.push('#94a3b8');
       }
 
       chartMarcaData = {
@@ -411,15 +464,11 @@ export default function Sellout() {
       }]
     };
 
-    // KPIs Adicionais
-    const totalEstoque = rows.reduce((acc, r) => acc + r.totalEstoque, 0);
-    
-    const numDias = filtroDias === 'all' ? 30 : Number(filtroDias); // Fallback para 30 se for all
-    const vmd = (totalGeralPeriodo / numDias).toFixed(1);
-
     return { 
-      linhas: filteredRows, 
+      linhas: finalFilteredRows, 
+      linhasTudo,
       totalVendasPeriodo: totalGeralPeriodo,
+      totalVendasPeriodoTudo,
       skusComVenda,
       totalEstoque,
       skusRuptura,
@@ -436,43 +485,141 @@ export default function Sellout() {
     };
   }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, filtroDias, sortConfig]);
 
-  const handleExportData = (type, mode = 'detalhado') => {
+  const triggerExport = (type, mode = 'detalhado') => {
+    setIsExportMenuOpen(false);
+    const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
+    if (hasActiveFilters) {
+      setPendingExportType(type);
+      setPendingExportMode(mode);
+      setIsExportPromptOpen(true);
+    } else {
+      executeExport(type, mode, false);
+    }
+  };
+
+  const executeExport = (type, mode, useFilters) => {
+    setIsExportPromptOpen(false);
+    
+    let rowsToExport = [];
+    let totalSalesVal = 0;
+    
+    if (useFilters) {
+      rowsToExport = dadosProcessados.linhas;
+      totalSalesVal = dadosProcessados.totalVendasPeriodo;
+    } else {
+      rowsToExport = dadosProcessados.linhasTudo;
+      totalSalesVal = dadosProcessados.totalVendasPeriodoTudo;
+    }
+
+    const periodStr = filtroDias === 'all' ? 'Tudo' : `${filtroDias}d`;
+    const modeStr = mode === 'detalhado' ? 'Detalhado' : 'Resumido';
+    const filterStr = useFilters ? 'Filtrado' : 'Completo';
+    
+    // Beautiful clean business title
+    const reportTitle = `Sellout - ${modeStr} (${filterStr})`;
+
+    const options = {
+      subTitle: `Análise de Performance de Sellout • Período: ${filtroDias === 'all' ? 'Completo' : `${filtroDias} Dias`} • Canal/Filtro: ${selectedCompany}`,
+      filters: [
+        busca.trim() && `Busca: "${busca.trim()}"`,
+        filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.label).join(', ')}`,
+        filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.label).join(', ')}`
+      ].filter(Boolean),
+      kpis: [
+        { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
+        { label: "VMD", value: (totalSalesVal / (filtroDias === 'all' ? 30 : Number(filtroDias))).toFixed(1), sub: "venda média diária" },
+        { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
+        { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
+      ]
+    };
+
     if (mode === 'resumido') {
       const headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-      const exportData = dadosProcessados.linhas.map(item => [
-        item.descricao,
-        item.marca,
-        item.vendasFiltradas,
-        item.totalEstoque,
-        item.share + "%"
-      ]);
-      handleExport(type, `Sellout_${filtroDias}d_Resumido`, headers, exportData);
+      const exportData = rowsToExport.map(item => {
+        const sales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
+        const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
+        return [
+          item.descricao,
+          item.marca,
+          sales,
+          item.totalEstoque,
+          share + "%"
+        ];
+      });
+      handleExport(type, reportTitle, headers, exportData, options);
     } else {
-      const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-      const exportData = [];
-      
-      dadosProcessados.linhas.forEach(item => {
-        Object.values(item.cores).forEach(corObj => {
-          Object.values(corObj.variacoes).forEach(v => {
-            const share = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
-            
-            const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
-            const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
-            const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
+      if (type === 'pdf') {
+        const headers = ["Descrição / SKU", "Marca / SKU Plataforma", "Vendas", "Estoque", "Share %"];
+        const exportData = [];
+        
+        rowsToExport.forEach(item => {
+          const parentSales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
+          const parentShare = totalSalesVal > 0 ? ((parentSales / totalSalesVal) * 100).toFixed(1) : 0;
+          
+          // Add Parent Row (Aggregated)
+          exportData.push([
+            item.descricao,
+            item.marca,
+            parentSales,
+            item.totalEstoque,
+            parentShare + "%"
+          ]);
+          
+          // Add Child Rows (Variations)
+          Object.values(item.cores).forEach(corObj => {
+            Object.values(corObj.variacoes).forEach(v => {
+              const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
+              if (!useFilters && sales === 0 && v.estoque === 0) return;
+              
+              const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
+              const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? `${corObj.cor}` : 'SEM COR';
+              const sizePart = v.size && v.size !== 'U' ? `Tam ${v.size}` : 'Tamanho Único';
+              
+              const descStr = `     - ${colorPart} - ${sizePart}`;
+              const skuStr = `${v.sku}${v.skuPlat ? ` (Plat: ${v.skuPlat})` : ''}`;
 
-            exportData.push([
-              v.sku,
-              v.skuPlat || '',
-              fullDesc,
-              item.marca,
-              v.vendasFiltradas,
-              v.estoque,
-              share + "%"
-            ]);
+              exportData.push([
+                descStr,
+                skuStr,
+                sales,
+                v.estoque,
+                share + "%"
+              ]);
+            });
           });
         });
-      });
-      handleExport(type, `Sellout_${filtroDias}d_Detalhado`, headers, exportData);
+        
+        handleExport(type, reportTitle, headers, exportData, options);
+      } else {
+        // Flat layout for Excel/CSV (easy to filter/analyze in Excel)
+        const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+        const exportData = [];
+        
+        rowsToExport.forEach(item => {
+          Object.values(item.cores).forEach(corObj => {
+            Object.values(corObj.variacoes).forEach(v => {
+              const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
+              if (!useFilters && sales === 0 && v.estoque === 0) return;
+              
+              const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
+              const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
+              const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
+              const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
+
+              exportData.push([
+                v.sku,
+                v.skuPlat || '',
+                fullDesc,
+                item.marca,
+                sales,
+                v.estoque,
+                share + "%"
+              ]);
+            });
+          });
+        });
+        handleExport(type, reportTitle, headers, exportData, options);
+      }
     }
   };
 
@@ -518,39 +665,45 @@ export default function Sellout() {
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
         
-        <div style={{ position: 'relative' }}>
-          <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
-            <Download size={18} /> Exportar
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="btn-padrao" onClick={() => window.print()} style={{ background: '#f8fafc', color: '#475569' }}>
+            <Printer size={18} /> Imprimir Tela
           </button>
-          <AnimatePresence>
-            {isExportMenuOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
-              >
-                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (SKUS)</div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
-                  <FileText size={14} color="#64748b" /> CSV
-                </div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
-                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
-                </div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
-                  <FileText size={14} color="#ef4444" /> PDF
-                </div>
-                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
-                  <FileText size={14} color="#64748b" /> CSV
-                </div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
-                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
-                </div>
-                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
-                  <FileText size={14} color="#ef4444" /> PDF
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          
+          <div style={{ position: 'relative' }}>
+            <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
+              <Download size={18} /> Exportar
+            </button>
+            <AnimatePresence>
+              {isExportMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                  style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
+                >
+                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (SKUS)</div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => triggerExport('csv', 'detalhado')}>
+                    <FileText size={14} color="#64748b" /> CSV
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => triggerExport('xlsx', 'detalhado')}>
+                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => triggerExport('pdf', 'detalhado')}>
+                    <FileText size={14} color="#ef4444" /> PDF
+                  </div>
+                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => triggerExport('csv', 'resumido')}>
+                    <FileText size={14} color="#64748b" /> CSV
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => triggerExport('xlsx', 'resumido')}>
+                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                  </div>
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => triggerExport('pdf', 'resumido')}>
+                    <FileText size={14} color="#ef4444" /> PDF
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -654,7 +807,7 @@ export default function Sellout() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+      <div className="charts-print-hide" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px', marginBottom: '24px' }}>
         {/* Gráfico Dinâmico (Market Share / Share Local / Evolução) */}
         <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -942,6 +1095,176 @@ export default function Sellout() {
           </div>
         )}
       </div>
+
+      {/* Choice Modal for Exporting with Active Filters */}
+      <AnimatePresence>
+        {isExportPromptOpen && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              zIndex: 9999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(15, 23, 42, 0.40)', // modern slate dark overlay
+              backdropFilter: 'blur(8px)', // glassmorphism blur
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+              }}
+            >
+              {/* Header Icon & Title */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                <div 
+                  style={{ 
+                    width: '56px', 
+                    height: '56px', 
+                    borderRadius: '16px', 
+                    background: '#eff6ff', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid #dbeafe'
+                  }}
+                >
+                  <Filter size={24} color="#3b82f6" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                    Exportar Relatório
+                  </h3>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                    Detectamos que você possui filtros ativados nesta tela. Como deseja exportar seus dados?
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Filters Summary Chips */}
+              <div 
+                style={{ 
+                  background: '#f8fafc', 
+                  borderRadius: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #f1f5f9', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '10px' 
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Filtros Ativos:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {busca.trim() !== '' && (
+                    <span style={{ fontSize: '12px', background: '#eff6ff', border: '1px solid #dbeafe', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Busca: "{busca.trim()}"
+                    </span>
+                  )}
+                  {filtroMarca.length > 0 && (
+                    <span style={{ fontSize: '12px', background: '#f5f3ff', border: '1px solid #e0e7ff', color: '#6d28d9', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Marcas ({filtroMarca.length})
+                    </span>
+                  )}
+                  {filtroLocal.length > 0 && (
+                    <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Locais ({filtroLocal.length})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  onClick={() => executeExport(pendingExportType, pendingExportMode, true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Filter size={16} /> Exportar Apenas Filtrados ({dadosProcessados.linhas.length} itens)
+                </button>
+                <button 
+                  onClick={() => executeExport(pendingExportType, pendingExportMode, false)}
+                  style={{
+                    background: '#1e293b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Download size={16} /> Exportar Estoque Completo ({dadosProcessados.linhasTudo.length} itens)
+                </button>
+                <button 
+                  onClick={() => setIsExportPromptOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '12px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
