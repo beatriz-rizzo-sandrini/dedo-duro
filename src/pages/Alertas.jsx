@@ -102,6 +102,16 @@ export default function Alertas() {
       return estoqueCentral > 0;
     };
 
+    // Criar um Set para buscas O(1) de badstock e evitar loop O(N^2)
+    const badStockSet = new Set();
+    badStockRows.forEach(bs => {
+      const skuB = (bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
+      const localB = (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
+      if (skuB && localB) {
+        badStockSet.add(`${skuB}|${localB}`);
+      }
+    });
+
     let alertas = [];
 
     estoqueRows.forEach(r => {
@@ -127,11 +137,7 @@ export default function Alertas() {
       let alertaT = null;
       let alertaI = "";
 
-      const isBad = badStockRows.some(bs => {
-        const skuB = (bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
-        const localB = (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
-        return sku.trim().toLowerCase() === skuB && local.trim().toLowerCase() === localB;
-      });
+      const isBad = badStockSet.has(`${sku.trim().toLowerCase()}|${local.trim().toLowerCase()}`);
 
       if (isBad) {
         alertaT = "badstock";

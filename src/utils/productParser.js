@@ -81,13 +81,31 @@ const COLOR_ABBR_MAP = {
 };
 
 export function parseProductDescription(desc, sku = '', isWatch = false) {
+  const skuUpper = String(sku || '').trim().toUpperCase();
+  
+  // Verifica se é um SKU customizado conhecido ou Senior SKU
+  let isCustomOrSenior = false;
+  if (skuUpper) {
+    const isSenior = (skuUpper.length === 23 || skuUpper.length === 22);
+    const isSandrini = skuUpper.includes('DRY') || skuUpper.includes('235') || skuUpper.includes('2350') || skuUpper.includes('2351') || skuUpper.includes('2352') || skuUpper.includes('2353') || skuUpper.includes('2355');
+    const isCustom = skuUpper.startsWith('TENIS433951') || skuUpper.startsWith('NB000GM500V2');
+    
+    if (isSenior || isSandrini || isCustom) {
+      isCustomOrSenior = true;
+    }
+  }
+
   if (!desc) {
-    return {
-      baseTitle: sku || 'Produto Sem Descrição',
-      color: 'SEM COR',
-      size: 'U',
-      descricaoFormatada: sku || 'Produto Sem Descrição'
-    };
+    if (isCustomOrSenior) {
+      desc = '';
+    } else {
+      return {
+        baseTitle: sku || 'Produto Sem Descrição',
+        color: 'SEM COR',
+        size: 'U',
+        descricaoFormatada: sku || 'Produto Sem Descrição'
+      };
+    }
   }
 
   // Identificação automática caso isWatch não seja passado
@@ -145,12 +163,13 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   let color = '';
 
   // 0. Extração precoce do tamanho a partir da descrição original
-  const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
+  const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|EG|XG|[GPM]|G\d|\d+(?:\/\d+)?)/i;
+  const endSizeRegex = /\b(G\d|GG|EG|XG|[GPM]|\d{2})$/i;
+
   const originalSizeMatch = desc.match(sizeRegex);
   if (originalSizeMatch) {
     size = originalSizeMatch[1].toUpperCase();
   } else {
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
     const originalEndSizeMatch = desc.match(endSizeRegex);
     if (originalEndSizeMatch) {
       size = originalEndSizeMatch[1].toUpperCase();
@@ -179,7 +198,6 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
 
   // Sandrini Custom SKU Parser (e.g. CAMISETADRY2350CPTOTP, K4CAMISETADRY2350CSORT1TG)
   let isSandriniSKU = false;
-  const skuUpper = sku.toUpperCase();
   if (skuUpper.includes('DRY') || skuUpper.includes('2350') || skuUpper.includes('2351') || skuUpper.includes('2352') || skuUpper.includes('2353') || skuUpper.includes('2355')) {
     if (!skuUpper.startsWith('LP') && !skuUpper.startsWith('KLP')) {
       isSandriniSKU = true;
@@ -279,6 +297,39 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
       skuSize = sku.substring(16, 18);
     }
   }
+  let isOlympikusCustomSKU = false;
+  if (skuUpper.startsWith('TENIS433951')) {
+    isOlympikusCustomSKU = true;
+    const sizeMatch = skuUpper.match(/(\d{2})$/);
+    size = sizeMatch ? sizeMatch[1] : 'U';
+    if (skuUpper.includes('CPTODOUT')) {
+      color = 'PTO/DOUT';
+    } else if (skuUpper.includes('CPTO')) {
+      color = 'PTO';
+    } else {
+      color = 'SEM COR';
+    }
+  }
+
+  let isNewBalanceSKU = false;
+  if (skuUpper.startsWith('NB000GM500V2')) {
+    isNewBalanceSKU = true;
+    const block = skuUpper.substring(12, 18);
+    const p1 = block.substring(0, 2);
+    const p2 = block.substring(2, 4);
+    const p3 = block.substring(4, 6);
+
+    const colors = [];
+    if (SKU_COLOR_MAP[p1] && p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
+    if (SKU_COLOR_MAP[p2] && p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
+    if (SKU_COLOR_MAP[p3] && p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
+    
+    const uniqueColors = Array.from(new Set(colors));
+    color = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
+
+    const sizeMatch = skuUpper.substring(18, 20);
+    size = sizeMatch ? sizeMatch.toUpperCase() : 'U';
+  }
 
   if (isSeniorSKU) {
     color = skuColor;
@@ -289,10 +340,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
       size = skuSize.toUpperCase();
     }
 
-    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
-
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
     baseTitle = baseTitle.replace(endSizeRegex, '');
 
     const colorSlashRegex = /\b(?:[A-Z0-9]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/g;
@@ -307,13 +355,20 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
       return true;
     });
     baseTitle = cleanedWords.join(' ');
+  } else if (isOlympikusCustomSKU) {
+    // Already extracted color and size from SKU!
+    // Clean up baseTitle
+    baseTitle = baseTitle.replace(sizeRegex, '');
+    baseTitle = baseTitle.replace(endSizeRegex, '');
+  } else if (isNewBalanceSKU) {
+    // Already extracted color and size from SKU!
+    // Clean up baseTitle
+    baseTitle = baseTitle.replace(sizeRegex, '');
+    baseTitle = baseTitle.replace(endSizeRegex, '');
   } else if (isSandriniSKU) {
     // Already extracted color and size from SKU!
     // Clean up baseTitle
-    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
-
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
     baseTitle = baseTitle.replace(endSizeRegex, '');
 
     // Se a descrição tiver 'LUPO' por conta de mapeamento incorreto na planilha, forçamos para ser Sandrini
@@ -331,7 +386,6 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
         size = sizeMatch[1].toUpperCase();
         baseTitle = baseTitle.replace(sizeRegex, '').trim();
       } else {
-        const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
         const endSizeMatch = baseTitle.match(endSizeRegex);
         if (endSizeMatch) {
           size = endSizeMatch[1].toUpperCase();
@@ -341,7 +395,6 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     } else {
       // Remove any size suffix from baseTitle if we already have it pre-extracted
       baseTitle = baseTitle.replace(sizeRegex, '').trim();
-      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
       baseTitle = baseTitle.replace(endSizeRegex, '').trim();
     }
 
@@ -405,12 +458,46 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   baseTitle = baseTitle.replace(/\s+/g, ' ');
 
   const baseTitleUpper = baseTitle.toUpperCase();
-  if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
+  if (skuUpper.startsWith('KSA08000002350')) {
+    baseTitle = 'Kit 4 Camisetas Dry (2350) + 4 Shorts Tactel (77046)';
+  } else if (skuUpper.startsWith('KSA05000002355')) {
+    baseTitle = 'Kit 3 Regatas Dry (2355) + 2 Shorts Tactel (77046)';
+  } else if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
     baseTitle = 'Tenis Sandrini Aero Run (SD2513)';
   } else if (baseTitleUpper.includes('A623') || skuUpper.includes('A623')) {
     baseTitle = 'Tenis Sandrini Spryte (A623)';
+  } else if (baseTitleUpper.includes('A593') || skuUpper.includes('A593')) {
+    baseTitle = 'Sapatênis Casual Sandrini (A593)';
   } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046')) {
-    baseTitle = 'Kit 2 Shorts Sandrini Tactel Elástico (77046)';
+    let qty = 2; // default fallback
+    const kitSkuMatch = skuUpper.match(/^K[A-Z]{2}(\d{2})/);
+    if (kitSkuMatch) {
+      qty = parseInt(kitSkuMatch[1], 10);
+    } else {
+      const kitDescMatch = cleanDesc.toUpperCase().match(/KIT\s*(\d+)/i);
+      if (kitDescMatch) {
+        qty = parseInt(kitDescMatch[1], 10);
+      }
+    }
+    
+    const isKit = skuUpper.startsWith('K') || skuUpper.includes('KIT') || cleanDesc.toUpperCase().includes('KIT');
+    if (isKit) {
+      baseTitle = `Kit ${qty} Shorts Sandrini Tactel Elástico (77046)`;
+    } else {
+      baseTitle = 'Shorts Sandrini Tactel Elástico (77046)';
+    }
+  } else if (baseTitleUpper.includes('433951') || skuUpper.includes('433951')) {
+    baseTitle = 'Tênis Olympikus Marte (433951)';
+  } else if (baseTitleUpper.includes('GM500') || skuUpper.includes('GM500')) {
+    baseTitle = 'Tênis New Balance 500 V2 (GM500V2)';
+  } else if (baseTitleUpper.includes('1371421') || skuUpper.includes('1371421') || baseTitleUpper.includes('U01FB00376') || skuUpper.includes('U01FB00376')) {
+    baseTitle = 'Chuteira Umbro Campo Fast II (U01FB00376)';
+  } else if (baseTitleUpper.includes('1371440') || skuUpper.includes('1371440') || baseTitleUpper.includes('U01FB00454') || skuUpper.includes('U01FB00454')) {
+    baseTitle = 'Chuteira Umbro Futsal Invictus (U01FB00454)';
+  } else if (baseTitleUpper.includes('1371649') || skuUpper.includes('1371649') || baseTitleUpper.includes('U01FB00455') || skuUpper.includes('U01FB00455')) {
+    baseTitle = 'Chuteira Umbro Society Invictus (U01FB00455)';
+  } else if (baseTitleUpper.includes('CUECA') && baseTitleUpper.includes('SANDRINI') && (baseTitleUpper.includes('ALGOD') || baseTitleUpper.includes('ALGODA')) && (baseTitleUpper.includes('10') || baseTitleUpper.includes('K10') || skuUpper.includes('K10BMS'))) {
+    baseTitle = 'Kit 10 Cuecas Sandrini Algodão';
   }
 
   const toTitleCase = (str) => {
@@ -422,7 +509,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
         if (word.startsWith('(') && word.endsWith(')')) {
           return word.toUpperCase();
         }
-        if (['nb', 'bb80', 'bdp', 'rc2', 'fba', 'sd2513', 'sn-465', 'sn465'].includes(cleanWord)) {
+        if (['nb', 'bb80', 'bdp', 'rc2', 'fba', 'sd2513', 'sn-465', 'sn465', 'gm500', 'gm500v2', 'ii'].includes(cleanWord)) {
           return word.toUpperCase();
         }
         return word.charAt(0).toUpperCase() + word.slice(1);

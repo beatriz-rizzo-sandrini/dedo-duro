@@ -1,6 +1,8 @@
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
 const cron = require('node-cron');
+const { exec } = require('child_process');
+const path = require('path');
 
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
@@ -402,6 +404,26 @@ async function syncMapeamento() {
           }
         }
 
+        // CORREÇÃO DE SEGURANÇA: Evitar mapear Kit Polo Sandrini (Shopee) e Cavalera (Meli MG) para SKU Sênior da Nautica Boxer
+        const isPoloOrCavalera = 
+          skuPlat.toUpperCase().includes('K10CSM2875') || 
+          skuPlat.toUpperCase().includes('K10CAVALERA');
+
+        const isMappedToNautica = 
+          finalSkuSen && 
+          (finalSkuSen.toUpperCase().startsWith('KNA1000NUB2652') || (finalDesc && finalDesc.toUpperCase().includes('NAUTICA')));
+
+        if (isPoloOrCavalera && isMappedToNautica) {
+          const skuPlatUpper = skuPlat.toUpperCase().trim();
+          finalSkuSen = skuPlatUpper; // Sênior = Plataforma para não misturar com Nautica
+
+          if (skuPlatUpper.includes('K10CSM2875')) {
+            finalDesc = 'Kit 10 Cueca Boxer Poliéster Microfibra Polo Sandrini';
+          } else if (skuPlatUpper.includes('K10CAVALERA')) {
+            finalDesc = 'Kit 10 Cueca Boxer Cavalera Sem Costura Poliamida';
+          }
+        }
+
         insertData.push({
           sku_plataforma: String(skuPlat).trim(),
           plataforma: String(plat).toUpperCase().trim(),
@@ -436,6 +458,26 @@ async function syncMapeamento() {
 
 
 
+// Sincronização integrada com a API do Mercado Livre
+function syncMeli() {
+  return new Promise((resolve) => {
+    console.log('🔄 Sincronizando Mercado Livre via API...');
+    const scriptPath = path.join(__dirname, 'sincronizar_meli.cjs');
+    exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ Erro ao rodar sincronizar_meli.cjs: ${error.message}`);
+      }
+      if (stderr) {
+        console.error(`⚠️ Erro na saída stderr do Mercado Livre: ${stderr}`);
+      }
+      if (stdout) {
+        console.log(`📝 Logs do Mercado Livre:\n${stdout}`);
+      }
+      resolve();
+    });
+  });
+}
+
 // Sincronização Principal
 async function rodarSincronizacao() {
   console.log(`\n🚀 [${new Date().toLocaleString()}] Iniciando Robô Sincronizador...`);
@@ -445,6 +487,7 @@ async function rodarSincronizacao() {
     await syncReposicao();
     await syncBadstock();
     await syncMapeamento();
+    await syncMeli(); // Integração automática com Mercado Livre
     console.log(`🎉 [${new Date().toLocaleString()}] Todas as bases sincronizadas com sucesso!`);
     console.log('💤 Aguardando próxima execução (de hora em hora)...');
   } catch (error) {

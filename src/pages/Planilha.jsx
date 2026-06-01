@@ -77,7 +77,7 @@ export default function Planilha() {
   };
 
   const fetchMonthData = async (monthName) => {
-    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(monthName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&tq=SELECT%20*&sheet=${encodeURIComponent(monthName)}`;
     const res = await fetch(url);
     const text = await res.text();
     const jsonStr = text.substring(47).slice(0, -2);
@@ -172,6 +172,15 @@ export default function Planilha() {
       if (o.status) set.add(o.status);
     });
     return Array.from(set).map(s => ({ value: s, label: toTitleCase(s) }));
+  }, [orders]);
+
+  // Filtra dinamicamente os meses que realmente possuem pedidos importados
+  const activeMonths = useMemo(() => {
+    const set = new Set();
+    orders.forEach(o => {
+      if (o.month) set.add(o.month);
+    });
+    return MONTHS_TABS.filter(m => set.has(m));
   }, [orders]);
 
   // Filtra os pedidos com base no estado de busca
@@ -470,7 +479,7 @@ export default function Planilha() {
           <Select 
             options={[
               { value: 'TODOS', label: 'Todos os Meses' },
-              ...MONTHS_TABS.map(m => ({ value: m, label: m }))
+              ...activeMonths.map(m => ({ value: m, label: m }))
             ]}
             value={{ value: selectedMonth, label: selectedMonth === 'TODOS' ? 'Todos os Meses' : selectedMonth }}
             onChange={opt => setSelectedMonth(opt.value)}

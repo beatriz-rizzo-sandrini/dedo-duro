@@ -10,7 +10,7 @@ const SHEETS_FROM_GS = ['sellout'];
 const VENDAS_CUTOFF = '2026-03-29';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-const CACHE_KEY = '__dedo_duro_data_hybrid4__';
+const CACHE_KEY = '__dedo_duro_data_hybrid5__';
 
 // ── Google Sheets ─────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ async function fetchVendasSupabase() {
   while (hasMore) {
     const { data, error } = await supabase
       .from('vw_vendas_consolidadas')
-      .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+      .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca, sku_original_plataforma')
       .gte('data_venda', VENDAS_CUTOFF)
       .order('data_venda', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -64,13 +64,13 @@ async function fetchVendasSupabase() {
 
     allData = allData.concat(data);
     hasMore = data.length === PAGE_SIZE;
-    from += PAGE_SIZE;
+    from += data.length;
   }
 
   console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
 
   // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
-  // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
+  // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca  c[6]=sku_original_plataforma
   return allData.map(r => ({
     c: [
       { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
@@ -79,6 +79,7 @@ async function fetchVendasSupabase() {
       { v: r.descricao_produto },
       { v: Number(r.quantidade_vendida) || 0 },
       { v: r.marca },
+      { v: r.sku_original_plataforma }
     ]
   }));
 }
@@ -86,6 +87,27 @@ async function fetchVendasSupabase() {
 // ── Estoque do Supabase (tabela silver_estoque mapeada via view) ─────────────
 
 async function fetchEstoqueSupabase() {
+  // 1. Busca a data mais recente do estoque de forma instantânea
+  const { data: latestDateData, error: latestDateErr } = await supabase
+    .from('vw_estoque_consolidado')
+    .select('data_atualizacao')
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (latestDateErr) {
+    console.warn('[DataContext] Falha ao buscar data mais recente do estoque:', latestDateErr.message);
+    return [];
+  }
+
+  const latestDate = latestDateData?.[0]?.data_atualizacao;
+  if (!latestDate) {
+    console.warn('[DataContext] Nenhuma data encontrada no estoque.');
+    return [];
+  }
+
+  console.log(`[DataContext] Buscando estoque para a data mais recente: "${latestDate}"`);
+
+  // 2. Busca apenas os registros dessa data
   const PAGE_SIZE = 1000;
   let allData = [];
   let from = 0;
@@ -94,7 +116,8 @@ async function fetchEstoqueSupabase() {
   while (hasMore) {
     const { data, error } = await supabase
       .from('vw_estoque_consolidado')
-      .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+      .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
+      .eq('data_atualizacao', latestDate)
       .order('id', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
@@ -107,13 +130,13 @@ async function fetchEstoqueSupabase() {
 
     allData = allData.concat(data);
     hasMore = data.length === PAGE_SIZE;
-    from += PAGE_SIZE;
+    from += data.length;
   }
 
-  console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros`);
+  console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros para a data ${latestDate}`);
 
   // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam para o estoque:
-  // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor
+  // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor  c[7]=sku_original_plataforma
   return allData.map(r => ({
     c: [
       { v: r.data_atualizacao, f: r.data_atualizacao },
@@ -122,7 +145,8 @@ async function fetchEstoqueSupabase() {
       { v: r.local_estoque },
       { v: r.marca },
       { v: Number(r.quantidade_disponivel) || 0 },
-      { v: Number(r.valor_unitario) || 0 }
+      { v: Number(r.valor_unitario) || 0 },
+      { v: r.sku_original_plataforma }
     ]
   }));
 }
@@ -133,8 +157,43 @@ async function fetchCaminho() {
 }
 
 async function fetchBadstock() {
-  console.log('[DataContext] Buscando badstock do Google Sheets...');
-  return fetchSheet('BAD STOCK');
+  console.log('[DataContext] Buscando badstock do Supabase (produção)...');
+  
+  const PAGE_SIZE = 1000;
+  let allData = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('silver_badstock')
+      .select('sku_produto, local_badstock')
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.warn('[DataContext] Falha ao buscar badstock do Supabase:', error?.message);
+      break;
+    }
+
+    if (!data || data.length === 0) break;
+
+    allData = allData.concat(data);
+    hasMore = data.length === PAGE_SIZE;
+    from += data.length;
+  }
+
+  console.log(`[DataContext] Badstock carregado do Supabase: ${allData.length} registros`);
+
+  // Transforma para o formato {c:[{v}]} que todas as páginas esperam
+  // c[0]=não usado  c[1]=sku  c[2]=local  c[3]=original_sku
+  return allData.map(r => ({
+    c: [
+      { v: '' },
+      { v: r.sku_produto },
+      { v: r.local_badstock },
+      { v: r.sku_produto } // index 3
+    ]
+  }));
 }
 
 async function fetchMapeamentosSupabase() {
@@ -170,6 +229,133 @@ async function fetchMapeamentosSupabase() {
   }
 }
 
+// ── Compressão e Decompressão para Caching ─────────────────────────────────────
+
+function compressData(sheets) {
+  const compact = {};
+  
+  if (sheets.vendas) {
+    compact.v = sheets.vendas.map(r => [
+      r.c[0]?.v,
+      r.c[0]?.f,
+      r.c[1]?.v,
+      r.c[2]?.v,
+      r.c[3]?.v,
+      r.c[4]?.v,
+      r.c[5]?.v,
+      r.c[6]?.v
+    ]);
+  }
+  
+  if (sheets.estoque) {
+    compact.e = sheets.estoque.map(r => [
+      r.c[0]?.v,
+      r.c[1]?.v,
+      r.c[2]?.v,
+      r.c[3]?.v,
+      r.c[4]?.v,
+      r.c[5]?.v,
+      r.c[6]?.v,
+      r.c[7]?.v
+    ]);
+  }
+  
+  if (sheets.caminho) {
+    compact.c = sheets.caminho.map(r => [
+      r.c[0]?.v,
+      r.c[1]?.v,
+      r.c[2]?.v,
+      r.c[3]?.v,
+      r.c[4]?.v,
+      r.c[5]?.v,
+      r.c[6]?.v,
+      r.c[7]?.v,
+      r.c[8]?.v
+    ]);
+  }
+  
+  if (sheets.badstock) {
+    compact.b = sheets.badstock.map(r => [
+      r.c[0]?.v,
+      r.c[1]?.v,
+      r.c[2]?.v,
+      r.c[3]?.v
+    ]);
+  }
+  
+  if (sheets.sellout) {
+    compact.s = sheets.sellout;
+  }
+  
+  return compact;
+}
+
+function decompressData(compact) {
+  const sheets = {};
+  
+  if (compact.v) {
+    sheets.vendas = compact.v.map(arr => ({
+      c: [
+        { v: arr[0], f: arr[1] },
+        { v: arr[2] },
+        { v: arr[3] },
+        { v: arr[4] },
+        { v: arr[5] },
+        { v: arr[6] },
+        { v: arr[7] }
+      ]
+    }));
+  }
+  
+  if (compact.e) {
+    sheets.estoque = compact.e.map(arr => ({
+      c: [
+        { v: arr[0], f: arr[0] },
+        { v: arr[1] },
+        { v: arr[2] },
+        { v: arr[3] },
+        { v: arr[4] },
+        { v: arr[5] },
+        { v: arr[6] },
+        { v: arr[7] }
+      ]
+    }));
+  }
+  
+  if (compact.c) {
+    sheets.caminho = compact.c.map(arr => ({
+      c: [
+        { v: arr[0] },
+        { v: arr[1] },
+        { v: arr[2] },
+        { v: arr[3] },
+        { v: arr[4] },
+        { v: arr[5] },
+        { v: arr[6] },
+        { v: arr[7] },
+        { v: arr[8] }
+      ]
+    }));
+  }
+  
+  if (compact.b) {
+    sheets.badstock = compact.b.map(arr => ({
+      c: [
+        { v: arr[0] },
+        { v: arr[1] },
+        { v: arr[2] },
+        { v: arr[3] }
+      ]
+    }));
+  }
+  
+  if (compact.s) {
+    sheets.sellout = compact.s;
+  }
+  
+  return sheets;
+}
+
 // ── Context ───────────────────────────────────────────────────────────────────
 
 const DataContext = createContext(null);
@@ -184,17 +370,32 @@ export function DataProvider({ children }) {
     const isDev = import.meta.env.DEV;
     if (!force && !isDev) {
       try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-        if (cached) {
-          const { ts, sheets } = JSON.parse(cached);
+        let cachedData = null;
+        if ('caches' in window) {
+          const cache = await caches.open('dedo-duro-cache-v1');
+          const cachedResponse = await cache.match('/data-cache');
+          if (cachedResponse) {
+            cachedData = await cachedResponse.text();
+          }
+        }
+        
+        if (!cachedData) {
+          cachedData = sessionStorage.getItem(CACHE_KEY);
+        }
+
+        if (cachedData) {
+          const { ts, compact } = JSON.parse(cachedData);
           if (Date.now() - ts < CACHE_TTL_MS) {
+            const sheets = decompressData(compact);
             setData(sheets);
             setLastFetch(new Date(ts));
             setLoading(false);
             return;
           }
         }
-      } catch { /* ignora */ }
+      } catch (err) {
+        console.warn('[DataContext] Falha ao ler cache:', err.message);
+      }
     }
 
     setLoading(true);
@@ -331,8 +532,20 @@ export function DataProvider({ children }) {
       setLastFetch(new Date());
 
       try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), sheets: combined }));
-      } catch { /* ignora quota */ }
+        const compact = compressData(combined);
+        const payload = JSON.stringify({ ts: Date.now(), compact });
+
+        if ('caches' in window) {
+          const cache = await caches.open('dedo-duro-cache-v1');
+          await cache.put('/data-cache', new Response(payload, {
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        } else {
+          sessionStorage.setItem(CACHE_KEY, payload);
+        }
+      } catch (e) {
+        console.warn('[DataContext] Falha ao salvar no cache (quota excedida?):', e.message);
+      }
 
     } catch (err) {
       setError(err.message);

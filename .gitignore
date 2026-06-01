@@ -27,3 +27,7 @@ dist-ssr
 scratch/
 backend/node_modules/
 
+# Credentials and environment configurations
+.env
+.env.*
+*meli_credentials.json

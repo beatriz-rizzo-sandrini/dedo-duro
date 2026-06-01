@@ -115,6 +115,7 @@ export default function Produto() {
   }, [busca, dataIni, dataFim, diasCobertura, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
+    if (!busca.trim()) return null;
     if (!estoqueRows.length && !vendasRows.length) return null;
 
     let diasPeriodo = 30;
@@ -162,6 +163,16 @@ export default function Produto() {
       if (!aCaminhoMap[local]) aCaminhoMap[local] = {};
       if (!aCaminhoMap[local][sku]) aCaminhoMap[local][sku] = 0;
       aCaminhoMap[local][sku] += qtd;
+    });
+
+    // Criar um Set para buscas O(1) de badstock e evitar loop O(N^2)
+    const badStockSet = new Set();
+    badStockRows.forEach(bs => {
+      const skuB = String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
+      const localB = String(bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
+      if (skuB && localB) {
+        badStockSet.add(`${skuB}|${localB}`);
+      }
     });
 
     const agrupado = {};
@@ -326,7 +337,7 @@ export default function Produto() {
           v.reposicaoSugerida = finalRepo;
 
           v.cobertura = media > 0 ? v.estoque / media : (v.vendas > 0 ? 0 : -1);
-          v.isBad = badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === v.sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === prod.local);
+          v.isBad = badStockSet.has(`${v.sku.toLowerCase()}|${prod.local.toLowerCase()}`);
           v.isRuptura = v.estoque === 0 && v.vendas > 0;
 
           return v;
