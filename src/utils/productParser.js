@@ -462,6 +462,8 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     baseTitle = 'Kit 4 Camisetas Dry (2350) + 4 Shorts Tactel (77046)';
   } else if (skuUpper.startsWith('KSA05000002355')) {
     baseTitle = 'Kit 3 Regatas Dry (2355) + 2 Shorts Tactel (77046)';
+  } else if (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('DRY') && (baseTitleUpper.includes('2350') || skuUpper.includes('2350'))) {
+    baseTitle = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
   } else if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
     baseTitle = 'Tenis Sandrini Aero Run (SD2513)';
   } else if (baseTitleUpper.includes('A623') || skuUpper.includes('A623')) {
