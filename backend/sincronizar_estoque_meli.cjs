@@ -181,6 +181,13 @@ async function run() {
       const title = item.title || 'Produto sem descrição';
       const itemSku = item.seller_custom_field ? String(item.seller_custom_field).trim() : null;
 
+      // Extract brand dynamically from item attributes
+      const brandAttr = item.attributes ? item.attributes.find(a => a.id === 'BRAND') : null;
+      let brand = brandAttr && brandAttr.value_name ? String(brandAttr.value_name).toUpperCase().trim() : 'SANDRINI';
+      if (brand === 'SEM MARCA' || brand === 'GENERIC' || brand === 'GENÉRICA' || brand === '') {
+        brand = 'SANDRINI';
+      }
+
       // Check if it has variations (sizes, colors, etc.)
       if (item.variations && item.variations.length > 0) {
         for (const v of item.variations) {
@@ -201,7 +208,7 @@ async function run() {
             data_atualizacao: dataAtualizacao,
             sku_produto: finalSku,
             descricao_produto: finalDesc,
-            marca: 'SANDRINI',
+            marca: brand,
             local_estoque: 'MELI SP',
             quantidade_disponivel: qty,
             valor_unitario: 0
@@ -216,7 +223,7 @@ async function run() {
           data_atualizacao: dataAtualizacao,
           sku_produto: finalSku,
           descricao_produto: title,
-          marca: 'SANDRINI',
+          marca: brand,
           local_estoque: 'MELI SP',
           quantidade_disponivel: qty,
           valor_unitario: 0

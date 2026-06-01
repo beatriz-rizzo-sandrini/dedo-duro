@@ -75,7 +75,7 @@ const COLOR_ABBR_MAP = {
   'LRJ': 'LRJ', 'LARANJA': 'LRJ',
   'LRJA': 'LRJ', 'GEL': 'GEL', 'GELO': 'GEL',
   'CAR': 'CAR', 'CARAMELO': 'CAR',
-  'ALL BLACK': 'PTO', 'ALLBLACK': 'PTO',
+  'ALL BLACK': 'ALL BLACK', 'ALLBLACK': 'ALL BLACK',
   'MILITAR': 'VDM', 'SORTIDOG': 'SORT',
   'SORTIDO': 'SORT', 'SORTIDOS': 'SORT'
 };
@@ -280,13 +280,17 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
 
     if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
       isSeniorSKU = true;
-      const colors = [];
-      if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
-      if (p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
-      if (p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
-      
-      const uniqueColors = Array.from(new Set(colors));
-      skuColor = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
+      if (block === 'AAAAAA') {
+        skuColor = 'ALL BLACK';
+      } else {
+        const colors = [];
+        if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
+        if (p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
+        if (p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
+        
+        const uniqueColors = Array.from(new Set(colors));
+        skuColor = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
+      }
       skuSize = sku.substring(17, 19);
     }
   } else if (sku.length === 22) {
@@ -462,7 +466,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     baseTitle = 'Kit 4 Camisetas Dry (2350) + 4 Shorts Tactel (77046)';
   } else if (skuUpper.startsWith('KSA05000002355')) {
     baseTitle = 'Kit 3 Regatas Dry (2355) + 2 Shorts Tactel (77046)';
-  } else if (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('DRY') && (baseTitleUpper.includes('2350') || skuUpper.includes('2350'))) {
+  } else if (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('DRY') && (baseTitleUpper.includes('2350') || skuUpper.includes('2350')) && (baseTitleUpper.includes('KIT 4') || skuUpper.startsWith('KSA04') || skuUpper.startsWith('K4'))) {
     baseTitle = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
   } else if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
     baseTitle = 'Tenis Sandrini Aero Run (SD2513)';
