@@ -158,12 +158,18 @@ async function syncEstoque() {
     const valor = r.c[6]?.v || null;
 
     if (sku && local) {
+      const cleanLocal = String(local).toUpperCase().trim();
+      if (cleanLocal === 'MELI SP' || cleanLocal === 'MELI SP BUY CLOCK') {
+        // Ignora estoque da planilha para MELI SP pois agora ele é sincronizado via API nativa do Mercado Livre!
+        continue;
+      }
+
       insertData.push({
         data_atualizacao: dataStr,
         sku_produto: String(sku).trim(),
         descricao_produto: desc,
         marca: (marca && String(marca).trim() !== '') ? String(marca).trim() : 'Sem Marca',
-        local_estoque: String(local).toUpperCase().trim(),
+        local_estoque: cleanLocal,
         quantidade_disponivel: Number(qtd) || 0,
         valor_unitario: Number(valor) || 0
       });
@@ -478,6 +484,25 @@ function syncMeli() {
   });
 }
 
+function syncStockMeli() {
+  return new Promise((resolve) => {
+    console.log('🔄 Sincronizando Estoque do Mercado Livre via API...');
+    const scriptPath = path.join(__dirname, 'sincronizar_estoque_meli.cjs');
+    exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ Erro ao rodar sincronizar_estoque_meli.cjs: ${error.message}`);
+      }
+      if (stderr) {
+        console.error(`⚠️ Erro na saída stderr do estoque do Mercado Livre: ${stderr}`);
+      }
+      if (stdout) {
+        console.log(`📝 Logs de Estoque do Mercado Livre:\n${stdout}`);
+      }
+      resolve();
+    });
+  });
+}
+
 // Sincronização Principal
 async function rodarSincronizacao() {
   console.log(`\n🚀 [${new Date().toLocaleString()}] Iniciando Robô Sincronizador...`);
@@ -488,6 +513,7 @@ async function rodarSincronizacao() {
     await syncBadstock();
     await syncMapeamento();
     await syncMeli(); // Integração automática com Mercado Livre
+    await syncStockMeli(); // Integração automática de estoque com Mercado Livre
     console.log(`🎉 [${new Date().toLocaleString()}] Todas as bases sincronizadas com sucesso!`);
     console.log('💤 Aguardando próxima execução (de hora em hora)...');
   } catch (error) {
