@@ -32,6 +32,32 @@ async function fetchSheetData(url) {
   return parseGoogleJSON(response.data);
 }
 
+async function getSpreadsheetTabs(spreadsheetId) {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    const res = await axios.get(url);
+    const html = res.data;
+    const tabNames = [];
+    const regex = /"goog-inline-block docs-sheet-tab-caption">([^<]+)/g;
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+      tabNames.push(m[1].toUpperCase().trim());
+    }
+    if (tabNames.length === 0) {
+      const altRegex = /{"name":"([^"]+)","id":\d+/g;
+      while ((m = altRegex.exec(html)) !== null) {
+        if (!['WORKBOOK', 'GLOBAL', 'GRID'].includes(m[1].toUpperCase())) {
+          tabNames.push(m[1].toUpperCase().trim());
+        }
+      }
+    }
+    return tabNames;
+  } catch (err) {
+    console.error('⚠️ Erro ao listar abas da planilha:', err.message);
+    return [];
+  }
+}
+
 // Envia dados em lotes para evitar limite de tamanho do Supabase
 async function upsertEmLotes(tabela, dados, onConflict, tamanhoLote = 500) {
   for (let i = 0; i < dados.length; i += tamanhoLote) {
@@ -147,7 +173,7 @@ async function syncVendas() {
     console.warn(`⚠️ Erro ao buscar aba principal VENDAS:`, err.message);
   }
 
-  // Tenta buscar também a aba mensal (ex: JUNHO) caso ela exista no mês atual
+  // Tenta buscar também a aba mensal (ex: JUNHO) caso ela exista de fato na planilha no mês atual
   const MONTHS = [
     'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
     'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
@@ -155,20 +181,28 @@ async function syncVendas() {
   const currentMonthTab = MONTHS[new Date().getMonth()];
   
   if (currentMonthTab && currentMonthTab !== 'VENDAS') {
-    let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
-    if (!isFullSync && query) {
-      monthlyUrl += `&tq=${query}`;
-    }
+    console.log('   🔍 Verificando abas disponíveis na planilha...');
+    const availableTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
+    console.log('   Abas detectadas:', availableTabs.join(', '));
     
-    try {
-      console.log(`   🗓️ Buscando também aba mensal: "${currentMonthTab}"...`);
-      const monthlyRows = await fetchSheetData(monthlyUrl);
-      if (monthlyRows && monthlyRows.length > 0) {
-        console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
-        processarLinhas(monthlyRows, true);
+    if (availableTabs.includes(currentMonthTab)) {
+      let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
+      if (!isFullSync && query) {
+        monthlyUrl += `&tq=${query}`;
       }
-    } catch (err) {
-      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não disponível ou ignorada.`);
+      
+      try {
+        console.log(`   🗓️ Buscando aba mensal ativa: "${currentMonthTab}"...`);
+        const monthlyRows = await fetchSheetData(monthlyUrl);
+        if (monthlyRows && monthlyRows.length > 0) {
+          console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
+          processarLinhas(monthlyRows, true);
+        }
+      } catch (err) {
+        console.log(`   ℹ️ Erro ao obter dados da aba mensal "${currentMonthTab}":`, err.message);
+      }
+    } else {
+      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não existe na planilha. Sincronização mensal ignorada.`);
     }
   }
 

@@ -72,22 +72,17 @@ export const getLatestDates = (estoqueRows = [], vendasRows = []) => {
 
   let dataVendas = "";
   if (vendasRows.length > 0) {
-    let maxDate = 0;
-    let maxDateStr = "";
-    vendasRows.forEach(r => {
-      const dStr = r?.c?.[0]?.f || String(r?.c?.[0]?.v || "");
-      if (dStr && dStr.includes('/')) {
-        const [dia, mes, ano] = dStr.split("/");
-        if (dia && mes && ano) {
-          const t = new Date(`${ano}-${mes}-${dia}`).getTime();
-          if (t > maxDate) {
-            maxDate = t;
-            maxDateStr = dStr;
-          }
-        }
+    let maxV = "";
+    let maxF = "";
+    for (let i = 0; i < vendasRows.length; i++) {
+      const r = vendasRows[i];
+      const v = r?.c?.[0]?.v;
+      if (v && v > maxV) {
+        maxV = v;
+        maxF = r?.c?.[0]?.f || "";
       }
-    });
-    dataVendas = maxDateStr;
+    }
+    dataVendas = maxF;
   }
 
   return { dataEstoque, dataVendas };

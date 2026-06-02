@@ -124,6 +124,7 @@ export default function Produto() {
   }, [busca, dataIni, dataFim, diasCobertura, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
+    if (!busca.trim()) return null;
     if (!estoqueRows.length && !vendasRows.length) return null;
 
     let diasPeriodo = 30;
@@ -173,6 +174,16 @@ export default function Produto() {
       aCaminhoMap[local][sku] += qtd;
     });
 
+    // Cache map for parseProductDescription
+    const parseCache = new Map();
+    const memoizedParseProductDescription = (desc, sku, isWatch) => {
+      const key = `${desc}||${sku}||${isWatch}`;
+      if (parseCache.has(key)) return parseCache.get(key);
+      const res = parseProductDescription(desc, sku, isWatch);
+      parseCache.set(key, res);
+      return res;
+    };
+
     const agrupado = {};
 
     estoqueRows.forEach(r => {
@@ -194,7 +205,7 @@ export default function Produto() {
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -245,11 +256,10 @@ export default function Produto() {
     });
 
     vendasRows.forEach(r => {
-      const dataStr = r?.c?.[COL_VENDAS.DATA]?.f || "";
-      if (!dataStr) return;
-      const [d, m, y] = dataStr.split("/");
-      const dataVenda = new Date(`${y}-${m}-${d}`);
-      if (dataIni && dataFim && (dataVenda < new Date(dataIni) || dataVenda > new Date(dataFim))) return;
+      const dateVal = r?.c?.[COL_VENDAS.DATA]?.v || "";
+      if (!dateVal) return;
+      if (dataIni && dateVal < dataIni) return;
+      if (dataFim && dateVal > dataFim) return;
 
       const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "").trim().toUpperCase();
       const skuPlat = r?.c?.[6]?.v || "";
@@ -264,7 +274,7 @@ export default function Produto() {
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
