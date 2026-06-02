@@ -154,6 +154,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     const originalEndSizeMatch = desc.match(endSizeRegex);
     if (originalEndSizeMatch) {
       size = originalEndSizeMatch[1].toUpperCase();
+    } else {
+      const brSizeMatch = desc.match(/\b(\d{2})\s*Br\b/i);
+      if (brSizeMatch) {
+        size = brSizeMatch[1];
+      }
     }
   }
 
@@ -171,6 +176,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   cleanDesc = cleanDesc.replace(/[\s\-,;:]+$/, '').trim();
 
   let baseTitle = cleanDesc;
+  baseTitle = baseTitle.replace(/\b\d{2}\s*Br\b/gi, '').trim();
 
   // 1. Check if SKU matches the standard Senior SKU pattern or custom kit SKU pattern
   let isSeniorSKU = false;
@@ -451,4 +457,70 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     size: size ? size.toUpperCase() : 'U',
     descricaoFormatada
   };
+}
+
+export function autoResolveMeliSku(sku, desc) {
+  const skuUpper = String(sku || '').trim().toUpperCase();
+  if (!skuUpper.startsWith('MLB')) return sku;
+
+  const descUpper = String(desc || '').toUpperCase();
+
+  if (descUpper.includes('AERO RUN')) return 'SD2513';
+  if (descUpper.includes('SOMA 2')) return 'OLY-SOMA2';
+  if (descUpper.includes('NITREL V6')) return 'NB-NITREL-V6';
+  if (descUpper.includes('DEFENDER')) return 'BOTA-DEFENDER';
+  if (descUpper.includes('CORE HIKE')) return 'BOTA-CORE-HIKE';
+  if (descUpper.includes('EVOKE EVO')) return 'EVOKE-EVO';
+  if (descUpper.includes('BAGDA') || descUpper.includes('BAGDÁ')) return 'BOTA-BAGDA';
+  if (descUpper.includes('QUADRA2') || descUpper.includes('QUADRA 2')) return 'OLY-QUADRA2';
+  if (descUpper.includes('EFECTO')) return 'FILA-EFECTO';
+  if (descUpper.includes('COMPRESSÃO 2 EM 1') || descUpper.includes('COMPRESSAO 2 EM 1')) return 'SHORT-COMPRESSAO';
+  if (descUpper.includes('VL COURT 3.0') || descUpper.includes('VL COURT')) return 'ADIDAS-VL-COURT';
+  if (descUpper.includes('FLOW')) return 'FLOW';
+  if (descUpper.includes('SIGVARIS')) return 'SIGVARIS';
+  if (descUpper.includes('CROSS')) return 'BOTA-CROSS';
+  if (descUpper.includes('GO RUN')) return 'SKECHERS-GO-RUN';
+  if (descUpper.includes('LITE FLOW')) return 'ADIDAS-LITE-FLOW';
+  if (descUpper.includes('ENDURANCE')) return 'FILA-ENDURANCE';
+  if (descUpper.includes('BLANC')) return 'SAPATENIS-BLANC';
+  if (descUpper.includes('DEMOCRATA BLOCK') || descUpper.includes('SAPATENIS DEMOCRATA')) return 'DEMOCRATA-BLOCK';
+  if (descUpper.includes('DEMOCRATA WIDE') || descUpper.includes('WIDE DENIM')) return 'DEMOCRATA-WIDE';
+  if (descUpper.includes('DEMOCRATA JAKE') || descUpper.includes('DEMOCRATA DENIM JAKE')) return 'DEMOCRATA-JAKE';
+  if (descUpper.includes('BLACKATLAS')) return 'BOTA-BLACKATLAS';
+  if (descUpper.includes('FILA RIDE 2') || descUpper.includes('RIDE 2')) return 'FILA-RIDE';
+  if (descUpper.includes('BEATS')) return 'OLY-BEATS';
+  if (descUpper.includes('REDLINE')) return 'REDLINE';
+  if (descUpper.includes('ADVANTAGE BASE')) return 'ADIDAS-ADVANTAGE';
+  if (descUpper.includes('URBANCORE')) return 'URBANCORE';
+  if (descUpper.includes('ADIZERO')) return 'ADIDAS-ADIZERO';
+  if (descUpper.includes('JOTA PE')) return 'JOTA-PE';
+  if (descUpper.includes('RAPIDMOVE')) return 'ADIDAS-RAPIDMOVE';
+  if (descUpper.includes('MAXXI LITE')) return 'FILA-MAXXI-LITE';
+  if (descUpper.includes('CATALYST')) return 'NB-CATALYST';
+  if (descUpper.includes('LUUX')) return 'LUUX';
+  if (descUpper.includes('LIVELLI')) return 'LIVELLI';
+  if (descUpper.includes('DYNAMO RUN')) return 'DYNAMO-RUN';
+  if (descUpper.includes('V12 MOLAS')) return 'V12-MOLAS';
+  if (descUpper.includes('KLIN')) return 'KLIN';
+  if (descUpper.includes('ECLYPTIX')) return 'ADIDAS-ECLYPTIX';
+  if (descUpper.includes('FRESH FOAM')) return 'NB-FRESH-FOAM';
+  if (descUpper.includes('STRIKER')) return 'FILA-STRIKER';
+  if (descUpper.includes('CUECA BOXER') || descUpper.includes('CUECAS BOXER')) return 'CUECA-BOXER';
+  if (descUpper.includes('BB80')) return 'NB-BB80';
+  if (descUpper.includes('DURAMO SL')) return 'ADIDAS-DURAMO';
+  if (descUpper.includes('ADILETTE AQUA')) return 'ADIDAS-ADILETTE';
+  if (descUpper.includes('SPRITZ')) return 'FILA-SPRITZ';
+  if (descUpper.includes('RETRO CLASS')) return 'RETRO-CLASS';
+  if (descUpper.includes('SKYROCKET')) return 'PUMA-SKYROCKET';
+  if (descUpper.includes('EVOZ')) return 'NB-EVOZ';
+  if (descUpper.includes('AMASTE')) return 'NB-AMASTE';
+  if (descUpper.includes('TRAILEDGE')) return 'BOTA-TRAILEDGE';
+  if (descUpper.includes('GO TRAINER')) return 'FILA-GO-TRAINER';
+  if (descUpper.includes('SLIDE BEAT')) return 'SLIDE-BEAT';
+  if (descUpper.includes('BULL TERRIER')) return 'BOTA-BULL-TERRIER';
+  if (descUpper.includes('NEOSLIDE')) return 'NEOSLIDE';
+  if (descUpper.includes('BLEND')) return 'SAPATENIS-BLEND';
+  if (descUpper.includes('PUMA')) return 'PUMA';
+
+  return sku;
 }

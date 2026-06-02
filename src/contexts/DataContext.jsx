@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase.js';
+import { autoResolveMeliSku } from '../utils/productParser.js';
 
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
@@ -224,16 +225,17 @@ export function DataProvider({ children }) {
         }
       });
 
-      // 1. Traduz Vendas se vier do Supabase direto (quando API local offline)
+      // 1. Traduz Vendas
       const mappedVendas = vendas.map(r => {
-        if (r.c[6]) return r; // Já mapeado pelo localhost
-
-        const rawSku = String(r.c[2]?.v || "").trim().toUpperCase();
+        const rawSku = String(r.c[6]?.v || r.c[2]?.v || "").trim().toUpperCase();
         const rawLocal = String(r.c[1]?.v || "").trim().toUpperCase();
         const mapping = mapLookup[`${rawSku}|${rawLocal}`];
 
-        const mappedSku = mapping?.sku_senior || rawSku;
-        const mappedDesc = mapping?.descricao_oficial || r.c[3]?.v || "";
+        let mappedSku = mapping?.sku_senior || r.c[2]?.v || "";
+        let mappedDesc = mapping?.descricao_oficial || r.c[3]?.v || "";
+
+        // Auto-resolução de SKUs brutos do Mercado Livre (MLB...) baseados na descrição
+        mappedSku = autoResolveMeliSku(mappedSku, mappedDesc);
 
         return {
           c: [
@@ -248,16 +250,17 @@ export function DataProvider({ children }) {
         };
       });
 
-      // 2. Traduz Estoque se vier do Supabase direto (quando API local offline)
+      // 2. Traduz Estoque
       const mappedEstoque = estoque.map(r => {
-        if (r.c[7]) return r; // Já mapeado pelo localhost
-
-        const rawSku = String(r.c[1]?.v || "").trim().toUpperCase();
+        const rawSku = String(r.c[7]?.v || r.c[1]?.v || "").trim().toUpperCase();
         const rawLocal = String(r.c[3]?.v || "").trim().toUpperCase();
         const mapping = mapLookup[`${rawSku}|${rawLocal}`];
 
-        const mappedSku = mapping?.sku_senior || rawSku;
-        const mappedDesc = mapping?.descricao_oficial || r.c[2]?.v || "";
+        let mappedSku = mapping?.sku_senior || r.c[1]?.v || "";
+        let mappedDesc = mapping?.descricao_oficial || r.c[2]?.v || "";
+
+        // Auto-resolução de SKUs brutos do Mercado Livre (MLB...) baseados na descrição
+        mappedSku = autoResolveMeliSku(mappedSku, mappedDesc);
 
         return {
           c: [
