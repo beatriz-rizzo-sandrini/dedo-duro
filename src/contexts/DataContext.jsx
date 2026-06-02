@@ -44,88 +44,194 @@ function sqlDateToBR(d) {
 
 async function fetchVendasSupabase() {
   const PAGE_SIZE = 1000;
-  let allData = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data, error } = await supabase
+  
+  // Cutoff dinâmico de 40 dias atrás para manter o carregamento leve e estável
+  const today = new Date();
+  const cutoffDate = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000);
+  const dynamicCutoff = cutoffDate.toISOString().split('T')[0];
+  
+  try {
+    // 1. Obtém o total de registros (head request rápido)
+    const { count, error: countError } = await supabase
       .from('vw_vendas_consolidadas')
-      .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
-      .gte('data_venda', VENDAS_CUTOFF)
-      .order('data_venda', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
+      .select('*', { count: 'exact', head: true })
+      .gte('data_venda', dynamicCutoff);
 
-    if (error) {
-      console.warn('[DataContext] Falha ao buscar vendas do Supabase:', error?.message);
-      break;
+    if (countError) throw countError;
+
+    const totalRows = count || 0;
+    const totalPages = Math.ceil(totalRows / PAGE_SIZE);
+    console.log(`[DataContext] Carregando vendas desde ${dynamicCutoff}: ${totalRows} registros (${totalPages} páginas em paralelo)`);
+
+    if (totalPages === 0) return [];
+
+    // 2. Dispara consultas em paralelo
+    const promises = [];
+    for (let page = 0; page < totalPages; page++) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      promises.push(
+        supabase
+          .from('vw_vendas_consolidadas')
+          .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+          .gte('data_venda', dynamicCutoff)
+          .order('data_venda', { ascending: false })
+          .range(from, to)
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data || [];
+          })
+      );
     }
 
-    if (!data || data.length === 0) break;
+    const results = await Promise.all(promises);
+    let allData = [];
+    results.forEach(res => {
+      allData = allData.concat(res);
+    });
 
-    allData = allData.concat(data);
-    hasMore = data.length === PAGE_SIZE;
-    from += PAGE_SIZE;
+    return allData.map(r => ({
+      c: [
+        { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
+        { v: r.local_venda },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: Number(r.quantidade_vendida) || 0 },
+        { v: r.marca },
+      ]
+    }));
+  } catch (err) {
+    console.warn('[DataContext] Falha no fetch paralelo de vendas, usando fallback sequencial:', err?.message);
+    
+    // Fallback sequencial
+    let allData = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('vw_vendas_consolidadas')
+        .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+        .gte('data_venda', dynamicCutoff)
+        .order('data_venda', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('[DataContext] Falha no fallback sequencial de vendas:', error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
+    }
+
+    return allData.map(r => ({
+      c: [
+        { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
+        { v: r.local_venda },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: Number(r.quantidade_vendida) || 0 },
+        { v: r.marca },
+      ]
+    }));
   }
-
-  console.log(`[DataContext] Vendas carregadas do Supabase: ${allData.length} registros desde ${VENDAS_CUTOFF}`);
-
-  // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam
-  // c[0]=data  c[1]=local  c[2]=sku  c[3]=desc  c[4]=qtd  c[5]=marca
-  return allData.map(r => ({
-    c: [
-      { v: r.data_venda, f: sqlDateToBR(r.data_venda) },
-      { v: r.local_venda },
-      { v: r.sku_produto },
-      { v: r.descricao_produto },
-      { v: Number(r.quantidade_vendida) || 0 },
-      { v: r.marca },
-    ]
-  }));
 }
 
 // ── Estoque do Supabase (tabela silver_estoque mapeada via view) ─────────────
 
 async function fetchEstoqueSupabase() {
   const PAGE_SIZE = 1000;
-  let allData = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data, error } = await supabase
+  
+  try {
+    // 1. Obtém o total de registros (head request rápido)
+    const { count, error: countError } = await supabase
       .from('vw_estoque_consolidado')
-      .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
-      .order('id', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
+      .select('*', { count: 'exact', head: true });
 
-    if (error) {
-      console.warn('[DataContext] Falha ao buscar estoque do Supabase:', error?.message);
-      break;
+    if (countError) throw countError;
+
+    const totalRows = count || 0;
+    const totalPages = Math.ceil(totalRows / PAGE_SIZE);
+    console.log(`[DataContext] Carregando estoque: ${totalRows} registros (${totalPages} páginas em paralelo)`);
+
+    if (totalPages === 0) return [];
+
+    // 2. Dispara consultas em paralelo
+    const promises = [];
+    for (let page = 0; page < totalPages; page++) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      promises.push(
+        supabase
+          .from('vw_estoque_consolidado')
+          .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+          .order('id', { ascending: false })
+          .range(from, to)
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data || [];
+          })
+      );
     }
 
-    if (!data || data.length === 0) break;
+    const results = await Promise.all(promises);
+    let allData = [];
+    results.forEach(res => {
+      allData = allData.concat(res);
+    });
 
-    allData = allData.concat(data);
-    hasMore = data.length === PAGE_SIZE;
-    from += PAGE_SIZE;
+    return allData.map(r => ({
+      c: [
+        { v: r.data_atualizacao, f: r.data_atualizacao },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: r.local_estoque },
+        { v: r.marca },
+        { v: Number(r.quantidade_disponivel) || 0 },
+        { v: Number(r.valor_unitario) || 0 }
+      ]
+    }));
+  } catch (err) {
+    console.warn('[DataContext] Falha no fetch paralelo de estoque, usando fallback sequencial:', err?.message);
+    
+    // Fallback sequencial
+    let allData = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('vw_estoque_consolidado')
+        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+        .order('id', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('[DataContext] Falha no fallback sequencial de estoque:', error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
+    }
+
+    return allData.map(r => ({
+      c: [
+        { v: r.data_atualizacao, f: r.data_atualizacao },
+        { v: r.sku_produto },
+        { v: r.descricao_produto },
+        { v: r.local_estoque },
+        { v: r.marca },
+        { v: Number(r.quantidade_disponivel) || 0 },
+        { v: Number(r.valor_unitario) || 0 }
+      ]
+    }));
   }
-
-  console.log(`[DataContext] Estoque carregado do Supabase: ${allData.length} registros`);
-
-  // Transforma para o formato {c:[{v,f}]} que todas as páginas esperam para o estoque:
-  // c[0]=data  c[1]=sku  c[2]=desc  c[3]=local  c[4]=marca  c[5]=qtd  c[6]=valor
-  return allData.map(r => ({
-    c: [
-      { v: r.data_atualizacao, f: r.data_atualizacao },
-      { v: r.sku_produto },
-      { v: r.descricao_produto },
-      { v: r.local_estoque },
-      { v: r.marca },
-      { v: Number(r.quantidade_disponivel) || 0 },
-      { v: Number(r.valor_unitario) || 0 }
-    ]
-  }));
 }
 
 async function fetchCaminho() {

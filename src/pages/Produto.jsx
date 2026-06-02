@@ -384,20 +384,20 @@ export default function Produto() {
     });
 
     if (busca) {
-      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const termosUpper = busca.toUpperCase().trim().split(/\s+/);
       linhas = linhas.filter(item => {
-        const descLower = item.descricao.toLowerCase();
-        const localLower = item.local.toLowerCase();
+        const descUpper = item.descricao.toUpperCase();
+        const localUpper = item.local.toUpperCase();
         const skuMatch = item.cores.some(c => 
           c.variacoes.some(v => 
-            v.sku.toLowerCase().includes(termos[0]) || 
-            (v.skuPlat && v.skuPlat.toLowerCase().includes(termos[0]))
+            v.sku.includes(termosUpper[0]) || 
+            (v.skuPlat && v.skuPlat.toUpperCase().includes(termosUpper[0]))
           )
         );
 
-        return termos.every(termo => 
-          descLower.includes(termo) || 
-          localLower.includes(termo) || 
+        return termosUpper.every(termo => 
+          descUpper.includes(termo) || 
+          localUpper.includes(termo) || 
           skuMatch
         );
       });
