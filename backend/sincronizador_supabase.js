@@ -77,6 +77,7 @@ async function syncVendas() {
   console.log('🔄 Sincronizando Vendas...');
   const isFullSync = process.argv.includes('--full');
   let url = SHEET_URLS.vendas;
+  let query = '';
   if (!isFullSync) {
     const d = new Date();
     d.setDate(d.getDate() - 3);
@@ -85,12 +86,47 @@ async function syncVendas() {
     const day = String(d.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${day}`;
     console.log(`   ⚡ Modo Otimizado Ativo: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
-    const query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
-    url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=vendas&tq=${query}`;
+    query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
+    url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=VENDAS&tq=${query}`;
   } else {
     console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
   }
-  const rows = await fetchSheetData(url);
+
+  let rows = [];
+  try {
+    console.log('   Buscando aba principal "VENDAS"...');
+    const mainRows = await fetchSheetData(url);
+    if (mainRows && mainRows.length > 0) {
+      rows = rows.concat(mainRows);
+    }
+  } catch (err) {
+    console.warn(`⚠️ Erro ao buscar aba principal VENDAS:`, err.message);
+  }
+
+  // Tenta buscar também a aba mensal (ex: JUNHO) caso ela exista no mês atual
+  const MONTHS = [
+    'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+    'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+  ];
+  const currentMonthTab = MONTHS[new Date().getMonth()];
+  
+  if (currentMonthTab && currentMonthTab !== 'VENDAS') {
+    let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
+    if (!isFullSync && query) {
+      monthlyUrl += `&tq=${query}`;
+    }
+    
+    try {
+      console.log(`   🗓️ Buscando também aba mensal: "${currentMonthTab}"...`);
+      const monthlyRows = await fetchSheetData(monthlyUrl);
+      if (monthlyRows && monthlyRows.length > 0) {
+        console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
+        rows = rows.concat(monthlyRows);
+      }
+    } catch (err) {
+      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não disponível ou ignorada.`);
+    }
+  }
   
   const insertData = [];
   
