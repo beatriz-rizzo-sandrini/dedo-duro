@@ -267,7 +267,7 @@ export default function Produto() {
         };
       }
 
-      const varKey = `${sku}|${parsed.size}`;
+      const varKey = parsed.size || 'ÚNICO';
       if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
         agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku,
@@ -276,12 +276,25 @@ export default function Produto() {
           vendas: 0,
           aCaminho: 0,
           color: corKey,
-          size: parsed.size
+          size: parsed.size,
+          skusMerged: [sku]
         };
       }
-      agrupado[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
-      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
-        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
+      existing.estoque += qtd;
+      if (skuPlat && !existing.skuPlat) {
+        existing.skuPlat = skuPlat;
+      }
+      if (!existing.skusMerged) {
+        existing.skusMerged = [existing.sku];
+      }
+      if (!existing.skusMerged.includes(sku)) {
+        existing.skusMerged.push(sku);
+      }
+      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existing.sku) || existing.sku.startsWith('MLB');
+      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
+      if (isCurrentGeneric && isNewBetter) {
+        existing.sku = sku;
       }
     });
 
@@ -335,7 +348,7 @@ export default function Produto() {
         };
       }
 
-      const varKey = `${sku}|${parsed.size}`;
+      const varKey = parsed.size || 'ÚNICO';
       if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
         agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku,
@@ -344,12 +357,25 @@ export default function Produto() {
           vendas: 0,
           aCaminho: 0,
           color: corKey,
-          size: parsed.size
+          size: parsed.size,
+          skusMerged: [sku]
         };
       }
-      agrupado[prodKey].cores[corKey].variacoes[varKey].vendas += qtd;
-      if (skuPlat && !agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat) {
-        agrupado[prodKey].cores[corKey].variacoes[varKey].skuPlat = skuPlat;
+      const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
+      existing.vendas += qtd;
+      if (skuPlat && !existing.skuPlat) {
+        existing.skuPlat = skuPlat;
+      }
+      if (!existing.skusMerged) {
+        existing.skusMerged = [existing.sku];
+      }
+      if (!existing.skusMerged.includes(sku)) {
+        existing.skusMerged.push(sku);
+      }
+      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existing.sku) || existing.sku.startsWith('MLB');
+      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
+      if (isCurrentGeneric && isNewBetter) {
+        existing.sku = sku;
       }
     });
 
@@ -362,7 +388,9 @@ export default function Produto() {
         let corReposicao = 0;
 
         const variacoesArray = Object.values(corObj.variacoes).map(v => {
-          const aCaminho = aCaminhoMap[prod.local]?.[v.sku] || 0;
+          const aCaminho = (v.skusMerged || [v.sku]).reduce((acc, mergedSku) => {
+            return acc + (aCaminhoMap[prod.local]?.[mergedSku] || 0);
+          }, 0);
           localACaminho += aCaminho;
           corACaminho += aCaminho;
           v.aCaminho = aCaminho;
@@ -375,7 +403,7 @@ export default function Produto() {
           v.reposicaoSugerida = finalRepo;
 
           v.cobertura = media > 0 ? v.estoque / media : (v.vendas > 0 ? 0 : -1);
-          v.isBad = badStockSet.has(`${v.sku}|${prod.local}`);
+          v.isBad = (v.skusMerged || [v.sku]).some(mergedSku => badStockSet.has(`${mergedSku}|${prod.local}`));
           v.isRuptura = v.estoque === 0 && v.vendas > 0;
 
           return v;
@@ -682,7 +710,7 @@ export default function Produto() {
                       </thead>
                       <tbody>
                         {corObj.variacoes.map((s) => (
-                          <SkuRow key={`${row.local}-${s.sku}`} s={s} loc={row} addToCart={addToCart} />
+                          <SkuRow key={`${row.local}-${s.size || 'ÚNICO'}`} s={s} loc={row} addToCart={addToCart} />
                         ))}
                       </tbody>
                     </table>
@@ -705,7 +733,7 @@ export default function Produto() {
                     {/* Lista de Variações Mobile */}
                     <div style={{ padding: '0 14px' }}>
                       {corObj.variacoes.map((s, sIdx, arr) => (
-                        <div key={s.sku} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0', borderBottom: sIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                        <div key={s.size || 'ÚNICO'} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0', borderBottom: sIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>

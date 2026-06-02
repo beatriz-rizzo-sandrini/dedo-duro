@@ -164,8 +164,8 @@ export default function Estoque() {
       agrupado[prodKey].cores[corKey].total += quantidade;
       agrupado[prodKey].cores[corKey].custoTotal += custoLinha;
 
-      // Group by variation
-      const varKey = `${sku}|${parsed.size}`;
+      // Group by variation (size only to consolidate duplicates like SD2513 / MLB)
+      const varKey = parsed.size || 'ÚNICO';
       if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
         agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku: sku,
@@ -175,8 +175,20 @@ export default function Estoque() {
           custoTotal: 0
         };
       }
-      agrupado[prodKey].cores[corKey].variacoes[varKey].total += quantidade;
-      agrupado[prodKey].cores[corKey].variacoes[varKey].custoTotal += custoLinha;
+      
+      const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
+      existing.total += quantidade;
+      existing.custoTotal += custoLinha;
+
+      // Keep the specific senior SKU if the existing one is generic/MLB
+      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existing.sku) || existing.sku.startsWith('MLB');
+      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
+      if (isCurrentGeneric && isNewBetter) {
+        existing.sku = sku;
+      }
+      if (valorUnitario > 0 && (existing.valorUnitario === 0 || isCurrentGeneric && isNewBetter)) {
+        existing.valorUnitario = valorUnitario;
+      }
     });
 
     let linhas = Object.values(agrupado);
@@ -475,7 +487,7 @@ export default function Estoque() {
                         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                         return aVal.localeCompare(bVal);
                       }).map((v) => (
-                        <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                        <tr key={v.size || 'ÚNICO'} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                           <td style={{ padding: '10px 20px', textAlign: 'center' }}>
                             <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
                               {v.size || 'Único'}
@@ -539,7 +551,7 @@ export default function Estoque() {
                       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                       return aVal.localeCompare(bVal);
                     }).map((v, vIdx, arr) => (
-                      <div key={v.sku} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                      <div key={v.size || 'ÚNICO'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
                             {v.size || 'Único'}
