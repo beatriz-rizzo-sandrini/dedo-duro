@@ -92,12 +92,56 @@ async function syncVendas() {
     console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
   }
 
-  let rows = [];
+  const insertData = [];
+  const integracaoMeliAtiva = process.env.INTEGRACAO_MELI_ATIVA === 'true';
+
+  function processarLinhas(rows, isMonthlyTab = false) {
+    for (const r of rows) {
+      if (!r || !r.c) continue;
+
+      let dataSQL, local, sku, desc, qtd, marca;
+
+      if (isMonthlyTab) {
+        // Monthly tab columns: DATA (0), SKU (1), DESCRIÇÃO (2), PLATAFORMA (3), MARCA (4), QUANTIDADE (5)
+        dataSQL = parseDateToSQL(r.c[0]?.f, r.c[0]?.v);
+        sku = r.c[1]?.v || null;
+        desc = r.c[2]?.v || null;
+        local = r.c[3]?.v || null;
+        marca = r.c[4]?.v || null;
+        qtd = r.c[5]?.v || null;
+      } else {
+        // Standard VENDAS tab columns: DATA (0), LOCAL (1), SKU (2), DESCRIÇÃO (3), QTD (4), MARCA (5)
+        dataSQL = parseDateToSQL(r.c[0]?.f, r.c[0]?.v);
+        local = r.c[1]?.v || null;
+        sku = r.c[2]?.v || null;
+        desc = r.c[3]?.v || null;
+        qtd = r.c[4]?.v || null;
+        marca = r.c[5]?.v || null;
+      }
+
+      if (dataSQL && sku && local) {
+        const cleanLocal = String(local).toUpperCase().trim();
+        if (integracaoMeliAtiva && (cleanLocal === 'MELI SP' || cleanLocal === 'MELI SP BUY CLOCK')) {
+          // Ignora vendas da planilha para MELI SP se a integração via API estiver ativa
+          continue;
+        }
+        insertData.push({
+          data_venda: dataSQL,
+          local_venda: cleanLocal,
+          sku_produto: String(sku).trim(),
+          descricao_produto: desc,
+          marca: (marca && String(marca).trim() !== '') ? String(marca).trim() : 'Sem Marca',
+          quantidade_vendida: Number(qtd) || 0
+        });
+      }
+    }
+  }
+
   try {
     console.log('   Buscando aba principal "VENDAS"...');
     const mainRows = await fetchSheetData(url);
     if (mainRows && mainRows.length > 0) {
-      rows = rows.concat(mainRows);
+      processarLinhas(mainRows, false);
     }
   } catch (err) {
     console.warn(`⚠️ Erro ao buscar aba principal VENDAS:`, err.message);
@@ -121,33 +165,10 @@ async function syncVendas() {
       const monthlyRows = await fetchSheetData(monthlyUrl);
       if (monthlyRows && monthlyRows.length > 0) {
         console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
-        rows = rows.concat(monthlyRows);
+        processarLinhas(monthlyRows, true);
       }
     } catch (err) {
       console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não disponível ou ignorada.`);
-    }
-  }
-  
-  const insertData = [];
-  
-  for (const r of rows) {
-    if (!r || !r.c) continue;
-    const dataSQL = parseDateToSQL(r.c[0]?.f, r.c[0]?.v);
-    const local = r.c[1]?.v || null;
-    const sku = r.c[2]?.v || null;
-    const desc = r.c[3]?.v || null;
-    const qtd = r.c[4]?.v || null;
-    const marca = r.c[5]?.v || null;
-
-    if (dataSQL && sku && local) {
-      insertData.push({
-        data_venda: dataSQL,
-        local_venda: String(local).toUpperCase().trim(),
-        sku_produto: String(sku).trim(),
-        descricao_produto: desc,
-        marca: (marca && String(marca).trim() !== '') ? String(marca).trim() : 'Sem Marca',
-        quantidade_vendida: Number(qtd) || 0
-      });
     }
   }
 
