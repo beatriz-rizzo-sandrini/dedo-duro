@@ -184,9 +184,39 @@ export default function Produto() {
       return res;
     };
 
+    // Otimização O(1) de Bad Stock para evitar loops aninhados pesados
+    const badStockSet = new Set();
+    badStockRows.forEach(bs => {
+      const sku = String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toUpperCase();
+      const local = String(bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase();
+      if (sku) badStockSet.add(`${sku}|${local}`);
+    });
+
+    // Filtro precoce de buscas nas linhas de origem para evitar processar o banco inteiro
+    let filteredEstoque = estoqueRows;
+    let filteredVendas = vendasRows;
+
+    if (busca) {
+      const termosUpper = busca.toUpperCase().trim().split(/\s+/);
+      const rowMatches = (r, isEstoque) => {
+        const sku = String(r?.c?.[isEstoque ? COL_ESTOQUE.SKU : COL_VENDAS.SKU]?.v || "").toUpperCase();
+        const skuPlat = String(r?.c?.[isEstoque ? 7 : 6]?.v || "").toUpperCase();
+        let desc = String(r?.c?.[isEstoque ? COL_ESTOQUE.DESC : COL_VENDAS.DESC]?.v || "").toUpperCase();
+        const local = String(r?.c?.[isEstoque ? COL_ESTOQUE.LOCAL : COL_VENDAS.LOCAL]?.v || "").toUpperCase();
+        
+        if (!desc && skuToDesc[sku]) desc = skuToDesc[sku].toUpperCase();
+        
+        const textToSearch = `${sku} ${skuPlat} ${desc} ${local}`;
+        return termosUpper.every(term => textToSearch.includes(term));
+      };
+
+      filteredEstoque = estoqueRows.filter(r => rowMatches(r, true));
+      filteredVendas = vendasRows.filter(r => rowMatches(r, false));
+    }
+
     const agrupado = {};
 
-    estoqueRows.forEach(r => {
+    filteredEstoque.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
@@ -255,7 +285,7 @@ export default function Produto() {
       }
     });
 
-    vendasRows.forEach(r => {
+    filteredVendas.forEach(r => {
       const dateVal = r?.c?.[COL_VENDAS.DATA]?.v || "";
       if (!dateVal) return;
       if (dataIni && dateVal < dataIni) return;
@@ -345,7 +375,7 @@ export default function Produto() {
           v.reposicaoSugerida = finalRepo;
 
           v.cobertura = media > 0 ? v.estoque / media : (v.vendas > 0 ? 0 : -1);
-          v.isBad = badStockRows.some(bs => String(bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase() === v.sku.toLowerCase() && (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toUpperCase() === prod.local);
+          v.isBad = badStockSet.has(`${v.sku}|${prod.local}`);
           v.isRuptura = v.estoque === 0 && v.vendas > 0;
 
           return v;
