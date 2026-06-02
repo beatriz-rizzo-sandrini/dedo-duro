@@ -46,7 +46,16 @@ export default function Planilha() {
   
   // Filtros
   const [selectedMonth, setSelectedMonth] = useState('TODOS');
+  const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setBusca(buscaInput);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [buscaInput]);
+
   const [selectedStatus, setSelectedStatus] = useState('');
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
@@ -489,8 +498,8 @@ export default function Planilha() {
               className="input-padrao" 
               style={{ width: '100%', paddingLeft: '42px' }}
               placeholder="Digite o nome do fornecedor ou pedido..." 
-              value={busca} 
-              onChange={e => setBusca(e.target.value)} 
+              value={buscaInput} 
+              onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
         </div>

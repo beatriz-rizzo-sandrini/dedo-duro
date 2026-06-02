@@ -73,7 +73,16 @@ export default function Produto() {
   const vendasRows = data.vendas || [];
   const badStockRows = data.badstock || [];
 
+  const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setBusca(buscaInput);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [buscaInput]);
+
   const [expandedId, setExpandedId] = useState(null);
   const [carrinho, setCarrinho] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -480,8 +489,8 @@ export default function Produto() {
               className="input-padrao" 
               style={{ width: '100%', paddingLeft: '42px' }} 
               placeholder="Digite para buscar..." 
-              value={busca} 
-              onChange={e => setBusca(e.target.value)} 
+              value={buscaInput} 
+              onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
         </div>

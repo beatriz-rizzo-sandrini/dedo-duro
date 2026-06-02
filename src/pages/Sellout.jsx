@@ -40,7 +40,16 @@ export default function Sellout() {
   const vendasRows = data.vendas || [];
   const estoqueRows = data.estoque || [];
 
+  const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setBusca(buscaInput);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [buscaInput]);
+
   const [filtroMarca, setFiltroMarca] = useState([]);
   const [filtroLocal, setFiltroLocal] = useState([]);
   const [filtroDias, setFiltroDias] = useState('30');
@@ -717,8 +726,8 @@ export default function Sellout() {
               className="input-padrao" 
               style={{ paddingLeft: '40px' }} 
               placeholder="SKU ou Descrição..." 
-              value={busca} 
-              onChange={e => setBusca(e.target.value)} 
+              value={buscaInput} 
+              onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
         </div>

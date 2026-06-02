@@ -20,7 +20,16 @@ export default function Reposicao() {
   const [filtroStatus, setFiltroStatus] = useState('');
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setBusca(buscaInput);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [buscaInput]);
+
   const [visao, setVisao] = useState('envio'); // 'envio' ou 'produto'
   
   const [expandedEnvio, setExpandedEnvio] = useState(null);
@@ -508,8 +517,8 @@ export default function Reposicao() {
               className="input-padrao" 
               style={{ width: '100%', paddingLeft: '42px' }}
               placeholder="Digite para buscar..." 
-              value={busca} 
-              onChange={e => setBusca(e.target.value)} 
+              value={buscaInput} 
+              onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
         </div>
