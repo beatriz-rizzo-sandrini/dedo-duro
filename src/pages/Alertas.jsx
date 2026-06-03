@@ -73,8 +73,10 @@ export default function Alertas() {
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
     let diasPeriodo = 30;
-    if (dataIni && dataFim) {
-      diasPeriodo = (new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24) + 1;
+    const minDate = dataIni ? new Date(dataIni) : null;
+    const maxDate = dataFim ? new Date(dataFim) : null;
+    if (minDate && maxDate) {
+      diasPeriodo = (maxDate - minDate) / (1000 * 60 * 60 * 24) + 1;
       if (diasPeriodo < 1) diasPeriodo = 1;
     }
 
@@ -85,8 +87,8 @@ export default function Alertas() {
       if (!dataStr) return;
       const [d, m, y] = dataStr.split("/");
       const dt = new Date(`${y}-${m}-${d}`);
-      if (dataIni && dataFim) {
-         if (dt < new Date(dataIni) || dt > new Date(dataFim)) return;
+      if (minDate && maxDate) {
+         if (dt < minDate || dt > maxDate) return;
       }
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
@@ -99,16 +101,36 @@ export default function Alertas() {
       vendasMap[key] += qtd;
     });
 
-    const temReposicaoCentral = (sku) => {
-      const estoqueCentral = estoqueRows.filter(r => {
-        const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+    // Pré-calcula a reposição central
+    const reposicaoCentralMap = {};
+    estoqueRows.forEach(r => {
+      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+      if (["STAND BY", "EXP MINAS"].includes(local)) {
         const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
         const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
-        if (normDataEstoque && normDataStr !== normDataEstoque) return false;
-        return ["STAND BY", "EXP MINAS"].includes(local) && (r?.c?.[COL_ESTOQUE.SKU]?.v || "") === sku;
-      }).reduce((soma, r) => soma + (Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0), 0);
-      return estoqueCentral > 0;
+        if (!normDataEstoque || normDataStr === normDataEstoque) {
+          const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+          if (sku) {
+            const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
+            reposicaoCentralMap[sku] = (reposicaoCentralMap[sku] || 0) + qtd;
+          }
+        }
+      }
+    });
+
+    const temReposicaoCentral = (sku) => {
+      return (reposicaoCentralMap[sku] || 0) > 0;
     };
+
+    // Pré-calcula badstock indexado
+    const badStockSet = new Set();
+    badStockRows.forEach(bs => {
+      const skuB = (bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
+      const localB = (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
+      if (skuB && localB) {
+        badStockSet.add(`${skuB}|${localB}`);
+      }
+    });
 
     let alertas = [];
 
@@ -135,11 +157,9 @@ export default function Alertas() {
       let alertaT = null;
       let alertaI = "";
 
-      const isBad = badStockRows.some(bs => {
-        const skuB = (bs?.c?.[COL_BADSTOCK.SKU]?.v || "").trim().toLowerCase();
-        const localB = (bs?.c?.[COL_BADSTOCK.LOCAL]?.v || "").trim().toLowerCase();
-        return sku.trim().toLowerCase() === skuB && local.trim().toLowerCase() === localB;
-      });
+      const skuLower = sku.trim().toLowerCase();
+      const localLower = local.trim().toLowerCase();
+      const isBad = badStockSet.has(`${skuLower}|${localLower}`);
 
       if (isBad) {
         alertaT = "badstock";

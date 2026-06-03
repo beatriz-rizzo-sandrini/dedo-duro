@@ -282,6 +282,46 @@ export default function Planilha() {
     return sortedOrders.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
   }, [sortedOrders, currentPage, itensPorPagina]);
 
+  const getPaginasVisiveis = () => {
+    const paginas = [];
+    if (totalPaginas <= 7) {
+      for (let i = 1; i <= totalPaginas; i++) {
+        paginas.push(i);
+      }
+    } else {
+      paginas.push(1);
+
+      if (currentPage > 3) {
+        paginas.push('...');
+      }
+
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPaginas - 1, currentPage + 1);
+
+      let ajustadoStart = start;
+      let ajustadoEnd = end;
+      if (currentPage <= 3) {
+        ajustadoEnd = 4;
+      }
+      if (currentPage >= totalPaginas - 2) {
+        ajustadoStart = totalPaginas - 3;
+      }
+
+      for (let i = ajustadoStart; i <= ajustadoEnd; i++) {
+        if (i > 1 && i < totalPaginas) {
+          paginas.push(i);
+        }
+      }
+
+      if (currentPage < totalPaginas - 2) {
+        paginas.push('...');
+      }
+
+      paginas.push(totalPaginas);
+    }
+    return paginas;
+  };
+
   useEffect(() => {
     setCurrentPage(1);
     setExpandedOrderId(null);
@@ -644,15 +684,37 @@ export default function Planilha() {
               Anterior
             </button>
             
-            {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((pag) => (
-              <button 
-                key={pag}
-                className={`pagination-number ${currentPage === pag ? 'active' : ''}`}
-                onClick={() => setCurrentPage(pag)}
-              >
-                {pag}
-              </button>
-            ))}
+            {getPaginasVisiveis().map((pag, idx) => {
+              if (pag === '...') {
+                return (
+                  <span 
+                    key={`dots-${idx}`} 
+                    className="pagination-dots" 
+                    style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#94a3b8'
+                    }}
+                  >
+                    ...
+                  </span>
+                );
+              }
+              return (
+                <button 
+                  key={pag}
+                  className={`pagination-number ${currentPage === pag ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pag)}
+                >
+                  {pag}
+                </button>
+              );
+            })}
 
             <button 
               className="pagination-btn" 

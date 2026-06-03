@@ -398,13 +398,28 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
       }
     }
 
-    if (color) {
-      const parts = color.toUpperCase().split('/');
-      const normalizedParts = parts.map(p => COLOR_ABBR_MAP[p] || p);
-      color = normalizedParts.join('/');
-    } else {
+    if (!color) {
       color = 'SEM COR';
     }
+  }
+
+  // Global Color Normalization: runs for Senior, Sandrini, and Fallback parsed colors.
+  if (color) {
+    let cleanColor = color.toUpperCase()
+      .replace(/OFF-WHITE/g, 'OFW')
+      .replace(/OFF WHITE/g, 'OFW')
+      .replace(/\s*-\s*B\d+/g, '') // remove - B200 etc
+      .replace(/\s+-\s+.*/g, '');  // remove any trailing text after space-hyphen-space
+    
+    const parts = cleanColor.split(/[\s/-]+/);
+    const normalizedParts = parts
+      .map(p => COLOR_ABBR_MAP[p] || p)
+      .filter(p => p && p !== 'SEM COR');
+    
+    normalizedParts.sort();
+    color = normalizedParts.length > 0 ? normalizedParts.join('/') : 'SEM COR';
+  } else {
+    color = 'SEM COR';
   }
 
   baseTitle = baseTitle
