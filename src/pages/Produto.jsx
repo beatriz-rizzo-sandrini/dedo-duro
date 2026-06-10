@@ -192,27 +192,9 @@ export default function Produto() {
       if (sku) badStockSet.add(`${sku}|${local}`);
     });
 
-    // Filtro precoce de buscas nas linhas de origem para evitar processar o banco inteiro
-    let filteredEstoque = estoqueRows;
-    let filteredVendas = vendasRows;
-
-    if (busca) {
-      const termosUpper = busca.toUpperCase().trim().split(/\s+/);
-      const rowMatches = (r, isEstoque) => {
-        const sku = String(r?.c?.[isEstoque ? COL_ESTOQUE.SKU : COL_VENDAS.SKU]?.v || "").toUpperCase();
-        const skuPlat = String(r?.c?.[isEstoque ? 7 : 6]?.v || "").toUpperCase();
-        let desc = String(r?.c?.[isEstoque ? COL_ESTOQUE.DESC : COL_VENDAS.DESC]?.v || "").toUpperCase();
-        const local = String(r?.c?.[isEstoque ? COL_ESTOQUE.LOCAL : COL_VENDAS.LOCAL]?.v || "").toUpperCase();
-        
-        if (!desc && skuToDesc[sku]) desc = skuToDesc[sku].toUpperCase();
-        
-        const textToSearch = `${sku} ${skuPlat} ${desc} ${local}`;
-        return termosUpper.every(term => textToSearch.includes(term));
-      };
-
-      filteredEstoque = estoqueRows.filter(r => rowMatches(r, true));
-      filteredVendas = vendasRows.filter(r => rowMatches(r, false));
-    }
+    // No early filtering so that we can fetch all variations of grouped products
+    const filteredEstoque = estoqueRows;
+    const filteredVendas = vendasRows;
 
     const agrupado = {};
 
@@ -248,12 +230,19 @@ export default function Produto() {
           caminhoTotal: 0,
           reposicaoTotal: 0,
           id: prodKey,
-          cores: {}
+          cores: {},
+          skusArr: []
         };
       }
 
       agrupado[prodKey].estoqueTotal += qtd;
       agrupado[prodKey].valorEstoque += (custoUnitario * qtd);
+      if (sku && !agrupado[prodKey].skusArr.includes(sku)) {
+        agrupado[prodKey].skusArr.push(sku);
+      }
+      if (skuPlat && !agrupado[prodKey].skusArr.includes(skuPlat)) {
+        agrupado[prodKey].skusArr.push(skuPlat);
+      }
 
       const corKey = parsed.color || 'SEM COR';
       if (!agrupado[prodKey].cores[corKey]) {
@@ -330,11 +319,18 @@ export default function Produto() {
           caminhoTotal: 0,
           reposicaoTotal: 0,
           id: prodKey,
-          cores: {}
+          cores: {},
+          skusArr: []
         };
       }
 
       agrupado[prodKey].vendasTotal += qtd;
+      if (sku && !agrupado[prodKey].skusArr.includes(sku)) {
+        agrupado[prodKey].skusArr.push(sku);
+      }
+      if (skuPlat && !agrupado[prodKey].skusArr.includes(skuPlat)) {
+        agrupado[prodKey].skusArr.push(skuPlat);
+      }
 
       const corKey = parsed.color || 'SEM COR';
       if (!agrupado[prodKey].cores[corKey]) {
@@ -442,21 +438,16 @@ export default function Produto() {
     });
 
     if (busca) {
-      const termosUpper = busca.toUpperCase().trim().split(/\s+/);
-      linhas = linhas.filter(item => {
-        const descUpper = item.descricao.toUpperCase();
-        const localUpper = item.local.toUpperCase();
-        const skuMatch = item.cores.some(c => 
-          c.variacoes.some(v => 
-            v.sku.includes(termosUpper[0]) || 
-            (v.skuPlat && v.skuPlat.toUpperCase().includes(termosUpper[0]))
-          )
-        );
-
-        return termosUpper.every(termo => 
-          descUpper.includes(termo) || 
-          localUpper.includes(termo) || 
-          skuMatch
+      const termos = busca.toLowerCase().trim().split(/\s+/);
+      linhas = linhas.filter(l => {
+        const descLower = (l.descricao || "").toLowerCase();
+        const localLower = (l.local || "").toLowerCase();
+        const skusArray = (l.skusArr || []).map(s => s.toLowerCase());
+        
+        return termos.every(termo => 
+          descLower.includes(termo) || 
+          localLower.includes(termo) ||
+          skusArray.some(sku => sku.includes(termo))
         );
       });
     }
