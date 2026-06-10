@@ -13,7 +13,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Select from 'react-select';
-import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import { getLatestDates } from '../utils/dateUtils';
@@ -71,6 +71,9 @@ export default function Vendas() {
 
   const [expandedId, setExpandedId] = useState(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
+  const [pendingExportType, setPendingExportType] = useState('csv');
+  const [pendingExportMode, setPendingExportMode] = useState('detalhado');
   
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
 
@@ -104,7 +107,7 @@ export default function Vendas() {
   }, [vendasRows, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
-    if (!vendasRows) return { linhas: [], totalItens: 0, chartData: null, dataEstoque: "", dataVendas: "" };
+    if (!vendasRows) return { linhas: [], linhasTudo: [], totalItens: 0, chartData: null, dataEstoque: "", dataVendas: "" };
 
     const skuToDesc = {};
     // 1. Pega a descrição mais atualizada do Estoque como "fonte da verdade"
@@ -123,6 +126,7 @@ export default function Vendas() {
 
     let totalItens = 0;
     const agrupado = {};
+    const agrupadoTudo = {};
     const vendasPorData = {};
     const vendasPorLocalObj = {};
     const produtosVendidosObj = {};
@@ -156,11 +160,53 @@ export default function Vendas() {
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
       if (dateRow < inicioTime) return;
       if (dateRow > fimTime) return;
 
       const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+
+      // Agrupamento Tudo (ignora busca e filtroLocal, mas respeita período e companhia)
+      const prodKey = `${parsed.baseTitle}|${local}`;
+      if (!agrupadoTudo[prodKey]) {
+        agrupadoTudo[prodKey] = { 
+          descricao: parsed.baseTitle,
+          local: local,
+          total: 0, 
+          cores: {},
+          id: prodKey 
+        };
+      }
+      agrupadoTudo[prodKey].total += qtd;
+      
+      const corKey = parsed.color;
+      if (!agrupadoTudo[prodKey].cores[corKey]) {
+        agrupadoTudo[prodKey].cores[corKey] = {
+          cor: corKey,
+          total: 0,
+          variacoes: {}
+        };
+      }
+      agrupadoTudo[prodKey].cores[corKey].total += qtd;
+
+      const varKey = parsed.size || 'ÚNICO';
+      if (!agrupadoTudo[prodKey].cores[corKey].variacoes[varKey]) {
+        agrupadoTudo[prodKey].cores[corKey].variacoes[varKey] = {
+          sku: sku,
+          size: parsed.size,
+          total: 0
+        };
+      }
+      const existingTudo = agrupadoTudo[prodKey].cores[corKey].variacoes[varKey];
+      existingTudo.total += qtd;
+      
+      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existingTudo.sku) || existingTudo.sku.startsWith('MLB');
+      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
+      if (isCurrentGeneric && isNewBetter) {
+        existingTudo.sku = sku;
+      }
+
+      // Agora aplica os filtros de busca e local para a visualização na tela
+      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
 
       if (busca) {
         const termos = busca.toLowerCase().trim().split(/\s+/);
@@ -190,7 +236,6 @@ export default function Vendas() {
       produtosVendidosObj[parsed.baseTitle] += qtd;
 
       // Group by Base Title + Local (Model & Platform level)
-      const prodKey = `${parsed.baseTitle}|${local}`;
       if (!agrupado[prodKey]) {
         agrupado[prodKey] = { 
           descricao: parsed.baseTitle,
@@ -203,7 +248,6 @@ export default function Vendas() {
       agrupado[prodKey].total += qtd;
       
       // Nest under Color
-      const corKey = parsed.color;
       if (!agrupado[prodKey].cores[corKey]) {
         agrupado[prodKey].cores[corKey] = {
           cor: corKey,
@@ -214,7 +258,6 @@ export default function Vendas() {
       agrupado[prodKey].cores[corKey].total += qtd;
 
       // Nest under variation (group by size to consolidate duplicates like SD2513 / MLB)
-      const varKey = parsed.size || 'ÚNICO';
       if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
         agrupado[prodKey].cores[corKey].variacoes[varKey] = {
           sku: sku,
@@ -224,19 +267,16 @@ export default function Vendas() {
       }
       const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
       existing.total += qtd;
-
-      // Keep the specific senior SKU if the existing one is generic/MLB
-      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existing.sku) || existing.sku.startsWith('MLB');
-      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
       if (isCurrentGeneric && isNewBetter) {
         existing.sku = sku;
       }
     });
 
     let linhas = Object.values(agrupado);
+    let linhasTudo = Object.values(agrupadoTudo);
 
     if (sortConfig.key) {
-      linhas.sort((a, b) => {
+      const sortFn = (a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -245,7 +285,9 @@ export default function Vendas() {
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
-      });
+      };
+      linhas.sort(sortFn);
+      linhasTudo.sort(sortFn);
     }
 
     const labels = Object.keys(vendasPorData).sort((a, b) => {
@@ -302,7 +344,7 @@ export default function Vendas() {
       }]
     } : null;
 
-    return { linhas, totalItens, chartData, chartLocalData, chartProdutosData, dataEstoque, dataVendas };
+    return { linhas, linhasTudo, totalItens, chartData, chartLocalData, chartProdutosData, dataEstoque, dataVendas };
   }, [vendasRows, estoqueRows, filtroLocal, dataIni, dataFim, busca, sortConfig, selectedCompany]);
 
   // Paginação
@@ -310,22 +352,52 @@ export default function Vendas() {
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type, mode = 'detalhado') => {
-    const isSingleLocal = filtroLocal.length === 1;
+    const hasActiveFilters = busca.trim() !== '' || filtroLocal.length > 0;
+    if (hasActiveFilters) {
+      setPendingExportType(type);
+      setPendingExportMode(mode);
+      setIsExportPromptOpen(true);
+    } else {
+      executeExport(type, mode, false);
+    }
+  };
+
+  const executeExport = (type, mode, useFilters) => {
+    setIsExportPromptOpen(false);
+    
+    const rowsToExport = useFilters ? dadosProcessados.linhas : dadosProcessados.linhasTudo;
+    const totalExportVal = rowsToExport.reduce((sum, item) => sum + item.total, 0);
+    const filterStr = useFilters ? 'Filtrado' : 'Completo';
+    const modeStr = mode === 'detalhado' ? 'Detalhado' : 'Resumido';
+    const reportTitle = `Vendas - ${modeStr} (${filterStr})`;
+
+    const options = {
+      subTitle: `Relatório de Vendas (${modeStr}) • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal: ${selectedCompany}`,
+      filters: useFilters ? [
+        busca.trim() && `Busca: "${busca.trim()}"`,
+        filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.value).join(', ')}`
+      ].filter(Boolean) : [],
+      kpis: [
+        { label: "TOTAL VENDIDO", value: totalExportVal.toLocaleString('pt-BR'), sub: "peças no período" }
+      ]
+    };
+
+    const isSingleLocal = useFilters && filtroLocal.length === 1;
     
     if (mode === 'resumido') {
       const headers = isSingleLocal ? ["Descrição", "Total Vendido"] : ["Descrição", "Local", "Total Vendido"];
-      const exportData = dadosProcessados.linhas.map(item => {
+      const exportData = rowsToExport.map(item => {
         if (isSingleLocal) {
           return [item.descricao, item.total];
         } else {
           return [item.descricao, item.local, item.total];
         }
       });
-      handleExport(type, "Relatorio_Vendas_Resumido", headers, exportData);
+      handleExport(type, reportTitle, headers, exportData, options);
     } else {
       const headers = isSingleLocal ? ["SKU Sênior", "Descrição", "Total Vendido"] : ["SKU Sênior", "Descrição", "Local", "Total Vendido"];
       const exportData = [];
-      dadosProcessados.linhas.forEach(item => {
+      rowsToExport.forEach(item => {
         Object.values(item.cores).forEach(corObj => {
           Object.values(corObj.variacoes).forEach(v => {
             const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
@@ -340,7 +412,7 @@ export default function Vendas() {
           });
         });
       });
-      handleExport(type, "Relatorio_Vendas_Detalhado", headers, exportData);
+      handleExport(type, reportTitle, headers, exportData, options);
     }
   };
 
@@ -707,6 +779,170 @@ export default function Vendas() {
         )}
       </div>
 
+      {/* Choice Modal for Exporting with Active Filters */}
+      <AnimatePresence>
+        {isExportPromptOpen && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              zIndex: 9999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(15, 23, 42, 0.40)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+              }}
+            >
+              {/* Header Icon & Title */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                <div 
+                  style={{ 
+                    width: '56px', 
+                    height: '56px', 
+                    borderRadius: '16px', 
+                    background: '#eff6ff', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid #dbeafe'
+                  }}
+                >
+                  <Filter size={24} color="#3b82f6" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                    Exportar Relatório
+                  </h3>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                    Detectamos que você possui filtros ativados nesta tela. Como deseja exportar seus dados?
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Filters Summary Chips */}
+              <div 
+                style={{ 
+                  background: '#f8fafc', 
+                  borderRadius: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #f1f5f9', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '10px' 
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Filtros Ativos:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {busca.trim() !== '' && (
+                    <span style={{ fontSize: '12px', background: '#eff6ff', border: '1px solid #dbeafe', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Busca: "{busca.trim()}"
+                    </span>
+                  )}
+                  {filtroLocal.length > 0 && (
+                    <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Locais ({filtroLocal.length})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  onClick={() => executeExport(pendingExportType, pendingExportMode, true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Filter size={16} /> Exportar Apenas Filtrados ({dadosProcessados.linhas.length} itens)
+                </button>
+                <button 
+                  onClick={() => executeExport(pendingExportType, pendingExportMode, false)}
+                  style={{
+                    background: '#1e293b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Download size={16} /> Exportar Relatório Completo ({dadosProcessados.linhasTudo.length} itens)
+                </button>
+                <button 
+                  onClick={() => setIsExportPromptOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '12px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

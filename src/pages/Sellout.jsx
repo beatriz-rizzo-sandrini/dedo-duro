@@ -34,6 +34,22 @@ ChartJS.register(
   ArcElement
 );
 
+const getYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+const get29DaysBeforeYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export default function Sellout() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
@@ -52,7 +68,8 @@ export default function Sellout() {
 
   const [filtroMarca, setFiltroMarca] = useState([]);
   const [filtroLocal, setFiltroLocal] = useState([]);
-  const [filtroDias, setFiltroDias] = useState('30');
+  const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
+  const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [currentPage, setCurrentPage] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -65,7 +82,7 @@ export default function Sellout() {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [busca, filtroMarca, filtroLocal, selectedCompany, filtroDias]);
+  }, [busca, filtroMarca, filtroLocal, selectedCompany, dataIni, dataFim]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -107,6 +124,28 @@ export default function Sellout() {
     const d7Time = hojeUTC - (7 * 24 * 60 * 60 * 1000);
     const d15Time = hojeUTC - (15 * 24 * 60 * 60 * 1000);
     const d30Time = hojeUTC - (30 * 24 * 60 * 60 * 1000);
+
+    // Filtros de data customizados
+    const inicioTime = dataIni ? Date.UTC(
+      Number(dataIni.split('-')[0]),
+      Number(dataIni.split('-')[1]) - 1,
+      Number(dataIni.split('-')[2])
+    ) : 0;
+    const fimTime = dataFim ? Date.UTC(
+      Number(dataFim.split('-')[0]),
+      Number(dataFim.split('-')[1]) - 1,
+      Number(dataFim.split('-')[2]),
+      23, 59, 59, 999
+    ) : Infinity;
+
+    // Calcular numDias com base no período selecionado
+    let numDias = 30;
+    if (dataIni && dataFim) {
+      const d1 = Date.UTC(Number(dataIni.split('-')[0]), Number(dataIni.split('-')[1]) - 1, Number(dataIni.split('-')[2]));
+      const d2 = Date.UTC(Number(dataFim.split('-')[0]), Number(dataFim.split('-')[1]) - 1, Number(dataFim.split('-')[2]));
+      const diffMs = d2 - d1;
+      numDias = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    }
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
@@ -259,11 +298,9 @@ export default function Sellout() {
       stats[prodKey].cores[corKey].variacoes[varKey].totalSempre += qtd;
 
       // Check date filter for period (ignores brand/local selection)
-      let considerarPeriodo = false;
-      if (filtroDias === '7' && dataVendaTime >= d7Time) considerarPeriodo = true;
-      else if (filtroDias === '15' && dataVendaTime >= d15Time) considerarPeriodo = true;
-      else if (filtroDias === '30' && dataVendaTime >= d30Time) considerarPeriodo = true;
-      else if (filtroDias === 'all') considerarPeriodo = true;
+      let considerarPeriodo = true;
+      if (inicioTime && dataVendaTime < inicioTime) considerarPeriodo = false;
+      if (fimTime && dataVendaTime > fimTime) considerarPeriodo = false;
 
       if (considerarPeriodo) {
         stats[prodKey].vendasPeriodo += qtd;
@@ -322,7 +359,6 @@ export default function Sellout() {
       });
     });
 
-    const numDias = filtroDias === 'all' ? 30 : Number(filtroDias);
     const vmd = (totalGeralPeriodo / numDias).toFixed(1);
 
     // Recalcular Share dinâmico para os itens filtrados
@@ -362,11 +398,9 @@ export default function Sellout() {
         const passMarcaFiltro = filtroMarca.length === 0 || filtroMarca.some(m => m.value === marca);
 
         if (passLocal && passMarcaFiltro) {
-          let considerar = false;
-          if (filtroDias === '7' && dataVendaTime >= d7Time) considerar = true;
-          else if (filtroDias === '15' && dataVendaTime >= d15Time) considerar = true;
-          else if (filtroDias === '30' && dataVendaTime >= d30Time) considerar = true;
-          else if (filtroDias === 'all') considerar = true;
+          let considerar = true;
+          if (inicioTime && dataVendaTime < inicioTime) considerar = false;
+          if (fimTime && dataVendaTime > fimTime) considerar = false;
 
           if (considerar) {
             vendasPorMarca[marca] = (vendasPorMarca[marca] || 0) + qtd;
@@ -492,7 +526,7 @@ export default function Sellout() {
       dataEstoque,
       dataVendas
     };
-  }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, filtroDias, sortConfig]);
+  }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, dataIni, dataFim, sortConfig]);
 
   const triggerExport = (type, mode = 'detalhado') => {
     setIsExportMenuOpen(false);
@@ -520,7 +554,16 @@ export default function Sellout() {
       totalSalesVal = dadosProcessados.totalVendasPeriodoTudo;
     }
 
-    const periodStr = filtroDias === 'all' ? 'Tudo' : `${filtroDias}d`;
+    // Calculate numDias based on custom period
+    let numDias = 30;
+    if (dataIni && dataFim) {
+      const d1 = Date.UTC(Number(dataIni.split('-')[0]), Number(dataIni.split('-')[1]) - 1, Number(dataIni.split('-')[2]));
+      const d2 = Date.UTC(Number(dataFim.split('-')[0]), Number(dataFim.split('-')[1]) - 1, Number(dataFim.split('-')[2]));
+      const diffMs = d2 - d1;
+      numDias = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    }
+
+    const periodStr = dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')}_a_${dataFim.split('-').reverse().join('/')}` : 'Completo';
     const modeStr = mode === 'detalhado' ? 'Detalhado' : 'Resumido';
     const filterStr = useFilters ? 'Filtrado' : 'Completo';
     
@@ -528,7 +571,7 @@ export default function Sellout() {
     const reportTitle = `Sellout - ${modeStr} (${filterStr})`;
 
     const options = {
-      subTitle: `Análise de Performance de Sellout • Período: ${filtroDias === 'all' ? 'Completo' : `${filtroDias} Dias`} • Canal/Filtro: ${selectedCompany}`,
+      subTitle: `Análise de Performance de Sellout • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal/Filtro: ${selectedCompany}`,
       filters: [
         busca.trim() && `Busca: "${busca.trim()}"`,
         filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.label).join(', ')}`,
@@ -536,7 +579,7 @@ export default function Sellout() {
       ].filter(Boolean),
       kpis: [
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
-        { label: "VMD", value: (totalSalesVal / (filtroDias === 'all' ? 30 : Number(filtroDias))).toFixed(1), sub: "venda média diária" },
+        { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
         { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
         { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
       ]
@@ -762,25 +805,24 @@ export default function Sellout() {
           />
         </div>
 
-        <div style={{ width: '150px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Período</label>
-          <Select 
-            options={[
-              { value: '7', label: '7 Dias' },
-              { value: '15', label: '15 Dias' },
-              { value: '30', label: '30 Dias' },
-              { value: 'all', label: 'Tudo' }
-            ]}
-            value={{
-              '7': { value: '7', label: '7 Dias' },
-              '15': { value: '15', label: '15 Dias' },
-              '30': { value: '30', label: '30 Dias' },
-              'all': { value: 'all', label: 'Tudo' }
-            }[filtroDias]}
-            onChange={opt => setFiltroDias(opt.value)}
-            isSearchable={false}
-            classNamePrefix="react-select"
-            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '140px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Data Inicial</label>
+          <input 
+            type="date" 
+            className="input-padrao" 
+            style={{ borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px', padding: '10px 14px', outline: 'none' }} 
+            value={dataIni} 
+            onChange={e => setDataIni(e.target.value)} 
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '140px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Data Final</label>
+          <input 
+            type="date" 
+            className="input-padrao" 
+            style={{ borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px', padding: '10px 14px', outline: 'none' }} 
+            value={dataFim} 
+            onChange={e => setDataFim(e.target.value)} 
           />
         </div>
       </div>

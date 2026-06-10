@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Download, AlertTriangle, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { Bell, Download, AlertTriangle, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
@@ -26,6 +26,8 @@ export default function Alertas() {
   const [filtroLocal, setFiltroLocal] = useState('');
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+  const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
+  const [pendingExportType, setPendingExportType] = useState('csv');
 
   React.useEffect(() => {
     const handler = setTimeout(() => {
@@ -67,7 +69,7 @@ export default function Alertas() {
   };
 
   const dadosProcessados = useMemo(() => {
-    if (!estoqueRows.length || !vendasRows.length) return { alertas: [], total: 0, dataEstoque: "" };
+    if (!estoqueRows.length || !vendasRows.length) return { alertas: [], alertasTudo: [], total: 0, totalTudo: 0, dataEstoque: "" };
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
@@ -133,6 +135,7 @@ export default function Alertas() {
     });
 
     let alertas = [];
+    let alertasTudo = [];
 
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
@@ -142,8 +145,6 @@ export default function Alertas() {
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      if (filtroLocal && local !== filtroLocal) return;
 
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const skuPlat = r?.c?.[7]?.v || "";
@@ -176,11 +177,16 @@ export default function Alertas() {
         }
       }
 
-      if (alertaT && (tipoAlerta === "todos" || tipoAlerta === alertaT)) {
+      if (alertaT) {
         const parsed = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"));
         const colorPart = parsed.color && parsed.color !== 'SEM COR' ? ` ${parsed.color}` : '';
         const sizePart = parsed.size && parsed.size !== 'U' ? ` Tam ${parsed.size}` : '';
         const cleanDesc = `${parsed.baseTitle}${colorPart}${sizePart}`;
+
+        alertasTudo.push({ local, sku, skuPlat, descricao: cleanDesc, qtdEstoque, vendas, cobertura, alertaT, alertaI });
+
+        if (filtroLocal && local !== filtroLocal) return;
+        if (tipoAlerta !== "todos" && tipoAlerta !== alertaT) return;
 
         alertas.push({ local, sku, skuPlat, descricao: cleanDesc, qtdEstoque, vendas, cobertura, alertaT, alertaI });
       }
@@ -197,7 +203,7 @@ export default function Alertas() {
     }
 
     if (sortConfig.key) {
-      alertas.sort((a, b) => {
+      const sortFn = (a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -206,10 +212,12 @@ export default function Alertas() {
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
-      });
+      };
+      alertas.sort(sortFn);
+      alertasTudo.sort(sortFn);
     }
 
-    return { alertas, total: alertas.length, dataEstoque, dataVendas };
+    return { alertas, alertasTudo, total: alertas.length, totalTudo: alertasTudo.length, dataEstoque, dataVendas };
   }, [estoqueRows, vendasRows, badStockRows, dataIni, dataFim, tipoAlerta, filtroLocal, busca, sortConfig, selectedCompany]);
 
   // Paginação
@@ -217,8 +225,36 @@ export default function Alertas() {
   const linhasPaginadas = dadosProcessados.alertas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type) => {
+    const hasActiveFilters = busca.trim() !== '' || filtroLocal !== '' || tipoAlerta !== 'todos';
+    if (hasActiveFilters) {
+      setPendingExportType(type);
+      setIsExportPromptOpen(true);
+    } else {
+      executeExport(type, false);
+    }
+  };
+
+  const executeExport = (type, useFilters) => {
+    setIsExportPromptOpen(false);
+    
+    const rowsToExport = useFilters ? dadosProcessados.alertas : dadosProcessados.alertasTudo;
+    const filterStr = useFilters ? 'Filtrado' : 'Completo';
+    const reportTitle = `Alertas - Central (${filterStr})`;
+
+    const options = {
+      subTitle: `Central de Alertas • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal: ${selectedCompany}`,
+      filters: useFilters ? [
+        busca.trim() && `Busca: "${busca.trim()}"`,
+        filtroLocal && `Local: ${filtroLocal}`,
+        tipoAlerta !== 'todos' && `Tipo Alerta: ${tipoAlerta.toUpperCase()}`
+      ].filter(Boolean) : [],
+      kpis: [
+        { label: "TOTAL DE ALERTAS", value: rowsToExport.length.toLocaleString('pt-BR'), sub: "alertas identificados" }
+      ]
+    };
+
     const headers = ["Local", "SKU", "Estoque", "Vendas", "Cobertura", "Alerta"];
-    const exportData = dadosProcessados.alertas.map(item => [
+    const exportData = rowsToExport.map(item => [
       item.local,
       item.sku,
       item.qtdEstoque,
@@ -226,7 +262,7 @@ export default function Alertas() {
       item.cobertura === "∞" ? "∞" : item.cobertura,
       item.alertaI.replace(/[^\w\sÀ-ÿ]/gi, '').trim() // Remove emoji para o PDF/Excel
     ]);
-    handleExport(type, "Relatorio_Alertas", headers, exportData);
+    handleExport(type, reportTitle, headers, exportData, options);
   };
 
   React.useEffect(() => {
@@ -464,6 +500,175 @@ export default function Alertas() {
         )}
       </div>
 
+      {/* Choice Modal for Exporting with Active Filters */}
+      <AnimatePresence>
+        {isExportPromptOpen && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              zIndex: 9999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(15, 23, 42, 0.40)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+              }}
+            >
+              {/* Header Icon & Title */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                <div 
+                  style={{ 
+                    width: '56px', 
+                    height: '56px', 
+                    borderRadius: '16px', 
+                    background: '#eff6ff', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid #dbeafe'
+                  }}
+                >
+                  <Filter size={24} color="#3b82f6" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                    Exportar Relatório
+                  </h3>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                    Detectamos que você possui filtros ativados nesta tela. Como deseja exportar seus dados?
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Filters Summary Chips */}
+              <div 
+                style={{ 
+                  background: '#f8fafc', 
+                  borderRadius: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #f1f5f9', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '10px' 
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Filtros Ativos:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {busca.trim() !== '' && (
+                    <span style={{ fontSize: '12px', background: '#eff6ff', border: '1px solid #dbeafe', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Busca: "{busca.trim()}"
+                    </span>
+                  )}
+                  {filtroLocal !== '' && (
+                    <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Local: {filtroLocal}
+                    </span>
+                  )}
+                  {tipoAlerta !== 'todos' && (
+                    <span style={{ fontSize: '12px', background: '#f5f3ff', border: '1px solid #e0e7ff', color: '#6d28d9', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Alerta: {tipoAlerta.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  onClick={() => executeExport(pendingExportType, true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Filter size={16} /> Exportar Apenas Filtrados ({dadosProcessados.alertas.length} itens)
+                </button>
+                <button 
+                  onClick={() => executeExport(pendingExportType, false)}
+                  style={{
+                    background: '#1e293b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Download size={16} /> Exportar Relatório Completo ({dadosProcessados.alertasTudo.length} itens)
+                </button>
+                <button 
+                  onClick={() => setIsExportPromptOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '12px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

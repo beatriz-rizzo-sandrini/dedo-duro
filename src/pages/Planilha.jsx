@@ -19,7 +19,8 @@ import {
   Clock,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Filter
 } from 'lucide-react';
 import Select from 'react-select';
 import MobileTable from '../components/MobileTable';
@@ -67,6 +68,8 @@ export default function Planilha() {
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(10);
+  const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
+  const [pendingExportType, setPendingExportType] = useState('csv');
 
   // Auxiliares de parsing de data do Google Sheets gviz
   const parseSheetDate = (cell) => {
@@ -257,6 +260,32 @@ export default function Planilha() {
     return result;
   }, [filteredOrders, sortConfig]);
 
+  const sortedOrdersTudo = useMemo(() => {
+    let result = [...orders];
+    if (selectedMonth !== 'TODOS') {
+      result = result.filter(o => o.month === selectedMonth);
+    }
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+        
+        if (sortConfig.key === 'previsaoEntrega') {
+          aVal = parseDateToTimestamp(a.previsaoEntrega);
+          bVal = parseDateToTimestamp(b.previsaoEntrega);
+        } else if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [orders, selectedMonth, sortConfig]);
+
   // Estatísticas / KPIs
   const kpis = useMemo(() => {
     let totalProvisionado = 0;
@@ -329,6 +358,46 @@ export default function Planilha() {
 
   // Exportação
   const handleExportData = (type) => {
+    const hasActiveFilters = busca.trim() !== '' || selectedStatus !== '' || dataIni !== '' || dataFim !== '';
+    if (hasActiveFilters) {
+      setPendingExportType(type);
+      setIsExportPromptOpen(true);
+    } else {
+      executeExport(type, false);
+    }
+  };
+
+  const executeExport = (type, useFilters) => {
+    setIsExportPromptOpen(false);
+    
+    const rowsToExport = useFilters ? sortedOrders : sortedOrdersTudo;
+    const filterStr = useFilters ? 'Filtrado' : 'Completo';
+    const reportTitle = `Pedidos - Acompanhamento (${filterStr})`;
+
+    // Calculate dynamic KPIs for the exported rows
+    let prov = 0;
+    let rec = 0;
+    let ab = 0;
+    rowsToExport.forEach(o => {
+      prov += o.valorProvisionado;
+      rec += o.recebido;
+      ab += o.aberto;
+    });
+
+    const options = {
+      subTitle: `Acompanhamento de Pedidos de Fornecedores • Mês: ${selectedMonth === 'TODOS' ? 'Todos os Meses' : selectedMonth} • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'}`,
+      filters: useFilters ? [
+        busca.trim() && `Busca: "${busca.trim()}"`,
+        selectedStatus && `Status: ${selectedStatus.toUpperCase()}`,
+        dataIni && dataFim && `Previsão: ${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}`
+      ].filter(Boolean) : [],
+      kpis: [
+        { label: "TOTAL PROVISIONADO", value: prov.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+        { label: "RECEBIDO (ENTREGUE)", value: rec.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+        { label: "ABERTO (SALDO)", value: ab.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
+      ]
+    };
+
     const headers = [
       "Mês Referência",
       "Fornecedor",
@@ -342,7 +411,7 @@ export default function Planilha() {
       "Obs Dedo Duro"
     ];
 
-    const dataToExport = sortedOrders.map(o => [
+    const dataToExport = rowsToExport.map(o => [
       o.month,
       o.fornecedor,
       o.codPedidoSenior,
@@ -355,7 +424,7 @@ export default function Planilha() {
       o.obsDedoDuro
     ]);
 
-    handleExport(type, "Acompanhamento_Pedidos_Fornecedores", headers, dataToExport);
+    handleExport(type, reportTitle, headers, dataToExport, options);
     setIsExportMenuOpen(false);
   };
 
@@ -726,6 +795,175 @@ export default function Planilha() {
           </div>
         </div>
       )}
+      {/* Choice Modal for Exporting with Active Filters */}
+      <AnimatePresence>
+        {isExportPromptOpen && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              zIndex: 9999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(15, 23, 42, 0.40)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+              }}
+            >
+              {/* Header Icon & Title */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                <div 
+                  style={{ 
+                    width: '56px', 
+                    height: '56px', 
+                    borderRadius: '16px', 
+                    background: '#eff6ff', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid #dbeafe'
+                  }}
+                >
+                  <Filter size={24} color="#3b82f6" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                    Exportar Relatório
+                  </h3>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                    Detectamos que você possui filtros ativados nesta tela. Como deseja exportar seus dados?
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Filters Summary Chips */}
+              <div 
+                style={{ 
+                  background: '#f8fafc', 
+                  borderRadius: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #f1f5f9', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '10px' 
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Filtros Ativos:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {busca.trim() !== '' && (
+                    <span style={{ fontSize: '12px', background: '#eff6ff', border: '1px solid #dbeafe', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Busca: "{busca.trim()}"
+                    </span>
+                  )}
+                  {selectedStatus !== '' && (
+                    <span style={{ fontSize: '12px', background: '#f5f3ff', border: '1px solid #e0e7ff', color: '#6d28d9', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Status: {selectedStatus.toUpperCase()}
+                    </span>
+                  )}
+                  {(dataIni !== '' || dataFim !== '') && (
+                    <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Previsão Definida
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button 
+                  onClick={() => executeExport(pendingExportType, true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Filter size={16} /> Exportar Apenas Filtrados ({sortedOrders.length} itens)
+                </button>
+                <button 
+                  onClick={() => executeExport(pendingExportType, false)}
+                  style={{
+                    background: '#1e293b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 20px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <Download size={16} /> Exportar Relatório Completo ({sortedOrdersTudo.length} itens)
+                </button>
+                <button 
+                  onClick={() => setIsExportPromptOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '12px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
