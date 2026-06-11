@@ -2,6 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
@@ -12,6 +22,15 @@ import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
 import { parseProductDescription } from '../utils/productParser';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export default function Estoque() {
   const { data, loading, error } = useData();
@@ -118,7 +137,6 @@ export default function Estoque() {
       const marca = (r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").trim().toUpperCase();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-      if (filtroMarca && marca !== filtroMarca) return;
 
       if (!descricao && skuToDesc[sku]) descricao = skuToDesc[sku];
       if (!sku && !descricao) return;
@@ -208,6 +226,122 @@ export default function Estoque() {
       });
     }
 
+    // 3. Agrupamento por marca para KPIs e gráficos (respeita busca, local, empresa, mas ignora o filtroMarca)
+    const marcasStatsObj = {};
+    linhas.forEach(l => {
+      const brandName = (l.marca || "Sem Marca").trim().toUpperCase();
+      if (!marcasStatsObj[brandName]) {
+        marcasStatsObj[brandName] = {
+          marca: l.marca || "Sem Marca",
+          totalQtd: 0,
+          totalCusto: 0
+        };
+      }
+      marcasStatsObj[brandName].totalQtd += l.total;
+      marcasStatsObj[brandName].totalCusto += l.custoTotal;
+    });
+
+    const marcasStatsArray = Object.values(marcasStatsObj);
+
+    let marcaLiderQtd = { marca: '-', totalQtd: 0 };
+    let marcaLiderCusto = { marca: '-', totalCusto: 0 };
+    
+    marcasStatsArray.forEach(m => {
+      if (m.totalQtd > marcaLiderQtd.totalQtd) {
+        marcaLiderQtd = m;
+      }
+      if (m.totalCusto > marcaLiderCusto.totalCusto) {
+        marcaLiderCusto = m;
+      }
+    });
+
+    let chartBrandQtdData = null;
+    let chartBrandCustoData = null;
+    let chartTitleQtd = "Top Marcas por Quantidade";
+    let chartTitleCusto = "Top Marcas por Valor de Custo";
+
+    // Agora aplica o filtro de marca para a tabela de produtos
+    if (filtroMarca) {
+      const filtroMarcaNorm = filtroMarca.trim().toUpperCase();
+      linhas = linhas.filter(l => (l.marca || "Sem Marca").trim().toUpperCase() === filtroMarcaNorm);
+
+      chartTitleQtd = `Top Produtos da Marca ${toTitleCase(filtroMarca)} (Qtd)`;
+      chartTitleCusto = `Top Produtos da Marca ${toTitleCase(filtroMarca)} (Custo)`;
+
+      const topProdutosQtd = [...linhas]
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
+      const topProdutosCusto = [...linhas]
+        .sort((a, b) => b.custoTotal - a.custoTotal)
+        .slice(0, 10);
+
+      chartBrandQtdData = topProdutosQtd.length > 0 ? {
+        labels: topProdutosQtd.map(p => {
+          const title = toTitleCase(p.descricao);
+          return title.length > 25 ? title.substring(0, 25) + '...' : title;
+        }),
+        datasets: [
+          {
+            label: 'Qtd em Estoque',
+            data: topProdutosQtd.map(p => p.total),
+            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+            borderRadius: 4,
+          }
+        ]
+      } : null;
+
+      chartBrandCustoData = topProdutosCusto.length > 0 ? {
+        labels: topProdutosCusto.map(p => {
+          const title = toTitleCase(p.descricao);
+          return title.length > 25 ? title.substring(0, 25) + '...' : title;
+        }),
+        datasets: [
+          {
+            label: 'Custo Total',
+            data: topProdutosCusto.map(p => p.custoTotal),
+            backgroundColor: '#10b981',
+            borderRadius: 4,
+          }
+        ]
+      } : null;
+    } else {
+      const topMarcasQtd = [...marcasStatsArray]
+        .sort((a, b) => b.totalQtd - a.totalQtd)
+        .slice(0, 10);
+
+      const topMarcasCusto = [...marcasStatsArray]
+        .sort((a, b) => b.totalCusto - a.totalCusto)
+        .slice(0, 10);
+
+      chartBrandQtdData = topMarcasQtd.length > 0 ? {
+        labels: topMarcasQtd.map(m => toTitleCase(m.marca)),
+        datasets: [
+          {
+            label: 'Qtd em Estoque',
+            data: topMarcasQtd.map(m => m.totalQtd),
+            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+            borderRadius: 4,
+          }
+        ]
+      } : null;
+
+      chartBrandCustoData = topMarcasCusto.length > 0 ? {
+        labels: topMarcasCusto.map(m => {
+          const title = toTitleCase(m.marca);
+          return title.length > 25 ? title.substring(0, 25) + '...' : title;
+        }),
+        datasets: [
+          {
+            label: 'Custo Total',
+            data: topMarcasCusto.map(m => m.totalCusto),
+            backgroundColor: '#10b981',
+            borderRadius: 4,
+          }
+        ]
+      } : null;
+    }
+
     if (sortConfig.key) {
       linhas.sort((a, b) => {
         let aVal = a[sortConfig.key];
@@ -228,7 +362,20 @@ export default function Estoque() {
       finalTotalCustoGeral += l.custoTotal;
     });
 
-    return { linhas, totalGeral: finalTotalGeral, totalCustoGeral: finalTotalCustoGeral, dataEstoque, dataVendas };
+    return { 
+      linhas, 
+      totalGeral: finalTotalGeral, 
+      totalCustoGeral: finalTotalCustoGeral, 
+      dataEstoque, 
+      dataVendas,
+      totalMarcas: marcasStatsArray.length,
+      marcaLiderQtd,
+      marcaLiderCusto,
+      chartBrandQtdData,
+      chartBrandCustoData,
+      chartTitleQtd,
+      chartTitleCusto
+    };
   }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany]);
 
   // Paginação
@@ -394,6 +541,92 @@ export default function Estoque() {
             classNamePrefix="react-select"
             styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
           />
+        </div>
+      </div>
+
+      {/* Brand KPIs Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px', marginTop: '10px' }}>
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '24px' }}>🏷️</span>
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Marcas</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.totalMarcas} marcas</div>
+          </div>
+        </div>
+        
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '24px' }}>📦</span>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Peças</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderQtd.marca)}>
+              {toTitleCase(dadosProcessados.marcaLiderQtd.marca)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+              {dadosProcessados.marcaLiderQtd.totalQtd.toLocaleString('pt-BR')} pçs
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '24px' }}>💰</span>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Custo</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderCusto.marca)}>
+              {toTitleCase(dadosProcessados.marcaLiderCusto.marca)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+              {dadosProcessados.marcaLiderCusto.totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Brand Charts Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {dadosProcessados.chartTitleQtd}
+          </h3>
+          {dadosProcessados.chartBrandQtdData ? (
+            <div style={{ height: '280px' }}>
+              <Bar 
+                data={dadosProcessados.chartBrandQtdData} 
+                options={{ 
+                  maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  plugins: { legend: { display: false } },
+                  scales: { x: { beginAtZero: true } }
+                }} 
+              />
+            </div>
+          ) : (
+            <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+              Sem dados disponíveis.
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {dadosProcessados.chartTitleCusto}
+          </h3>
+          {dadosProcessados.chartBrandCustoData ? (
+            <div style={{ height: '280px' }}>
+              <Bar 
+                data={dadosProcessados.chartBrandCustoData} 
+                options={{ 
+                  maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  plugins: { legend: { display: false } },
+                  scales: { x: { beginAtZero: true } }
+                }} 
+              />
+            </div>
+          ) : (
+            <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+              Sem dados disponíveis.
+            </div>
+          )}
         </div>
       </div>
 
