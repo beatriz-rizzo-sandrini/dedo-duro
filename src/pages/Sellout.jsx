@@ -14,7 +14,7 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Select from 'react-select';
 import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer } from 'lucide-react';
-import { handleExport } from '../utils/exportUtils';
+import { handleExport, generatePDFBlob } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import HeaderDates from '../components/HeaderDates';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
@@ -50,6 +50,61 @@ const get29DaysBeforeYesterdayStr = () => {
   return `${d.getFullYear()}-${m}-${day}`;
 };
 
+function parseGoogleJSON(text) {
+  try {
+    const jsonStr = text.substring(47).slice(0, -2);
+    const parsed = JSON.parse(jsonStr);
+    return parsed.table.rows || [];
+  } catch (err) {
+    console.error("Erro ao fazer parse do JSON do Google Sheets", err);
+    return [];
+  }
+}
+
+async function fetchSandriniCasa() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1674603035`;
+    const res = await fetch(url);
+    const text = await res.text();
+    const rows = parseGoogleJSON(text);
+    const map = {};
+    rows.forEach(r => {
+      if (!r || !r.c) return;
+      const sku = String(r.c[3]?.v || '').trim().toUpperCase();
+      const qtd = Number(r.c[5]?.v) || 0;
+      if (sku) {
+        map[sku] = (map[sku] || 0) + qtd;
+      }
+    });
+    return map;
+  } catch (err) {
+    console.error("Erro ao carregar planilha Sandrini Casa:", err.message);
+    return {};
+  }
+}
+
+async function fetchBuyclockCasa() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/gviz/tq?tqx=out:json&sheet=%20INVENT%C3%81RIO_BUY`;
+    const res = await fetch(url);
+    const text = await res.text();
+    const rows = parseGoogleJSON(text);
+    const map = {};
+    rows.forEach(r => {
+      if (!r || !r.c) return;
+      const sku = String(r.c[0]?.v || '').trim().toUpperCase();
+      const qtd = Number(r.c[37]?.v) || 0;
+      if (sku) {
+        map[sku] = (map[sku] || 0) + qtd;
+      }
+    });
+    return map;
+  } catch (err) {
+    console.error("Erro ao carregar planilha Buyclock Casa:", err.message);
+    return {};
+  }
+}
+
 export default function Sellout() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
@@ -78,6 +133,64 @@ export default function Sellout() {
   const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
   const [pendingExportType, setPendingExportType] = useState('csv');
   const [pendingExportMode, setPendingExportMode] = useState('detalhado');
+
+  // External stock states
+  const [sandriniCasaMap, setSandriniCasaMap] = useState({});
+  const [buyclockCasaMap, setBuyclockCasaMap] = useState({});
+  const [loadingCasaMaps, setLoadingCasaMaps] = useState(true);
+
+  // PDF choice states
+  const [isPdfChoiceOpen, setIsPdfChoiceOpen] = useState(false);
+  const [pendingPdfArgs, setPendingPdfArgs] = useState(null);
+  const [pdfType, setPdfType] = useState('interno');
+  const [pdfGenState, setPdfGenState] = useState('idle'); // 'idle' | 'generating' | 'ready'
+  const [pdfFilename, setPdfFilename] = useState('');
+  const [pdfDownloadCallback, setPdfDownloadCallback] = useState(null);
+
+  const handleClosePdfModal = () => {
+    setIsPdfChoiceOpen(false);
+    setPdfGenState('idle');
+    setPdfFilename('');
+    setPdfDownloadCallback(null);
+  };
+
+  const handleDownloadPdf = () => {
+    if (pdfDownloadCallback) {
+      pdfDownloadCallback();
+    }
+    setIsPdfChoiceOpen(false);
+    setPdfGenState('idle');
+    setPdfFilename('');
+    setPdfDownloadCallback(null);
+  };
+
+  // Fetch external stocks on mount
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        setLoadingCasaMaps(true);
+        const [sandrini, buyclock] = await Promise.all([
+          fetchSandriniCasa(),
+          fetchBuyclockCasa()
+        ]);
+        if (active) {
+          setSandriniCasaMap(sandrini);
+          setBuyclockCasaMap(buyclock);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar estoques externos:", err);
+      } finally {
+        if (active) {
+          setLoadingCasaMaps(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -213,10 +326,22 @@ export default function Sellout() {
             vendasFiltradas: 0, 
             vendasPeriodo: 0,
             totalSempre: 0, 
-            estoque: 0 
+            estoque: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            estoqueTotal: 0
           };
         }
         stats[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
+        stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = lojaEstoque;
+        
+        const isPlat = local.includes('MELI SP') || local.includes('MELI MG') || local.includes('AMAZON');
+        if (isPlat) {
+          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+        } else {
+          stats[prodKey].cores[corKey].variacoes[varKey].estoqueCasa += qtd;
+        }
+        stats[prodKey].cores[corKey].variacoes[varKey].estoqueTotal += qtd;
       }
     });
 
@@ -288,9 +413,13 @@ export default function Sellout() {
           vendasFiltradas: 0, 
           vendasPeriodo: 0,
           totalSempre: 0, 
-          estoque: 0 
+          estoque: 0,
+          estoquePlataforma: 0,
+          estoqueCasa: 0,
+          estoqueTotal: 0
         };
       }
+      stats[prodKey].cores[corKey].variacoes[varKey].lojaVenda = lojaVenda;
 
       if (dataVendaTime >= d7Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas7d += qtd;
       if (dataVendaTime >= d15Time) stats[prodKey].cores[corKey].variacoes[varKey].vendas15d += qtd;
@@ -317,6 +446,37 @@ export default function Sellout() {
           stats[prodKey].cores[corKey].variacoes[varKey].vendasFiltradas += qtd;
         }
       }
+    });
+
+    // Recalcular os estoques casa usando os mapas das planilhas externas
+    Object.values(stats).forEach(prod => {
+      let prodTotalEstoque = 0;
+      Object.values(prod.cores).forEach(cor => {
+        let corTotalEstoque = 0;
+        Object.values(cor.variacoes).forEach(v => {
+          const company = v.lojaEstoque || v.lojaVenda || 'SANDRINI';
+          let qtyCasa = 0;
+          const mapToUse = company === 'BUY CLOCK' ? buyclockCasaMap : sandriniCasaMap;
+          
+          const key1 = String(v.sku || '').toUpperCase().trim();
+          const key2 = String(v.skuPlat || '').toUpperCase().trim();
+          
+          if (key1 && mapToUse[key1] !== undefined) {
+            qtyCasa = mapToUse[key1];
+          } else if (key2 && mapToUse[key2] !== undefined) {
+            qtyCasa = mapToUse[key2];
+          }
+          
+          v.estoqueCasa = qtyCasa;
+          v.estoqueTotal = v.estoquePlataforma + v.estoqueCasa;
+          v.estoque = v.estoqueTotal;
+          
+          corTotalEstoque += v.estoqueTotal;
+        });
+        cor.totalEstoque = corTotalEstoque;
+        prodTotalEstoque += corTotalEstoque;
+      });
+      prod.totalEstoque = prodTotalEstoque;
     });
 
     const rows = Object.values(stats);
@@ -526,21 +686,41 @@ export default function Sellout() {
       dataEstoque,
       dataVendas
     };
-  }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, dataIni, dataFim, sortConfig]);
+  }, [vendasRows, estoqueRows, busca, filtroMarca, filtroLocal, selectedCompany, dataIni, dataFim, sortConfig, sandriniCasaMap, buyclockCasaMap]);
 
   const triggerExport = (type, mode = 'detalhado') => {
     setIsExportMenuOpen(false);
-    const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
-    if (hasActiveFilters) {
-      setPendingExportType(type);
-      setPendingExportMode(mode);
-      setIsExportPromptOpen(true);
+    
+    if (type === 'pdf') {
+      setPendingPdfArgs({ mode });
+      setIsPdfChoiceOpen(true);
     } else {
-      executeExport(type, mode, false);
+      const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
+      if (hasActiveFilters) {
+        setPendingExportType(type);
+        setPendingExportMode(mode);
+        setIsExportPromptOpen(true);
+      } else {
+        executeExport(type, mode, false);
+      }
     }
   };
 
-  const executeExport = (type, mode, useFilters) => {
+  const handlePdfChoice = (typeOfPdf) => {
+    setPdfType(typeOfPdf);
+    setIsPdfChoiceOpen(false);
+    
+    const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
+    if (hasActiveFilters) {
+      setPendingExportType('pdf');
+      setPendingExportMode(pendingPdfArgs.mode);
+      setIsExportPromptOpen(true);
+    } else {
+      executeExport('pdf', pendingPdfArgs.mode, false, typeOfPdf);
+    }
+  };
+
+  const executeExport = (type, mode, useFilters, selectedPdfType = pdfType) => {
     setIsExportPromptOpen(false);
     
     let rowsToExport = [];
@@ -585,9 +765,12 @@ export default function Sellout() {
       ]
     };
 
+    let headers = [];
+    let exportData = [];
+
     if (mode === 'resumido') {
-      const headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-      const exportData = rowsToExport.map(item => {
+      headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+      exportData = rowsToExport.map(item => {
         const sales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
         const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
         return [
@@ -598,84 +781,132 @@ export default function Sellout() {
           share + "%"
         ];
       });
-      handleExport(type, reportTitle, headers, exportData, options);
     } else {
       if (type === 'pdf') {
-        const headers = ["Descrição / SKU", "Marca / SKU Plataforma", "Vendas", "Estoque", "Share %"];
-        const exportData = [];
+        const isSupplier = selectedPdfType === 'fornecedor';
+        headers = isSupplier
+          ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Total"]
+          : ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
           const parentSales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
-          const parentShare = totalSalesVal > 0 ? ((parentSales / totalSalesVal) * 100).toFixed(1) : 0;
           
-          // Add Parent Row (Aggregated)
-          exportData.push([
-            item.descricao,
-            item.marca,
-            parentSales,
-            item.totalEstoque,
-            parentShare + "%"
-          ]);
+          if (isSupplier) {
+            exportData.push([
+              item.descricao,
+              item.marca,
+              parentSales,
+              item.totalEstoque
+            ]);
+          } else {
+            exportData.push([
+              item.descricao,
+              item.marca,
+              parentSales,
+              '-',
+              '-',
+              item.totalEstoque,
+              '-'
+            ]);
+          }
           
-          // Add Child Rows (Variations)
           Object.values(item.cores).forEach(corObj => {
             Object.values(corObj.variacoes).forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
-              if (!useFilters && sales === 0 && v.estoque === 0) return;
+              if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
               
-              const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
+              const vmdSKU = numDias > 0 ? sales / numDias : 0;
+              const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
+              
               const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? `${corObj.cor}` : 'SEM COR';
               const sizePart = v.size && v.size !== 'U' ? `Tam ${v.size}` : 'Tamanho Único';
               
               const descStr = `     - ${colorPart} - ${sizePart}`;
-              const skuStr = `${v.sku}${v.skuPlat ? ` (Plat: ${v.skuPlat})` : ''}`;
+              const skuStr = `${v.sku}`;
 
-              exportData.push([
-                descStr,
-                skuStr,
-                sales,
-                v.estoque,
-                share + "%"
-              ]);
+              if (isSupplier) {
+                exportData.push([
+                  descStr,
+                  skuStr,
+                  sales,
+                  v.estoqueTotal
+                ]);
+              } else {
+                exportData.push([
+                  descStr,
+                  skuStr,
+                  sales,
+                  v.estoquePlataforma,
+                  v.estoqueCasa,
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
+                ]);
+              }
             });
           });
         });
-        
-        handleExport(type, reportTitle, headers, exportData, options);
       } else {
         // Flat layout for Excel/CSV (easy to filter/analyze in Excel)
-        const headers = ["SKU Sênior", "SKU Plataforma", "Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
-        const exportData = [];
+        headers = ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
           Object.values(item.cores).forEach(corObj => {
             Object.values(corObj.variacoes).forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
-              if (!useFilters && sales === 0 && v.estoque === 0) return;
+              if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
               
-              const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
+              const vmdSKU = numDias > 0 ? sales / numDias : 0;
+              const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
+              
               const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
               const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
               const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
 
               exportData.push([
                 v.sku,
-                v.skuPlat || '',
+                '-', // EAN
                 fullDesc,
                 item.marca,
                 sales,
-                v.estoque,
-                share + "%"
+                v.estoquePlataforma,
+                v.estoqueCasa,
+                v.estoqueTotal,
+                coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
               ]);
             });
           });
         });
-        handleExport(type, reportTitle, headers, exportData, options);
       }
+    }
+
+    if (type === 'pdf') {
+      setIsPdfChoiceOpen(true);
+      setPdfGenState('generating');
+      
+      setTimeout(() => {
+        try {
+          const { doc, filename } = generatePDFBlob(reportTitle, headers, exportData, options);
+          
+          setPdfDownloadCallback(() => () => {
+            doc.save(filename);
+          });
+          setPdfFilename(filename);
+          setPdfGenState('ready');
+        } catch (err) {
+          console.error("Erro ao gerar PDF:", err);
+          setPdfGenState('idle');
+          setIsPdfChoiceOpen(false);
+          alert("Erro ao gerar o arquivo PDF. Tente filtrar os dados para reduzir o tamanho.");
+        }
+      }, 100);
+    } else {
+      handleExport(type, reportTitle, headers, exportData, options);
     }
   };
 
-  if (loading) {
+  const isPageLoading = loading || loadingCasaMaps;
+
+  if (isPageLoading) {
     return (
       <div className="header-main">
         <h1>Sellout</h1>
@@ -980,127 +1211,186 @@ export default function Sellout() {
         keyExtractor={(row) => row.id}
         onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
         isExpanded={(row) => expandedId === row.id}
-        renderExpandedDesktop={(item) => (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {Object.values(item.cores).map((corObj) => (
-                <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                  {/* Cabeçalho da Cor */}
-                  <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '16px' }}>🎨</span>
-                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+        renderExpandedDesktop={(item) => {
+          // Calculate numDias based on period selection
+          let numDias = 30;
+          if (dataIni && dataFim) {
+            const d1 = Date.UTC(Number(dataIni.split('-')[0]), Number(dataIni.split('-')[1]) - 1, Number(dataIni.split('-')[2]));
+            const d2 = Date.UTC(Number(dataFim.split('-')[0]), Number(dataFim.split('-')[1]) - 1, Number(dataFim.split('-')[2]));
+            const diffMs = d2 - d1;
+            numDias = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    {/* Cabeçalho da Cor */}
+                    <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
+                          Estoque: {corObj.totalEstoque.toLocaleString('pt-BR')} pçs
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                          Vendas: {corObj.totalVendas.toLocaleString('pt-BR')} pçs
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #dbeafe' }}>
-                        Estoque: {corObj.totalEstoque.toLocaleString('pt-BR')} pçs
-                      </span>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
-                        Vendas: {corObj.totalVendas.toLocaleString('pt-BR')} pçs
-                      </span>
-                    </div>
+                    
+                    {/* Tabela de Variações */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Sênior</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>EAN</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Plataforma</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Casa</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Total</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Cobertura</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.values(corObj.variacoes).sort((a, b) => {
+                          const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                          const aVal = String(a.size || '').toUpperCase().trim();
+                          const bVal = String(b.size || '').toUpperCase().trim();
+                          if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                          if (sizeWeights[aVal] !== undefined) return -1;
+                          if (sizeWeights[bVal] !== undefined) return 1;
+                          const aNum = parseFloat(aVal);
+                          const bNum = parseFloat(bVal);
+                          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                          return aVal.localeCompare(bVal);
+                        }).map((v) => {
+                          const vmdSKU = numDias > 0 ? v.vendasFiltradas / numDias : 0;
+                          const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
+                          return (
+                            <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                              <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                                <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                  {v.size || 'Único'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                                {v.sku}
+                              </td>
+                              <td style={{ padding: '10px 20px', color: '#64748b', fontSize: '13px' }}>
+                                -
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {v.estoquePlataforma.toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {v.estoqueCasa.toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.estoqueTotal === 0 ? '#ef4444' : '#0f172a' }}>
+                                {v.estoqueTotal.toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {v.vendasFiltradas.toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                                {coberturaSKU} {typeof coberturaSKU === 'number' ? 'dias' : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  
-                  {/* Tabela de Variações */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Sênior</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Plataforma</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Share</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.values(corObj.variacoes).map((v) => {
-                        const varShare = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
+                ))}
+              </div>
+            </motion.div>
+          );
+        }}
+        renderExpanded={(item) => {
+          // Calculate numDias based on period selection
+          let numDias = 30;
+          if (dataIni && dataFim) {
+            const d1 = Date.UTC(Number(dataIni.split('-')[0]), Number(dataIni.split('-')[1]) - 1, Number(dataIni.split('-')[2]));
+            const d2 = Date.UTC(Number(dataFim.split('-')[0]), Number(dataFim.split('-')[1]) - 1, Number(dataFim.split('-')[2]));
+            const diffMs = d2 - d1;
+            numDias = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    {/* Cabeçalho Cor */}
+                    <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
+                        Estoque: {corObj.totalEstoque}
+                      </span>
+                    </div>
+                    
+                    {/* Lista de Variações Mobile */}
+                    <div style={{ padding: '0 14px' }}>
+                      {Object.values(corObj.variacoes).sort((a, b) => {
+                        const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                        const aVal = String(a.size || '').toUpperCase().trim();
+                        const bVal = String(b.size || '').toUpperCase().trim();
+                        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                        if (sizeWeights[aVal] !== undefined) return -1;
+                        if (sizeWeights[bVal] !== undefined) return 1;
+                        const aNum = parseFloat(aVal);
+                        const bNum = parseFloat(bVal);
+                        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                        return aVal.localeCompare(bVal);
+                      }).map((v, vIdx, arr) => {
+                        const vmdSKU = numDias > 0 ? v.vendasFiltradas / numDias : 0;
+                        const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
                         return (
-                          <tr key={v.sku} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
-                            <td style={{ padding: '10px 20px', textAlign: 'center' }}>
-                              <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
-                                {v.size || 'Único'}
+                          <div key={v.sku} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                  {v.size || 'Único'}
+                                </span>
+                                <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '12px' }}>{v.sku}</span>
+                              </div>
+                              <span style={{ fontWeight: 700, fontSize: '13px', color: '#3b82f6' }}>
+                                Cob: {coberturaSKU} {typeof coberturaSKU === 'number' ? 'd' : ''}
                               </span>
-                            </td>
-                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
-                              {v.sku}
-                            </td>
-                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#64748b', fontSize: '12px' }}>
-                              {v.skuPlat || '-'}
-                            </td>
-                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                              {v.vendasFiltradas.toLocaleString('pt-BR')} un
-                            </td>
-                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.estoque === 0 ? '#ef4444' : '#0f172a' }}>
-                              {v.estoque.toLocaleString('pt-BR')} un
-                            </td>
-                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>
-                              {varShare}%
-                            </td>
-                          </tr>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                              <span>EAN: -</span>
+                              <span>Vendas: {v.vendasFiltradas} un</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                              <span>Est. Plat: {v.estoquePlataforma}</span>
+                              <span>Est. Casa: {v.estoqueCasa}</span>
+                              <span style={{ fontWeight: 600, color: v.estoqueTotal === 0 ? '#ef4444' : '#1e293b' }}>Total: {v.estoqueTotal}</span>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-        renderExpanded={(item) => (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {Object.values(item.cores).map((corObj) => (
-                <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                  {/* Cabeçalho Cor */}
-                  <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
-                      Estoque: {corObj.totalEstoque}
-                    </span>
+                    </div>
                   </div>
-                  
-                  {/* Lista de Variações Mobile */}
-                  <div style={{ padding: '0 14px' }}>
-                    {Object.values(corObj.variacoes).map((v, vIdx, arr) => {
-                      const varShare = dadosProcessados.totalVendasPeriodo > 0 ? ((v.vendasFiltradas / dadosProcessados.totalVendasPeriodo) * 100).toFixed(1) : 0;
-                      return (
-                        <div key={v.sku} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
-                                {v.size || 'Único'}
-                              </span>
-                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '12px' }}>{v.sku}</span>
-                            </div>
-                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#3b82f6' }}>
-                              {varShare}%
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-                            <span>Vendas: {v.vendasFiltradas} un</span>
-                            <span style={{ color: v.estoque === 0 ? '#ef4444' : 'inherit' }}>Estoque: {v.estoque} un</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+                ))}
+              </div>
+            </motion.div>
+          );
+        }}
         emptyMessage="Nenhum resultado encontrado para os filtros selecionados."
       />
 
@@ -1312,6 +1602,278 @@ export default function Sellout() {
                   Cancelar
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Choice Modal for PDF Export: Internal Use vs. Supplier */}
+      <AnimatePresence>
+        {isPdfChoiceOpen && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              zIndex: 9999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'rgba(15, 23, 42, 0.40)', // modern slate dark overlay
+              backdropFilter: 'blur(8px)', // glassmorphism blur
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px'
+              }}
+            >
+              {pdfGenState === 'idle' && (
+                <>
+                  {/* Header Icon & Title */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                    <div 
+                      style={{ 
+                        width: '56px', 
+                        height: '56px', 
+                        borderRadius: '16px', 
+                        background: '#f1f5f9', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        border: '1px solid #cbd5e1'
+                      }}
+                    >
+                      <FileText size={24} color="#ef4444" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                        Tipo de PDF para Exportação
+                      </h3>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                        Selecione o destinatário deste PDF para ajustar a visibilidade das colunas.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Description Box */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #f1f5f9', fontSize: '13px', color: '#475569' }}>
+                      <strong>Uso Interno:</strong> Exibe todas as colunas (Estoque Plataforma, Estoque Casa, Estoque Total e Cobertura).
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #f1f5f9', fontSize: '13px', color: '#475569' }}>
+                      <strong>Fornecedor:</strong> Oculta Estoque Plataforma, Estoque Casa e Cobertura (exibe apenas o Estoque Total).
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button 
+                      onClick={() => handlePdfChoice('interno')}
+                      style={{
+                        background: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '14px',
+                        padding: '14px 20px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      Uso Interno
+                    </button>
+                    <button 
+                      onClick={() => handlePdfChoice('fornecedor')}
+                      style={{
+                        background: '#1e293b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '14px',
+                        padding: '14px 20px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      Fornecedor
+                    </button>
+                    <button 
+                      onClick={handleClosePdfModal}
+                      style={{
+                        background: 'transparent',
+                        color: '#64748b',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '14px',
+                        padding: '12px 20px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {pdfGenState === 'generating' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div 
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        border: '4px solid #f1f5f9',
+                        borderTopColor: '#3b82f6',
+                        animation: 'spin 1s linear infinite'
+                      }}
+                    />
+                    <style>{`
+                      @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                      }
+                    `}</style>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                      Gerando PDF...
+                    </h3>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                      Processando dados e formatando tabelas. Isso pode levar alguns segundos dependendo da quantidade de itens.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {pdfGenState === 'ready' && (
+                <>
+                  {/* Header Icon & Title */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                    <div 
+                      style={{ 
+                        width: '56px', 
+                        height: '56px', 
+                        borderRadius: '16px', 
+                        background: '#ecfdf5', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        border: '1px solid #a7f3d0'
+                      }}
+                    >
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                        Relatório PDF Pronto!
+                      </h3>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
+                        O PDF foi gerado com sucesso e está pronto para download.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* File Metadata Box */}
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <FileText size={24} color="#ef4444" style={{ flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', textAlign: 'left', width: '100%' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {pdfFilename}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                        Pronto para salvar localmente
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button 
+                      onClick={handleDownloadPdf}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '14px',
+                        padding: '14px 20px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      <Download size={16} /> Baixar PDF
+                    </button>
+                    <button 
+                      onClick={handleClosePdfModal}
+                      style={{
+                        background: 'transparent',
+                        color: '#64748b',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '14px',
+                        padding: '12px 20px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </div>
         )}

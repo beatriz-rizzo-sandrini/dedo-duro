@@ -15,11 +15,21 @@ export const exportToCSV = (title, headers, data, options = {}) => {
     csv += rowStr + '\n';
   });
 
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `${title.toLowerCase().replace(/\s+/g, '_')}.csv`;
+  
+  const cleanFilename = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_.-]/g, '_')
+    .replace(/__+/g, '_');
+
+  link.download = `${cleanFilename}.csv`;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 };
 
 export const exportToXLSX = (title, headers, data, options = {}) => {
@@ -30,7 +40,7 @@ export const exportToXLSX = (title, headers, data, options = {}) => {
   XLSX.writeFile(wb, `${title.toLowerCase().replace(/\s+/g, '_')}.xlsx`);
 };
 
-export const exportToPDF = (title, headers, data, options = {}) => {
+export const generatePDFBlob = (title, headers, data, options = {}) => {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -186,7 +196,22 @@ export const exportToPDF = (title, headers, data, options = {}) => {
     }
   });
 
-  doc.save(`${title.toLowerCase().replace(/\s+/g, '_')}.pdf`);
+  const blob = doc.output('blob');
+  
+  const cleanFilename = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_.-]/g, '_')
+    .replace(/__+/g, '_');
+    
+  const filename = `${cleanFilename}.pdf`;
+  return { doc, blob, filename };
+};
+
+export const exportToPDF = (title, headers, data, options = {}) => {
+  const { doc, filename } = generatePDFBlob(title, headers, data, options);
+  doc.save(filename);
 };
 
 export const handleExport = (type, title, headers, data, options = {}) => {

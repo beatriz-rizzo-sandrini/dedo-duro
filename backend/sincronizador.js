@@ -11,6 +11,14 @@ const SHEET_URLS = {
   badstock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=badstock`
 };
 
+const SPREADSHEET_SANDRINI_ID = '1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo';
+const SPREADSHEET_BUYCLOCK_ID = '1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k';
+
+const EXTRA_ESTOQUE_URLS = {
+  sandrini: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_SANDRINI_ID}/gviz/tq?tqx=out:json&sheet=CD%20SJN`,
+  buyclock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_BUYCLOCK_ID}/export?format=csv&gid=1072598256`
+};
+
 function parseGoogleJSON(text) {
   try {
     const jsonStr = text.substring(47).slice(0, -2);
@@ -20,6 +28,32 @@ function parseGoogleJSON(text) {
     console.error("Erro ao fazer parse do JSON do Google Sheets", error);
     return [];
   }
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map(s => s.trim().replace(/^"|"$/g, ''));
+}
+
+function cleanNumeric(val) {
+  if (!val) return 0;
+  const clean = val.replace(/[^0-9,\.-]/g, '').replace(',', '.');
+  return Number(clean) || 0;
 }
 
 async function fetchSheetData(url) {
@@ -100,15 +134,74 @@ async function syncEstoque() {
   console.log('🔄 Sincronizando Estoque...');
   const rows = await fetchSheetData(SHEET_URLS.estoque);
   
+  let commonStockDate = null;
+  for (const r of rows) {
+    if (r && r.c && (r.c[0]?.f || r.c[0]?.v)) {
+      commonStockDate = r.c[0]?.f || r.c[0]?.v;
+      break;
+    }
+  }
+  if (!commonStockDate) {
+    const today = new Date();
+    commonStockDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
+  }
+  console.log(`   🗓️ Rótulo de data a ser usado para Estoque Casa: "${commonStockDate}"`);
+
+  let sandriniRows = [];
+  try {
+    console.log('   📥 Buscando estoque CD SJN da Sandrini...');
+    sandriniRows = await fetchSheetData(EXTRA_ESTOQUE_URLS.sandrini);
+    console.log(`   ✅ Encontradas ${sandriniRows.length} linhas para Sandrini CD SJN.`);
+  } catch (err) {
+    console.error('   ⚠️ Falha ao buscar estoque da Sandrini:', err.message);
+  }
+
+  let buyclockRows = [];
+  try {
+    console.log('   📥 Buscando estoque INVENTÁRIO_BUY da Buyclock...');
+    const response = await axios.get(EXTRA_ESTOQUE_URLS.buyclock);
+    const csvText = response.data;
+    const lines = csvText.split(/\r?\n/);
+    
+    if (lines.length > 2) {
+      const headers = parseCSVLine(lines[2]);
+      const estoqueCasaIdx = headers.indexOf('ESTOQUE CASA');
+      
+      if (estoqueCasaIdx !== -1) {
+        for (let i = 3; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const cols = parseCSVLine(lines[i]);
+          const sku = cols[0];
+          const qtd = cols[estoqueCasaIdx];
+          const cost = cols[34];
+          const brand = cols[2];
+          
+          if (sku && sku.trim() !== '') {
+            buyclockRows.push({
+              sku: sku.trim(),
+              qtd: Number(qtd) || 0,
+              cost: cleanNumeric(cost),
+              brand: brand ? brand.trim() : 'Sem Marca'
+            });
+          }
+        }
+        console.log(`   ✅ Encontrados ${buyclockRows.length} itens para Buyclock.`);
+      } else {
+        console.warn('   ⚠️ Coluna "ESTOQUE CASA" não encontrada na planilha da Buyclock!');
+      }
+    }
+  } catch (err) {
+    console.error('   ⚠️ Falha ao buscar estoque da Buyclock:', err.message);
+  }
+
   await pool.query('TRUNCATE TABLE bronze_estoque');
-  // Truncate silver to keep it as a "snapshot" of the current moment as user wants (since they delete daily)
-  // Wait! The user deletes old sales. Stock is a static snapshot. Let's just clear silver_estoque and reload it.
   await pool.query('TRUNCATE TABLE silver_estoque');
   
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     
+    // 1. Inserir estoque principal
     for (const r of rows) {
       if (!r || !r.c) continue;
       const dataStr = r.c[0]?.f || r.c[0]?.v || null;
@@ -132,6 +225,51 @@ async function syncEstoque() {
             valor_unitario = VALUES(valor_unitario),
             data_atualizacao = VALUES(data_atualizacao)
         `, [dataStr, String(sku).trim(), desc, String(local).toUpperCase().trim(), Number(qtd) || 0, Number(valor) || 0]);
+      }
+    }
+
+    // 2. Inserir estoque Sandrini
+    for (const r of sandriniRows) {
+      if (!r || !r.c) continue;
+      const sku = r.c[3]?.v || null;
+      const desc = r.c[4]?.v || null;
+      const brand = r.c[2]?.v || 'SANDRINI';
+      const qtd = r.c[5]?.v || null;
+      const cost = r.c[7]?.v || null;
+
+      if (sku) {
+        await connection.query(`
+          INSERT INTO bronze_estoque (coluna_data_atualizacao, coluna_sku, coluna_descricao, coluna_local, coluna_quantidade, coluna_valor) 
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [commonStockDate, sku, desc, 'ESTOQUE CASA', qtd, cost]);
+
+        await connection.query(`
+          INSERT INTO silver_estoque (data_atualizacao, sku_produto, descricao_produto, marca, local_estoque, quantidade_disponivel, valor_unitario)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            quantidade_disponivel = VALUES(quantidade_disponivel),
+            valor_unitario = VALUES(valor_unitario),
+            data_atualizacao = VALUES(data_atualizacao)
+        `, [commonStockDate, String(sku).trim(), desc, String(brand).trim(), 'ESTOQUE CASA', Number(qtd) || 0, Number(cost) || 0]);
+      }
+    }
+
+    // 3. Inserir estoque Buyclock
+    for (const item of buyclockRows) {
+      if (item.sku) {
+        await connection.query(`
+          INSERT INTO bronze_estoque (coluna_data_atualizacao, coluna_sku, coluna_descricao, coluna_local, coluna_quantidade, coluna_valor) 
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [commonStockDate, item.sku, null, 'ESTOQUE CASA BUY CLOCK', item.qtd, item.cost]);
+
+        await connection.query(`
+          INSERT INTO silver_estoque (data_atualizacao, sku_produto, descricao_produto, marca, local_estoque, quantidade_disponivel, valor_unitario)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            quantidade_disponivel = VALUES(quantidade_disponivel),
+            valor_unitario = VALUES(valor_unitario),
+            data_atualizacao = VALUES(data_atualizacao)
+        `, [commonStockDate, String(item.sku).trim(), null, String(item.brand).trim(), 'ESTOQUE CASA BUY CLOCK', Number(item.qtd) || 0, Number(item.cost) || 0]);
       }
     }
     
