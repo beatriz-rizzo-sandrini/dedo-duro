@@ -36,8 +36,21 @@ export const exportToXLSX = (title, headers, data, options = {}) => {
   const wsData = [headers, ...data];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, title);
-  XLSX.writeFile(wb, `${title.toLowerCase().replace(/\s+/g, '_')}.xlsx`);
+  
+  const sheetName = title
+    .replace(/[\\\/\?\*\[\]]/g, '')
+    .substring(0, 31);
+    
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const cleanFilename = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_.-]/g, '_')
+    .replace(/__+/g, '_');
+
+  XLSX.writeFile(wb, `${cleanFilename}.xlsx`);
 };
 
 export const generatePDFBlob = (title, headers, data, options = {}) => {
