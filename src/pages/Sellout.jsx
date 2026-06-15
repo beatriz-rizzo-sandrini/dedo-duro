@@ -748,8 +748,15 @@ export default function Sellout() {
     const modeStr = mode === 'detalhado' ? 'Detalhado' : 'Resumido';
     const filterStr = useFilters ? 'Filtrado' : 'Completo';
     
+    // Add brand detail to report title and filename if brand filter is active
+    let titleDetail = '';
+    if (filtroMarca && filtroMarca.length > 0) {
+      const marcasStr = filtroMarca.map(m => m.label).join(', ');
+      titleDetail = ` - ${marcasStr}`;
+    }
+    
     // Beautiful clean business title
-    const reportTitle = `Sellout - ${modeStr} (${filterStr})`;
+    const reportTitle = `Sellout - ${modeStr}${titleDetail} (${filterStr})`;
 
     const options = {
       subTitle: `Análise de Performance de Sellout • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal/Filtro: ${selectedCompany}`,
@@ -764,6 +771,22 @@ export default function Sellout() {
         { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
         { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
       ]
+    };
+
+    // Helper to sort variation rows by size during exports
+    const sortVariationsBySize = (vars) => {
+      const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+      return [...vars].sort((a, b) => {
+        const aVal = String(a.size || '').toUpperCase().trim();
+        const bVal = String(b.size || '').toUpperCase().trim();
+        if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+        if (sizeWeights[aVal] !== undefined) return -1;
+        if (sizeWeights[bVal] !== undefined) return 1;
+        const aNum = parseFloat(aVal);
+        const bNum = parseFloat(bVal);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return aVal.localeCompare(bVal);
+      });
     };
 
     let headers = [];
@@ -812,7 +835,8 @@ export default function Sellout() {
           }
           
           Object.values(item.cores).forEach(corObj => {
-            Object.values(corObj.variacoes).forEach(v => {
+            const sortedVariations = sortVariationsBySize(Object.values(corObj.variacoes));
+            sortedVariations.forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
               if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
               
@@ -853,7 +877,8 @@ export default function Sellout() {
         
         rowsToExport.forEach(item => {
           Object.values(item.cores).forEach(corObj => {
-            Object.values(corObj.variacoes).forEach(v => {
+            const sortedVariations = sortVariationsBySize(Object.values(corObj.variacoes));
+            sortedVariations.forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
               if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
               
