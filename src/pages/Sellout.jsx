@@ -16,6 +16,7 @@ import Select from 'react-select';
 import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer } from 'lucide-react';
 import { handleExport, generatePDFBlob } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
+import eanMapping from '../utils/eanMapping.json';
 import HeaderDates from '../components/HeaderDates';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
@@ -822,7 +823,8 @@ export default function Sellout() {
               const sizePart = v.size && v.size !== 'U' ? `Tam ${v.size}` : 'Tamanho Único';
               
               const descStr = `     - ${colorPart} - ${sizePart}`;
-              const skuStr = `${v.sku}`;
+              const eanVal = eanMapping[String(v.sku).toUpperCase().trim()] || v.sku;
+              const skuStr = `${eanVal}`;
 
               if (isSupplier) {
                 exportData.push([
@@ -864,7 +866,7 @@ export default function Sellout() {
 
               exportData.push([
                 v.sku,
-                '-', // EAN
+                eanMapping[String(v.sku).toUpperCase().trim()] || '-',
                 fullDesc,
                 item.marca,
                 sales,
@@ -1287,7 +1289,7 @@ export default function Sellout() {
                                 {v.sku}
                               </td>
                               <td style={{ padding: '10px 20px', color: '#64748b', fontSize: '13px' }}>
-                                -
+                                {eanMapping[String(v.sku).toUpperCase().trim()] || '-'}
                               </td>
                               <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
                                 {v.estoquePlataforma.toLocaleString('pt-BR')} un
@@ -1373,7 +1375,7 @@ export default function Sellout() {
                               </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-                              <span>EAN: -</span>
+                              <span>EAN: {eanMapping[String(v.sku).toUpperCase().trim()] || '-'}</span>
                               <span>Vendas: {v.vendasFiltradas} un</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
