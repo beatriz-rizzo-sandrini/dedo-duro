@@ -1,0 +1,30 @@
+name: Sincronizador Supabase
+
+on:
+  schedule:
+    # Roda de hora em hora (no minuto 0)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Permite rodar manualmente pelo painel do GitHub Actions no repositório
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Run synchronizer
+        run: |
+          node backend/sincronizador_supabase.js --once

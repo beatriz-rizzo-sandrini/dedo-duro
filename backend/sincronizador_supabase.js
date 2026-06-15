@@ -538,18 +538,35 @@ async function rodarSincronizacao() {
     await syncMapeamento();
     console.log(`🎉 [${new Date().toLocaleString()}] Todas as bases sincronizadas com sucesso!`);
     console.log('💤 Aguardando próxima execução (de hora em hora)...');
+    return true;
   } catch (error) {
     console.error('💥 Falha geral na sincronização:', error);
+    return false;
   }
 }
 
-// 1. Executa imediatamente ao iniciar
-rodarSincronizacao();
+const runOnce = process.argv.includes('--once');
 
-// 2. Agenda para rodar de 1 em 1 hora (todo minuto 0)
-// Formato: (minuto hora dia mes dia-da-semana)
-cron.schedule('0 * * * *', () => {
+if (runOnce) {
+  console.log('⚡ Executando sincronização única (--once)...');
+  rodarSincronizacao().then((success) => {
+    if (success) {
+      console.log('✅ Sincronização concluída.');
+      process.exit(0);
+    } else {
+      console.error('❌ Sincronização concluída com erros.');
+      process.exit(1);
+    }
+  });
+} else {
+  // 1. Executa imediatamente ao iniciar
   rodarSincronizacao();
-});
 
-console.log('🕒 Agendador configurado: O script rodará automaticamente a cada 1 hora.');
+  // 2. Agenda para rodar de 1 em 1 hora (todo minuto 0)
+  // Formato: (minuto hora dia mes dia-da-semana)
+  cron.schedule('0 * * * *', () => {
+    rodarSincronizacao();
+  });
+
+  console.log('🕒 Agendador configurado: O script rodará automaticamente a cada 1 hora.');
+}
