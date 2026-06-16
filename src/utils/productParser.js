@@ -21,15 +21,15 @@ const SKU_COLOR_MAP = {
 
 const COLOR_ABBR_MAP = {
   'PTO': 'PTO', 'PT': 'PTO', 'BLK': 'PTO', 'PRETO': 'PTO',
-  'BCO': 'BCO', 'BC': 'BCO', 'BRANCO': 'BCO',
-  'CZ': 'CZ', 'CZA': 'CZ', 'CNZA': 'CZ', 'CINZA': 'CZ',
+  'BCO': 'BCO', 'BC': 'BCO', 'BRANCO': 'BCO', 'BRC': 'BCO',
+  'CZ': 'CZ', 'CZA': 'CZ', 'CNZA': 'CZ', 'CINZA': 'CZ', 'CNZ': 'CZ',
   'GRF': 'GRF', 'GP': 'GRF', 'GRAFITE': 'GRF',
   'AZ': 'AZ', 'AZL': 'AZ', 'AZUL': 'AZ',
   'AZC': 'AZC', 'AZUL CLARO': 'AZC', 'PLEIN AIR': 'AZC', 'PLAIN AIR': 'AZC', 'PLEINAIR': 'AZC', 'PLAINAIR': 'AZC',
   'AZR': 'AZR', 'AZUL ROYAL': 'AZR',
   'NAV': 'NAV', 'AZUL NAVY': 'NAV',
   'MAR': 'MAR', 'MARINHO': 'MAR',
-  'VM': 'VM', 'VERMELHO': 'VM', 'SCARLET': 'VM', 'FLAMENGO SCARLET': 'VM', 'FLAMENGOSCARLET': 'VM',
+  'VM': 'VM', 'VERMELHO': 'VM', 'VRM': 'VM', 'VVR': 'VM', 'SCARLET': 'VM', 'FLAMENGO SCARLET': 'VM', 'FLAMENGOSCARLET': 'VM',
   'VD': 'VD', 'VERDE': 'VD',
   'RS': 'RS', 'ROSA': 'RS',
   'RSE': 'RSE', 'ROSA ESCURO': 'RSE',
@@ -171,6 +171,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
 
   let cleanDesc = desc.trim();
 
+  // Strip parenthesis around Fila reference codes (e.g. (F01TR00024) -> F01TR00024)
+  cleanDesc = cleanDesc.replace(/\((F\d{2}[A-Z]{1,2}\d{3,5})\)/gi, '$1');
+
   // 1. Se começar com SKU da Fila (ex: F02TR00095-), removemos o prefixo e guardamos para o final
   let prefixSku = '';
   const prefixSkuRegex = /^\b(F\d{2}[A-Z]{1,2}\d{3,5})\b\s*-\s*/i;
@@ -260,9 +263,26 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     }
 
     if (refCode) {
-      if (!cleanTitle.toUpperCase().includes(refCode)) {
-        cleanTitle = `${cleanTitle} ${refCode}`;
+      // Remove any existing occurrence of the refCode in the cleanTitle so we can append it cleanly at the end
+      const refRegex = new RegExp(`\\b${refCode}\\b`, 'gi');
+      cleanTitle = cleanTitle.replace(refRegex, '').replace(/\s+/g, ' ').trim();
+
+      // Auto-inject gender based on Fila code (F01 = Masculino, F02 = Feminino) if not already present
+      if (refCode.startsWith('F0')) {
+        const titleUpper = cleanTitle.toUpperCase();
+        const hasMasculino = titleUpper.includes('MASCULINO') || titleUpper.includes('MASCULINA');
+        const hasFeminino = titleUpper.includes('FEMININO') || titleUpper.includes('FEMININA');
+
+        if (!hasMasculino && !hasFeminino) {
+          if (refCode.startsWith('F01')) {
+            cleanTitle = `${cleanTitle} Masculino`;
+          } else if (refCode.startsWith('F02')) {
+            cleanTitle = `${cleanTitle} Feminino`;
+          }
+        }
       }
+
+      cleanTitle = `${cleanTitle} ${refCode}`;
     }
 
     cleanDesc = cleanTitle;
@@ -275,6 +295,24 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   let isSeniorSKU = false;
   let skuColor = '';
   let skuSize = '';
+
+  // Fila Partner SKU Parser (e.g. F01TR00067CPTOGRFDORT40)
+  const partnerFilaMatch = sku.toUpperCase().match(/^(F\d{2}[A-Z]{1,2}\d{3,5})C([A-Z]+)T(\d{2})$/i);
+  if (partnerFilaMatch) {
+    isSeniorSKU = true;
+    skuSize = partnerFilaMatch[3];
+    
+    const colorGroup = partnerFilaMatch[2];
+    const colors = [];
+    for (let i = 0; i < colorGroup.length; i += 3) {
+      const chunk = colorGroup.substring(i, i + 3);
+      if (chunk.length === 3) {
+        colors.push(COLOR_ABBR_MAP[chunk] || chunk);
+      }
+    }
+    const uniqueColors = Array.from(new Set(colors));
+    skuColor = uniqueColors.length > 0 ? uniqueColors.join('/') : 'SEM COR';
+  }
 
   // Sandrini Custom SKU Parser (e.g. CAMISETADRY2350CPTOTP, K4CAMISETADRY2350CSORT1TG)
   let isSandriniSKU = false;
@@ -497,7 +535,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   }
 
   // Global Color Normalization: runs for Senior, Sandrini, and Fallback parsed colors.
-  if (color) {
+  if (color && color.toUpperCase() !== 'SEM COR') {
     let cleanColor = color.toUpperCase()
       .replace(/OFF-WHITE/g, 'OFW')
       .replace(/OFF WHITE/g, 'OFW')
