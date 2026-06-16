@@ -312,6 +312,13 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     }
     const uniqueColors = Array.from(new Set(colors));
     skuColor = uniqueColors.length > 0 ? uniqueColors.join('/') : 'SEM COR';
+
+    // Garante que o código de referência (ex: F01TR00067) seja adicionado ao baseTitle
+    // para que agrupe perfeitamente com os itens que já possuem a descrição oficial com a referência.
+    const refCode = partnerFilaMatch[1].toUpperCase();
+    if (!baseTitle.toUpperCase().includes(refCode)) {
+      baseTitle = `${baseTitle} ${refCode}`;
+    }
   }
 
   // Sandrini Custom SKU Parser (e.g. CAMISETADRY2350CPTOTP, K4CAMISETADRY2350CSORT1TG)
