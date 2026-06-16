@@ -436,9 +436,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   const baseTitleUpper = baseTitle.toUpperCase();
 
   if (skuUpper.startsWith('KSA08000002350')) {
-    baseTitle = 'Kit 4 Camisetas Dry (2350) + 4 Shorts Tactel (77046)';
+    baseTitle = 'Kit 8 Camisetas Dry Sandrini Manga Curta';
   } else if (skuUpper.startsWith('KSA05000002355')) {
-    baseTitle = 'Kit 3 Regatas Dry (2355) + 2 Shorts Tactel (77046)';
+    baseTitle = 'Kit 5 Regatas Dry Sandrini';
   } else if (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('DRY') && (baseTitleUpper.includes('2350') || skuUpper.includes('2350')) && (baseTitleUpper.includes('KIT 4') || skuUpper.startsWith('KSA04') || skuUpper.startsWith('K4'))) {
     baseTitle = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
   } else if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
