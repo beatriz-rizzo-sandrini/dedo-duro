@@ -336,7 +336,7 @@ export default function Sellout() {
         stats[prodKey].cores[corKey].variacoes[varKey].estoque += qtd;
         stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = lojaEstoque;
         
-        const isPlat = local.includes('MELI SP') || local.includes('MELI MG') || local.includes('AMAZON');
+        const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
         } else {
