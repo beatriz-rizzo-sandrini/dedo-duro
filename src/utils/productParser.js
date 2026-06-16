@@ -170,14 +170,102 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   }
 
   let cleanDesc = desc.trim();
+
+  // 1. Se começar com SKU da Fila (ex: F02TR00095-), removemos o prefixo e guardamos para o final
+  let prefixSku = '';
+  const prefixSkuRegex = /^\b(F\d{2}[A-Z]{1,2}\d{3,5})\b\s*-\s*/i;
+  const prefixMatch = cleanDesc.match(prefixSkuRegex);
+  if (prefixMatch) {
+    prefixSku = prefixMatch[1].toUpperCase();
+    cleanDesc = cleanDesc.replace(prefixSkuRegex, '');
+  }
+
   // Remove raw parameter garbage from Google Sheets (e.g. Cor:sortidos;tamanho...)
   cleanDesc = cleanDesc.replace(/(?:Cor|Tamanho|Tam|Ref|cós|cos)\s*:\s*.*$/i, '');
   cleanDesc = cleanDesc.replace(/;\s*.*$/i, '');
   cleanDesc = cleanDesc.replace(/[\s\-,;:]+$/, '').trim();
 
-  // Se for da marca FILA, remove códigos de cor de 4 dígitos (ex: 6813, 7068)
-  if (cleanDesc.toUpperCase().includes('FILA')) {
+  const isShoe = /tenis|tênis|papete|bota|sapatenis|sapatênis|slide|sandalia|sandália|chuteira|sapato/i.test(cleanDesc);
+
+  if (isShoe) {
+    // 2. Remove qualquer código de cor de 4 dígitos para calçados (Fila, etc)
     cleanDesc = cleanDesc.replace(/\b\d{4}\b/g, '');
+
+    // 3. Remove código de cor específico da Adidas (ex: HQ0236, IH8217, KJ0082)
+    cleanDesc = cleanDesc.replace(/\b[A-Z]{2}\d{4}\b/gi, '');
+
+    // 4. Remove código de cor específico da New Balance (ex: M413ZF3, BB480HEB, BB80FAA)
+    cleanDesc = cleanDesc.replace(/\b[A-Z]{1,2}\d{3}[A-Z0-9]{3}\b/gi, '');
+    cleanDesc = cleanDesc.replace(/\b[A-Z]{3,4}\d{2,3}[A-Z0-9]{2,3}\b/gi, '');
+
+    // 5. Remove códigos numéricos longos (6 a 10 dígitos) - ex: Olympikus, Puma, Bibi, Klin, Democrata
+    cleanDesc = cleanDesc.replace(/\b\d{6,10}\b/g, '');
+
+    // 6. Remove códigos específicos da Skechers (ex: GTW128608, 894389BRBBK)
+    cleanDesc = cleanDesc.replace(/\b[A-Z]{3}\d{6}\b/gi, '');
+    cleanDesc = cleanDesc.replace(/\b\d{6}[A-Z]{3,5}\b/gi, '');
+
+    // Padroniza/espaça as palavras de gênero/categoria
+    cleanDesc = cleanDesc.replace(/\b(MASCULINO|MASCULINA|FEMININO|FEMININA|INFANTIL|UNISEX|UNISSEX)\b/gi, ' $1 ');
+
+    // 7. Identifica palavra de gênero/categoria e faz o truncamento inteligente baseado na marca
+    const words = cleanDesc.trim().split(/\s+/);
+    
+    // Lista de marcas conhecidas de calçados
+    const brands = ['FILA', 'ADIDAS', 'NEW BALANCE', 'NB', 'OLYMPIKUS', 'OLY', 'PUMA', 'SKECHERS', 'KLIN', 'DEMOCRATA', 'BIBI', 'BULL TERRIER', 'SANDRINI'];
+    const genders = ['MASCULINO', 'MASCULINA', 'FEMININO', 'FEMININA', 'INFANTIL', 'UNISEX', 'UNISSEX'];
+    
+    let brandIdx = -1;
+    let genderIdx = -1;
+
+    for (let i = 0; i < words.length; i++) {
+      const wUpper = words[i].toUpperCase();
+      if (brandIdx === -1 && brands.includes(wUpper)) {
+        brandIdx = i;
+      }
+      if (genderIdx === -1 && genders.includes(wUpper)) {
+        genderIdx = i;
+      }
+    }
+
+    let shouldTruncate = false;
+    if (genderIdx !== -1) {
+      if (brandIdx !== -1) {
+        if (genderIdx - brandIdx >= 2) {
+          shouldTruncate = true;
+        }
+      } else {
+        if (genderIdx >= 3) {
+          shouldTruncate = true;
+        }
+      }
+    }
+
+    let cleanTitle = cleanDesc;
+    if (shouldTruncate && genderIdx !== -1) {
+      cleanTitle = words.slice(0, genderIdx + 1).join(' ');
+    }
+
+    // Limpezas de caracteres residuais
+    cleanTitle = cleanTitle.replace(/[\s\-,;:]+$/, '').replace(/^[\s\-,;:]+/, '').trim();
+
+    // Se tivermos um prefixSku extraído anteriormente, ou se houver um código de referência Fila
+    // no original (ex: F02TR00073, F01TR00065), queremos garantir que ele seja adicionado/mantido no final
+    let refCode = prefixSku;
+    if (!refCode) {
+      const refMatch = desc.match(/\b(F\d{2}[A-Z]{1,2}\d{3,5})\b/i);
+      if (refMatch) {
+        refCode = refMatch[1].toUpperCase();
+      }
+    }
+
+    if (refCode) {
+      if (!cleanTitle.toUpperCase().includes(refCode)) {
+        cleanTitle = `${cleanTitle} ${refCode}`;
+      }
+    }
+
+    cleanDesc = cleanTitle;
   }
 
   let baseTitle = cleanDesc;
