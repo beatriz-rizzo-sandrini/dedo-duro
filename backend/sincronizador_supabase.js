@@ -420,6 +420,159 @@ function validarColunasMapeamento(headers) {
   return hasSenior && hasDesc && hasPlat && hasSkuPlat;
 }
 
+function obterMarcaPorSkuEDesc(sku, desc) {
+  const cleanSku = String(sku || "").trim().toUpperCase();
+  const cleanDesc = String(desc || "").trim().toUpperCase();
+
+  // 1. Check SKU prefix
+  if (cleanSku.startsWith('SA') || cleanSku.startsWith('KSA') || cleanSku.startsWith('K4C') || cleanSku.startsWith('129') || cleanSku.startsWith('K10') || cleanSku.startsWith('000')) {
+    return 'SANDRINI';
+  }
+  if (cleanSku.startsWith('FL') || cleanSku.startsWith('KFL') || cleanSku.startsWith('F0')) {
+    return 'FILA';
+  }
+  if (cleanSku.startsWith('AD') || cleanSku.startsWith('KAD')) {
+    return 'ADIDAS';
+  }
+  if (cleanSku.startsWith('LP') || cleanSku.startsWith('KLP') || cleanSku.startsWith('523') || cleanSku.startsWith('LU') || cleanSku.startsWith('K64') || cleanSku.startsWith('K6M')) {
+    return 'LUPO';
+  }
+  if (cleanSku.startsWith('UM') || cleanSku.startsWith('KUM')) {
+    return 'UMBRO';
+  }
+  if (cleanSku.startsWith('KA') && !cleanSku.startsWith('KAD')) {
+    return 'KAGIVA';
+  }
+  if (cleanSku.startsWith('NB') || cleanSku.startsWith('KNB')) {
+    return 'NEW BALANCE';
+  }
+  if (cleanSku.startsWith('PM') || cleanSku.startsWith('KPM') || cleanSku.startsWith('K5C') || cleanSku.startsWith('K9M') || cleanSku.startsWith('ME')) {
+    return 'PUMA';
+  }
+  if (cleanSku.startsWith('OL')) {
+    return 'OLYMPIKUS';
+  }
+  if (cleanSku.startsWith('AS')) {
+    return 'ASICS';
+  }
+  if (cleanSku.startsWith('MO')) {
+    return 'MOLECA';
+  }
+  if (cleanSku.startsWith('VI') || cleanSku.startsWith('VZ')) {
+    return 'VIZZANO';
+  }
+  if (cleanSku.startsWith('AZ')) {
+    return 'AZALEIA';
+  }
+  if (cleanSku.startsWith('TO')) {
+    return 'TOPPER';
+  }
+  if (cleanSku.startsWith('KO')) {
+    return 'KORTEX';
+  }
+  if (cleanSku.startsWith('BE')) {
+    return 'BEIRA RIO';
+  }
+  if (cleanSku.startsWith('MR')) {
+    return 'MORMAII';
+  }
+  if (cleanSku.startsWith('AC')) {
+    return 'ACTVITA';
+  }
+  if (cleanSku.startsWith('BO')) {
+    return 'BOTTES';
+  }
+  if (cleanSku.startsWith('CO')) {
+    return 'CONFORT';
+  }
+  if (cleanSku.startsWith('NA') || cleanSku.startsWith('KNA')) {
+    return 'NAUTICA';
+  }
+  if (cleanSku.startsWith('13')) {
+    return 'SPEEDO';
+  }
+  if (cleanSku.startsWith('20')) {
+    return 'MORMAII';
+  }
+  if (cleanSku.startsWith('21')) {
+    return 'TECHNOS';
+  }
+  if (cleanSku.startsWith('32')) {
+    return 'MONDAINE';
+  }
+  if (cleanSku.startsWith('40')) {
+    return 'LOBA';
+  }
+  if (cleanSku.startsWith('44')) {
+    return 'SECULUS';
+  }
+  if (cleanSku.startsWith('54') || cleanSku.startsWith('55') || cleanSku.startsWith('56')) {
+    return 'MOLECA';
+  }
+  if (cleanSku.startsWith('71')) {
+    return 'MODARE';
+  }
+  if (cleanSku.startsWith('78')) {
+    return 'ZORBA';
+  }
+  if (cleanSku.startsWith('83') || cleanSku.startsWith('99')) {
+    return 'MONDAINE';
+  }
+  if (cleanSku.startsWith('SU')) {
+    return 'SPEEDO';
+  }
+  if (cleanSku.startsWith('CU')) {
+    return 'SANDRINI';
+  }
+  if (cleanSku.startsWith('CP')) {
+    return 'CHAMPION';
+  }
+  if (cleanSku.startsWith('RO')) {
+    return 'ORIENT';
+  }
+  if (cleanSku.startsWith('MB')) {
+    return 'ORIENT';
+  }
+  if (cleanSku.startsWith('CN')) {
+    return 'CHAMPION';
+  }
+  if (cleanSku.startsWith('RT')) {
+    return 'TECHNOS';
+  }
+  if (cleanSku.startsWith('JP')) {
+    return 'JOTA PE';
+  }
+  if (cleanSku.startsWith('SK')) {
+    return 'SKECHERS';
+  }
+  if (cleanSku.startsWith('KMS')) {
+    return 'MASH';
+  }
+
+  // 2. Fallback to checking terms in description/SKU
+  if (cleanDesc.includes('SANDRINI') || cleanSku.includes('SANDRINI')) return 'SANDRINI';
+  if (cleanDesc.includes('FILA') || cleanSku.includes('FILA')) return 'FILA';
+  if (cleanDesc.includes('ADIDAS') || cleanSku.includes('ADIDAS')) return 'ADIDAS';
+  if (cleanDesc.includes('LUPO') || cleanSku.includes('LUPO')) return 'LUPO';
+  if (cleanDesc.includes('UMBRO') || cleanSku.includes('UMBRO')) return 'UMBRO';
+  if (cleanDesc.includes('KAGIVA') || cleanSku.includes('KAGIVA')) return 'KAGIVA';
+  if (cleanDesc.includes('NEW BALANCE') || cleanSku.includes('NEWBALANCE')) return 'NEW BALANCE';
+  if (cleanDesc.includes('PUMA') || cleanSku.includes('PUMA')) return 'PUMA';
+  if (cleanDesc.includes('OLYMPIKUS') || cleanSku.includes('OLYMPIKUS')) return 'OLYMPIKUS';
+  if (cleanDesc.includes('ASICS') || cleanSku.includes('ASICS')) return 'ASICS';
+  if (cleanDesc.includes('MOLECA') || cleanSku.includes('MOLECA')) return 'MOLECA';
+  if (cleanDesc.includes('VIZZANO') || cleanSku.includes('VIZZANO')) return 'VIZZANO';
+  if (cleanDesc.includes('AZALEIA') || cleanSku.includes('AZALEIA')) return 'AZALEIA';
+  if (cleanDesc.includes('TOPPER') || cleanSku.includes('TOPPER')) return 'TOPPER';
+  if (cleanDesc.includes('KORTEX') || cleanSku.includes('KORTEX')) return 'KORTEX';
+  if (cleanDesc.includes('BEIRA RIO') || cleanDesc.includes('BEIRARIO')) return 'BEIRA RIO';
+  if (cleanDesc.includes('MORMAII') || cleanSku.includes('MORMAII')) return 'MORMAII';
+  if (cleanDesc.includes('ACTVITA') || cleanSku.includes('ACTVITA')) return 'ACTVITA';
+  if (cleanDesc.includes('NAUTICA') || cleanSku.includes('NAUTICA')) return 'NAUTICA';
+
+  return 'Sem Marca';
+}
+
 async function syncMapeamento() {
   console.log('🔄 Sincronizando Mapeamento de SKUs (via CSV)...');
   try {
@@ -451,7 +604,6 @@ async function syncMapeamento() {
       const desc = cols[1] || null;
       const plat = cols[2] || null;
       const skuPlat = cols[3] || null;
-      const marca = null; // A planilha atual não tem coluna de marca
 
       if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') {
         let finalSkuSen = skuSen ? String(skuSen).trim() : null;
@@ -493,12 +645,47 @@ async function syncMapeamento() {
           }
         }
 
+        const skuToClassify = finalSkuSen || String(skuPlat).trim();
+        const brand = obterMarcaPorSkuEDesc(skuToClassify, finalDesc);
+
         insertData.push({
           sku_plataforma: String(skuPlat).trim(),
           plataforma: String(plat).toUpperCase().trim(),
           sku_senior: finalSkuSen,
           descricao_oficial: finalDesc,
-          marca_oficial: marca
+          marca_oficial: brand
+        });
+      }
+    }
+
+    // Adiciona mapeamentos para Fila Duality 2 que estão faltando
+    const missingFilaMappings = [
+      // Feminino GRF/PTO/CBR 6851
+      { skuPlat: 'F02R00172CGRPTCBRT35', skuSen: 'FL000012871BPAACS350258', desc: 'Tênis Fila Duality 2 Feminino' },
+      { skuPlat: 'F02R00172CGRPTCBRT36', skuSen: 'FL000012871BPAACS360257', desc: 'Tênis Fila Duality 2 Feminino' },
+      { skuPlat: 'F02R00172CGRPTCBRT37', skuSen: 'FL000012871BPAACS370256', desc: 'Tênis Fila Duality 2 Feminino' },
+      { skuPlat: 'F02R00172CGRPTCBRT38', skuSen: 'FL000012871BPAACS380259', desc: 'Tênis Fila Duality 2 Feminino' },
+      { skuPlat: 'F02R00172CGRPTCBRT39', skuSen: 'FL000012871BPAACS390261', desc: 'Tênis Fila Duality 2 Feminino' },
+      { skuPlat: 'F02R00172CGRPTCBRT40', skuSen: 'FL000012871BPAACS400260', desc: 'Tênis Fila Duality 2 Feminino' },
+      
+      // Masculino CBRPTLR
+      { skuPlat: 'F01R00165CBRPTLRT38', skuSen: 'FL000012871ABAAAV380268', desc: 'Tênis Fila Duality 2 Masculino' },
+      { skuPlat: 'F01R00165CBRPTLRT39', skuSen: 'FL000012871ABAAAV390273', desc: 'Tênis Fila Duality 2 Masculino' },
+      { skuPlat: 'F01R00165CBRPTLRT40', skuSen: 'FL000012871ABAAAV400272', desc: 'Tênis Fila Duality 2 Masculino' },
+      { skuPlat: 'F01R00165CBRPTLRT41', skuSen: 'FL000012871ABAAAV410271', desc: 'Tênis Fila Duality 2 Masculino' },
+      { skuPlat: 'F01R00165CBRPTLRT42', skuSen: 'FL000012871ABAAAV420270', desc: 'Tênis Fila Duality 2 Masculino' },
+      { skuPlat: 'F01R00165CBRPTLRT43', skuSen: 'FL000012871ABAAAV430269', desc: 'Tênis Fila Duality 2 Masculino' },
+    ];
+
+    const platforms = ['MELI SP', 'MELI MG', 'NETSHOES', 'DAFITI', 'SHOPEE', 'AMAZON', 'MAGALU'];
+    for (const mapping of missingFilaMappings) {
+      for (const plat of platforms) {
+        insertData.push({
+          sku_plataforma: mapping.skuPlat,
+          plataforma: plat,
+          sku_senior: mapping.skuSen,
+          descricao_oficial: mapping.desc,
+          marca_oficial: 'FILA'
         });
       }
     }

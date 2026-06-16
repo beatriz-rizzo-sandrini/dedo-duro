@@ -175,6 +175,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   cleanDesc = cleanDesc.replace(/;\s*.*$/i, '');
   cleanDesc = cleanDesc.replace(/[\s\-,;:]+$/, '').trim();
 
+  // Se for da marca FILA, remove códigos de cor de 4 dígitos (ex: 6813, 7068)
+  if (cleanDesc.toUpperCase().includes('FILA')) {
+    cleanDesc = cleanDesc.replace(/\b\d{4}\b/g, '');
+  }
+
   let baseTitle = cleanDesc;
   baseTitle = baseTitle.replace(/\b\d{2}\s*Br\b/gi, '').trim();
 
