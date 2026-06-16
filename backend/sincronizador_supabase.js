@@ -181,28 +181,20 @@ async function syncVendas() {
   const currentMonthTab = MONTHS[new Date().getMonth()];
   
   if (currentMonthTab && currentMonthTab !== 'VENDAS') {
-    console.log('   🔍 Verificando abas disponíveis na planilha...');
-    const availableTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
-    console.log('   Abas detectadas:', availableTabs.join(', '));
+    let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
+    if (!isFullSync && query) {
+      monthlyUrl += `&tq=${query}`;
+    }
     
-    if (availableTabs.includes(currentMonthTab)) {
-      let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
-      if (!isFullSync && query) {
-        monthlyUrl += `&tq=${query}`;
+    try {
+      console.log(`   🗓️ Buscando aba mensal ativa diretamente: "${currentMonthTab}"...`);
+      const monthlyRows = await fetchSheetData(monthlyUrl);
+      if (monthlyRows && monthlyRows.length > 0) {
+        console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
+        processarLinhas(monthlyRows, true);
       }
-      
-      try {
-        console.log(`   🗓️ Buscando aba mensal ativa: "${currentMonthTab}"...`);
-        const monthlyRows = await fetchSheetData(monthlyUrl);
-        if (monthlyRows && monthlyRows.length > 0) {
-          console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
-          processarLinhas(monthlyRows, true);
-        }
-      } catch (err) {
-        console.log(`   ℹ️ Erro ao obter dados da aba mensal "${currentMonthTab}":`, err.message);
-      }
-    } else {
-      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não existe na planilha. Sincronização mensal ignorada.`);
+    } catch (err) {
+      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não está ativa ou não pôde ser carregada:`, err.message);
     }
   }
 
