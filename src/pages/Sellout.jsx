@@ -271,6 +271,13 @@ export default function Sellout() {
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
       const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const skuPlat = r?.c?.[7]?.v || "";
+      if (
+        sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
+        skuPlat === 'TENISNEWBB80CBRPTOT38' || skuPlat === 'TENISNEWBB80CBRPTOT41' || skuPlat === 'AD000IF4135ABAJCN430031'
+      ) {
+        return;
+      }
       const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
@@ -283,7 +290,7 @@ export default function Sellout() {
         if (marca) setMarcas.add(marca);
         if (local) setLocais.add(local);
 
-        const parsed = parseProductDescription(rawDesc, sku, local.includes("BUY CLOCK"));
+        const parsed = parseProductDescription(rawDesc, sku, local.includes("BUY CLOCK"), marca);
         const prodKey = `${parsed.baseTitle}|${marca}`;
 
         if (!stats[prodKey]) {
@@ -355,6 +362,12 @@ export default function Sellout() {
       
       const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const skuPlat = r?.c?.[6]?.v || "";
+      if (
+        sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
+        skuPlat === 'TENISNEWBB80CBRPTOT38' || skuPlat === 'TENISNEWBB80CBRPTOT41' || skuPlat === 'AD000IF4135ABAJCN430031'
+      ) {
+        return;
+      }
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
       const marca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").toUpperCase().trim();
@@ -369,7 +382,7 @@ export default function Sellout() {
       // Filtra vendas de hoje em diante (fora do período encerrado)
       if (dataVendaTime > ontemTime) return;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), marca);
       const prodKey = `${parsed.baseTitle}|${marca}`;
 
       if (!stats[prodKey]) {
@@ -452,6 +465,8 @@ export default function Sellout() {
     // Recalcular os estoques casa usando os mapas das planilhas externas
     Object.values(stats).forEach(prod => {
       let prodTotalEstoque = 0;
+      let prodPlatEstoque = 0;
+      let prodCasaEstoque = 0;
       Object.values(prod.cores).forEach(cor => {
         let corTotalEstoque = 0;
         Object.values(cor.variacoes).forEach(v => {
@@ -473,11 +488,15 @@ export default function Sellout() {
           v.estoque = v.estoqueTotal;
           
           corTotalEstoque += v.estoqueTotal;
+          prodPlatEstoque += v.estoquePlataforma;
+          prodCasaEstoque += v.estoqueCasa;
         });
         cor.totalEstoque = corTotalEstoque;
         prodTotalEstoque += corTotalEstoque;
       });
       prod.totalEstoque = prodTotalEstoque;
+      prod.estoquePlataforma = prodPlatEstoque;
+      prod.estoqueCasa = prodCasaEstoque;
     });
 
     const rows = Object.values(stats);
@@ -551,7 +570,7 @@ export default function Sellout() {
       if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
       if (dataVendaTime > ontemTime) return;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), marca);
       const prodKey = `${parsed.baseTitle}|${marca}`;
 
       if (activeProdKeys.has(prodKey)) {
@@ -724,6 +743,8 @@ export default function Sellout() {
   const executeExport = (type, mode, useFilters, selectedPdfType = pdfType) => {
     setIsExportPromptOpen(false);
     
+    const isSupplier = selectedPdfType === 'fornecedor';
+    
     let rowsToExport = [];
     let totalSalesVal = 0;
     
@@ -765,7 +786,11 @@ export default function Sellout() {
         filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.label).join(', ')}`,
         filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.label).join(', ')}`
       ].filter(Boolean),
-      kpis: [
+      kpis: isSupplier ? [
+        { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
+        { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
+        { label: "ESTOQUE TOTAL", value: rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0).toLocaleString('pt-BR'), sub: "peças físicas" }
+      ] : [
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
         { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
         { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
@@ -807,7 +832,6 @@ export default function Sellout() {
       });
     } else {
       if (type === 'pdf') {
-        const isSupplier = selectedPdfType === 'fornecedor';
         headers = isSupplier
           ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Total"]
           : ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Estoque Total", "Cobertura"];
@@ -827,8 +851,8 @@ export default function Sellout() {
               item.descricao,
               item.marca,
               parentSales,
-              '-',
-              '-',
+              item.estoquePlataforma,
+              item.estoqueCasa,
               item.totalEstoque,
               '-'
             ]);
@@ -846,8 +870,8 @@ export default function Sellout() {
               const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? `${corObj.cor}` : 'SEM COR';
               const sizePart = v.size && v.size !== 'U' ? `Tam ${v.size}` : 'Tamanho Único';
               
-              const descStr = `     - ${colorPart} - ${sizePart}`;
-              const eanVal = eanMapping[String(v.sku).toUpperCase().trim()] || v.sku;
+              const descStr = `     - ${v.sku} - ${colorPart} - ${sizePart}`;
+              const eanVal = eanMapping[String(v.sku).toUpperCase().trim()] || '-';
               const skuStr = `${eanVal}`;
 
               if (isSupplier) {

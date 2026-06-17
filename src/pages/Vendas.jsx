@@ -57,6 +57,7 @@ export default function Vendas() {
   const estoqueRows = data.estoque || [];
 
   const [filtroLocal, setFiltroLocal] = useState([]);
+  const [filtroMarca, setFiltroMarca] = useState([]);
   const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
   const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [buscaInput, setBuscaInput] = useState('');
@@ -104,6 +105,19 @@ export default function Vendas() {
       if (l) setLocais.add(l);
     });
     return Array.from(setLocais);
+  }, [vendasRows, selectedCompany]);
+
+  const marcas = useMemo(() => {
+    if (!vendasRows) return [];
+    const setMarcas = new Set();
+    vendasRows.forEach(r => {
+      const m = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    return Array.from(setMarcas).sort();
   }, [vendasRows, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
@@ -156,14 +170,15 @@ export default function Vendas() {
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
       if (dateRow < inicioTime) return;
       if (dateRow > fimTime) return;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
 
       // Agrupamento Tudo (ignora busca e filtroLocal, mas respeita período e companhia)
       const prodKey = `${parsed.baseTitle}|${local}`;
@@ -207,6 +222,7 @@ export default function Vendas() {
 
       // Agora aplica os filtros de busca e local para a visualização na tela
       if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
+      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === brand.toUpperCase().trim())) return;
 
       if (busca) {
         const termos = busca.toLowerCase().trim().split(/\s+/);
@@ -345,14 +361,14 @@ export default function Vendas() {
     } : null;
 
     return { linhas, linhasTudo, totalItens, chartData, chartLocalData, chartProdutosData, dataEstoque, dataVendas };
-  }, [vendasRows, estoqueRows, filtroLocal, dataIni, dataFim, busca, sortConfig, selectedCompany]);
+  }, [vendasRows, estoqueRows, filtroLocal, filtroMarca, dataIni, dataFim, busca, sortConfig, selectedCompany]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type, mode = 'detalhado') => {
-    const hasActiveFilters = busca.trim() !== '' || filtroLocal.length > 0;
+    const hasActiveFilters = busca.trim() !== '' || filtroLocal.length > 0 || filtroMarca.length > 0;
     if (hasActiveFilters) {
       setPendingExportType(type);
       setPendingExportMode(mode);
@@ -375,7 +391,8 @@ export default function Vendas() {
       subTitle: `Relatório de Vendas (${modeStr}) • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal: ${selectedCompany}`,
       filters: useFilters ? [
         busca.trim() && `Busca: "${busca.trim()}"`,
-        filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.value).join(', ')}`
+        filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.value).join(', ')}`,
+        filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.value).join(', ')}`
       ].filter(Boolean) : [],
       kpis: [
         { label: "TOTAL VENDIDO", value: totalExportVal.toLocaleString('pt-BR'), sub: "peças no período" }
@@ -418,7 +435,7 @@ export default function Vendas() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filtroLocal, dataIni, dataFim, busca, selectedCompany]);
+  }, [filtroLocal, filtroMarca, dataIni, dataFim, busca, selectedCompany]);
 
   if (loading) {
     return (
@@ -498,6 +515,20 @@ export default function Vendas() {
               onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '150px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
+          <Select
+            isMulti
+            options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
+            value={filtroMarca}
+            onChange={setFiltroMarca}
+            placeholder="Todas as Marcas"
+            className="react-select-container"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '150px' }}>
@@ -867,6 +898,11 @@ export default function Vendas() {
                   {filtroLocal.length > 0 && (
                     <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
                       Locais ({filtroLocal.length})
+                    </span>
+                  )}
+                  {filtroMarca.length > 0 && (
+                    <span style={{ fontSize: '12px', background: '#f5f3ff', border: '1px solid #e0e7ff', color: '#6d28d9', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Marcas ({filtroMarca.length})
                     </span>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase.js';
-import { autoResolveMeliSku } from '../utils/productParser.js';
+import { autoResolveMeliSku, normalizeBrand } from '../utils/productParser.js';
+import { normalizeDateStr, parseToTimestamp } from '../utils/dateUtils.js';
 
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
@@ -146,10 +147,63 @@ async function fetchEstoqueSupabase() {
   const PAGE_SIZE = 1000;
   
   try {
+    let possibleDbValues = null;
+    try {
+      const { data: dateRows, error: dateError } = await supabase
+        .from('silver_estoque')
+        .select('data_atualizacao');
+      
+      if (!dateError && dateRows && dateRows.length > 0) {
+        const dateCounts = {};
+        dateRows.forEach(r => {
+          const dStr = r.data_atualizacao;
+          if (dStr) {
+            const norm = normalizeDateStr(dStr);
+            dateCounts[norm] = (dateCounts[norm] || 0) + 1;
+          }
+        });
+
+        let maxTimestamp = 0;
+        let latestCompleteDate = "";
+        let maxCount = 0;
+        let fallbackDate = "";
+
+        Object.entries(dateCounts).forEach(([normDate, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            fallbackDate = normDate;
+          }
+          if (count >= 200) {
+            const ts = parseToTimestamp(normDate);
+            if (ts > maxTimestamp) {
+              maxTimestamp = ts;
+              latestCompleteDate = normDate;
+            }
+          }
+        });
+
+        const targetNormalizedDate = latestCompleteDate || fallbackDate;
+        if (targetNormalizedDate) {
+          possibleDbValues = [];
+          const parts = targetNormalizedDate.split('/');
+          if (parts.length === 3) {
+            possibleDbValues.push(`${parts[0]}/${parts[1]}`);
+            possibleDbValues.push(targetNormalizedDate);
+          } else {
+            possibleDbValues.push(targetNormalizedDate);
+          }
+        }
+      }
+    } catch (dateErr) {
+      console.warn('[DataContext] Falha ao obter datas de estoque do Supabase, buscando tudo como fallback:', dateErr);
+    }
+
     // 1. Obtém o total de registros (head request rápido)
-    const { count, error: countError } = await supabase
-      .from('vw_estoque_consolidado')
-      .select('*', { count: 'exact', head: true });
+    let query = supabase.from('vw_estoque_consolidado').select('*', { count: 'exact', head: true });
+    if (possibleDbValues) {
+      query = query.in('data_atualizacao', possibleDbValues);
+    }
+    const { count, error: countError } = await query;
 
     if (countError) throw countError;
 
@@ -164,16 +218,21 @@ async function fetchEstoqueSupabase() {
     for (let page = 0; page < totalPages; page++) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
+      let pageQuery = supabase
+        .from('vw_estoque_consolidado')
+        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+        .order('id', { ascending: false })
+        .range(from, to);
+
+      if (possibleDbValues) {
+        pageQuery = pageQuery.in('data_atualizacao', possibleDbValues);
+      }
+
       promises.push(
-        supabase
-          .from('vw_estoque_consolidado')
-          .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
-          .order('id', { ascending: false })
-          .range(from, to)
-          .then(({ data, error }) => {
-            if (error) throw error;
-            return data || [];
-          })
+        pageQuery.then(({ data, error }) => {
+          if (error) throw error;
+          return data || [];
+        })
       );
     }
 
@@ -350,7 +409,7 @@ export function DataProvider({ children }) {
             { v: mappedSku }, // sku mapped
             { v: mappedDesc }, // desc mapped
             r.c[4], // qtd
-            r.c[5], // marca
+            { v: normalizeBrand(r.c[5]?.v || "", mappedSku, mappedDesc) }, // brand normalized
             { v: rawSku } // index 6: original platform SKU
           ]
         };
@@ -374,7 +433,7 @@ export function DataProvider({ children }) {
             { v: mappedSku }, // sku mapped
             { v: mappedDesc }, // desc mapped
             r.c[3], // local
-            r.c[4], // marca
+            { v: normalizeBrand(r.c[4]?.v || "", mappedSku, mappedDesc) }, // brand normalized
             r.c[5], // qtd
             r.c[6], // valor
             { v: rawSku } // index 7: original platform SKU

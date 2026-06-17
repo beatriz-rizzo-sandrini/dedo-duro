@@ -13,6 +13,22 @@ import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
 import { parseProductDescription } from '../utils/productParser';
 
+const getYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+const get29DaysBeforeYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30); // 30 dias no total
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export default function Cobertura() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
@@ -21,8 +37,9 @@ export default function Cobertura() {
   const caminhoRows = data.caminho || [];
 
   const [filtroLocal, setFiltroLocal] = useState([]);
-  const [dataIni, setDataIni] = useState('');
-  const [dataFim, setDataFim] = useState('');
+  const [filtroMarca, setFiltroMarca] = useState([]);
+  const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
+  const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
 
@@ -65,6 +82,25 @@ export default function Cobertura() {
     return Array.from(setLocais);
   }, [estoqueRows, selectedCompany]);
 
+  const marcas = useMemo(() => {
+    const setMarcas = new Set();
+    vendasRows.forEach(r => {
+      const m = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    estoqueRows.forEach(r => {
+      const m = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    return Array.from(setMarcas).sort();
+  }, [vendasRows, estoqueRows, selectedCompany]);
+
   const dadosProcessados = useMemo(() => {
     if (!vendasRows.length && !estoqueRows.length) return { linhas: [], diasPeriodo: 30, dataEstoque: "" };
 
@@ -75,20 +111,25 @@ export default function Cobertura() {
     if (dataIni && dataFim) {
       const start = new Date(dataIni);
       const end = new Date(dataFim);
-      diasPeriodo = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      diasPeriodo = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
       if (diasPeriodo < 1) diasPeriodo = 1;
     }
 
     const skuToDesc = {};
+    const skuToBrand = {};
     vendasRows.forEach(r => {
       const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      if (sku && brand) skuToBrand[sku] = brand.trim().toUpperCase();
     });
     estoqueRows.forEach(r => {
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
+      const brand = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      if (sku && brand) skuToBrand[sku] = brand.trim().toUpperCase();
     });
 
     const agrupado = {};
@@ -109,15 +150,19 @@ export default function Cobertura() {
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
+
+      const brand = (r?.c?.[COL_VENDAS.MARCA]?.v || skuToBrand[sku] || "").trim().toUpperCase();
+      if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
+
       if (dataIni && dataRow < new Date(dataIni)) return;
       if (dataFim && dataRow > new Date(dataFim)) return;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -163,13 +208,16 @@ export default function Cobertura() {
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const brand = (r?.c?.[COL_ESTOQUE.MARCA]?.v || skuToBrand[sku] || "").trim().toUpperCase();
+      if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
+
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -212,11 +260,14 @@ export default function Cobertura() {
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
       if (status === 'FINALIZADO') return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
+
+      const brand = (skuToBrand[sku] || "").trim().toUpperCase();
+      if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
 
       const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));
       const prodKey = `${parsed.baseTitle}|${local}`;
@@ -291,7 +342,7 @@ export default function Cobertura() {
     }
 
     return { linhas, diasPeriodo, dataEstoque, dataVendas };
-  }, [vendasRows, estoqueRows, caminhoRows, filtroLocal, dataIni, dataFim, busca, filtroStatus, sortConfig, selectedCompany]);
+  }, [vendasRows, estoqueRows, caminhoRows, filtroLocal, filtroMarca, dataIni, dataFim, busca, filtroStatus, sortConfig, selectedCompany]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
@@ -359,7 +410,7 @@ export default function Cobertura() {
   // Ao mudar filtros, reseta a página
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filtroLocal, dataIni, dataFim, busca, filtroStatus, selectedCompany]);
+  }, [filtroLocal, filtroMarca, dataIni, dataFim, busca, filtroStatus, selectedCompany]);
 
   if (loading) {
     return (
@@ -466,6 +517,20 @@ export default function Cobertura() {
             value={filtroLocal.map(l => ({ value: l, label: toTitleCase(l) }))}
             onChange={opts => setFiltroLocal(opts ? opts.map(o => o.value) : [])}
             placeholder="Todos os Locais"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '260px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
+          <Select
+            isMulti
+            closeMenuOnSelect={false}
+            options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
+            value={filtroMarca.map(m => ({ value: m, label: toTitleCase(m) }))}
+            onChange={opts => setFiltroMarca(opts ? opts.map(o => o.value) : [])}
+            placeholder="Todas as Marcas"
             classNamePrefix="react-select"
             styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
           />

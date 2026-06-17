@@ -7,7 +7,7 @@ import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_CAMINHO } from '../utils/sheetColumns';
+import { COL_CAMINHO, COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
 import { parseProductDescription } from '../utils/productParser';
 import MobileTable from '../components/MobileTable';
 
@@ -15,8 +15,11 @@ export default function Reposicao() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
   const caminhoRows = data.caminho || [];
+  const estoqueRows = data.estoque || [];
+  const vendasRows = data.vendas || [];
   
-  const [filtroLocal, setFiltroLocal] = useState('');
+  const [filtroLocal, setFiltroLocal] = useState([]);
+  const [filtroMarca, setFiltroMarca] = useState([]);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
@@ -72,15 +75,49 @@ export default function Reposicao() {
     return { locais: Array.from(lSet), statusSet: Array.from(sSet) };
   }, [caminhoRows, selectedCompany]);
 
+  const { skuToDesc, skuToBrand } = useMemo(() => {
+    const descMap = {};
+    const brandMap = {};
+    estoqueRows.forEach(r => {
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const brand = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      if (sku && desc) descMap[sku] = desc;
+      if (sku && brand) brandMap[sku] = brand;
+    });
+    vendasRows.forEach(r => {
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      if (sku && desc && !descMap[sku]) descMap[sku] = desc;
+      if (sku && brand && !brandMap[sku]) brandMap[sku] = brand;
+    });
+    return { skuToDesc: descMap, skuToBrand: brandMap };
+  }, [estoqueRows, vendasRows]);
+
+  const marcas = useMemo(() => {
+    if (!caminhoRows.length) return [];
+    const setMarcas = new Set();
+    caminhoRows.forEach(r => {
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const skuPlat = r?.c?.[8]?.v || "";
+      let brand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
+      if (!brand) {
+        let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+        if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+        const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
+        const parsedBrand = parseProductDescription(desc, sku, local.includes("BUY CLOCK"))?.brand || "";
+        brand = parsedBrand;
+      }
+      if (brand) setMarcas.add(brand.trim().toUpperCase());
+    });
+    return Array.from(setMarcas).sort();
+  }, [caminhoRows, skuToBrand, skuToDesc]);
+
   const dadosProcessados = useMemo(() => {
     if (!caminhoRows.length) return { envios: [], produtos: [], totalGeral: 0 };
     
-    const skuToDesc = {};
-    caminhoRows.forEach(r => {
-      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
-      const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
-      if (sku && desc) skuToDesc[sku] = desc;
-    });
+    // Usando maps globais de descrição e marca de useMemo
 
     let totalGeral = 0;
     const agrupadoEnvio = {};
@@ -135,7 +172,15 @@ export default function Reposicao() {
         envio = String(r?.c?.[COL_CAMINHO.NF].v).toUpperCase().trim();
       }
 
-      if (filtroLocal && local !== filtroLocal) return;
+      let brand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
+      if (!brand) {
+        const parsedBrand = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"))?.brand || "";
+        brand = parsedBrand;
+      }
+      brand = (brand || "Sem Marca").trim().toUpperCase();
+
+      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
+      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === brand)) return;
       if (filtroStatus && status !== filtroStatus) return;
       if (inicioTime && previsaoTime && previsaoTime < inicioTime) return;
       if (fimTime !== Infinity && previsaoTime && previsaoTime > fimTime) return;
@@ -325,7 +370,7 @@ export default function Reposicao() {
     }
 
     return { envios, produtos, totalGeral };
-  }, [caminhoRows, filtroLocal, filtroStatus, dataIni, dataFim, busca, sortConfig, selectedCompany]);
+  }, [caminhoRows, skuToDesc, skuToBrand, filtroLocal, filtroMarca, filtroStatus, dataIni, dataFim, busca, sortConfig, selectedCompany]);
 
   // Paginação
   const totalPaginas = Math.ceil((visao === 'envio' ? dadosProcessados.envios.length : dadosProcessados.produtos.length) / itensPorPagina);
@@ -387,7 +432,7 @@ export default function Reposicao() {
   React.useEffect(() => {
     setCurrentPage(1);
     setExpandedEnvio(null);
-  }, [filtroLocal, filtroStatus, dataIni, dataFim, busca, selectedCompany, visao]);
+  }, [filtroLocal, filtroMarca, filtroStatus, dataIni, dataFim, busca, selectedCompany, visao]);
 
   if (loading) {
     return (
@@ -524,14 +569,25 @@ export default function Reposicao() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
+          <Select 
+            isMulti
+            options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
+            value={filtroMarca}
+            onChange={setFiltroMarca}
+            placeholder="Todas as Marcas"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL / CANAL</label>
           <Select 
-            options={[
-              { value: '', label: 'Todos' },
-              ...locais.map(l => ({ value: l, label: toTitleCase(l) }))
-            ]}
-            value={{ value: filtroLocal, label: filtroLocal ? toTitleCase(filtroLocal) : 'Todos' }}
-            onChange={opt => setFiltroLocal(opt.value)}
+            isMulti
+            options={locais.map(l => ({ value: l, label: toTitleCase(l) }))}
+            value={filtroLocal}
+            onChange={setFiltroLocal}
             placeholder="Todos os Locais"
             classNamePrefix="react-select"
             styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}

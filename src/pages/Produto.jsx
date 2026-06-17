@@ -65,6 +65,22 @@ function SkuRow({ s, loc, addToCart }) {
   );
 }
 
+const getYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+const get29DaysBeforeYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30); // 30 dias no total
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export default function Produto() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
@@ -87,8 +103,8 @@ export default function Produto() {
   const [carrinho, setCarrinho] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const [dataIni, setDataIni] = useState('');
-  const [dataFim, setDataFim] = useState('');
+  const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
+  const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [diasCobertura, setDiasCobertura] = useState(60);
 
   const [sortConfig, setSortConfig] = useState({ key: 'reposicaoTotal', direction: 'desc' });
@@ -110,16 +126,6 @@ export default function Produto() {
   };
 
   useEffect(() => {
-    if (!dataIni && !dataFim) {
-      const hoje = new Date();
-      const trintaDiasAtras = new Date();
-      trintaDiasAtras.setDate(hoje.getDate() - 30);
-      setDataFim(hoje.toISOString().split('T')[0]);
-      setDataIni(trintaDiasAtras.toISOString().split('T')[0]);
-    }
-  }, [dataIni, dataFim]);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [busca, dataIni, dataFim, diasCobertura, selectedCompany]);
 
@@ -129,7 +135,7 @@ export default function Produto() {
 
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
-      diasPeriodo = (new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24) + 1;
+      diasPeriodo = Math.round((new Date(dataFim) - new Date(dataIni)) / (1000 * 60 * 60 * 24)) + 1;
     }
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
@@ -176,10 +182,10 @@ export default function Produto() {
 
     // Cache map for parseProductDescription
     const parseCache = new Map();
-    const memoizedParseProductDescription = (desc, sku, isWatch) => {
-      const key = `${desc}||${sku}||${isWatch}`;
+    const memoizedParseProductDescription = (desc, sku, isWatch, brand) => {
+      const key = `${desc}||${sku}||${isWatch}||${brand}`;
       if (parseCache.has(key)) return parseCache.get(key);
-      const res = parseProductDescription(desc, sku, isWatch);
+      const res = parseProductDescription(desc, sku, isWatch, brand);
       parseCache.set(key, res);
       return res;
     };
@@ -213,11 +219,12 @@ export default function Produto() {
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const brand = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -302,11 +309,12 @@ export default function Produto() {
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
       if (!desc) desc = `SKU: ${sku}`;
 
-      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"));
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const parsed = memoizedParseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
       const prodKey = `${parsed.baseTitle}|${local}`;
 
       if (!agrupado[prodKey]) {
@@ -443,11 +451,15 @@ export default function Produto() {
         const descLower = (l.descricao || "").toLowerCase();
         const localLower = (l.local || "").toLowerCase();
         const skusArray = (l.skusArr || []).map(s => s.toLowerCase());
+        const coresArray = (l.cores || []).map(c => (c.cor || "").toLowerCase());
+        const tamanhosArray = (l.cores || []).flatMap(c => (c.variacoes || []).map(v => (v.size || "").toLowerCase()));
         
         return termos.every(termo => 
           descLower.includes(termo) || 
           localLower.includes(termo) ||
-          skusArray.some(sku => sku.includes(termo))
+          skusArray.some(sku => sku.includes(termo)) ||
+          coresArray.some(cor => cor.includes(termo)) ||
+          tamanhosArray.some(t => t === termo || t.includes(termo))
         );
       });
     }
@@ -764,6 +776,7 @@ export default function Produto() {
 
                           <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                             <input
+                              key={`mob-repo-val-${row.local}-${s.sku}-${s.reposicaoSugerida}`}
                               type="number"
                               className="input-padrao"
                               style={{ flex: 1, padding: '4px 8px', minHeight: '32px', fontSize: '12px' }}

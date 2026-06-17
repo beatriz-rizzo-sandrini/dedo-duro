@@ -23,7 +23,8 @@ export default function Alertas() {
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [tipoAlerta, setTipoAlerta] = useState('todos');
-  const [filtroLocal, setFiltroLocal] = useState('');
+  const [filtroLocal, setFiltroLocal] = useState([]);
+  const [filtroMarca, setFiltroMarca] = useState([]);
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
   const [isExportPromptOpen, setIsExportPromptOpen] = useState(false);
@@ -47,6 +48,25 @@ export default function Alertas() {
     });
     return Array.from(lSet).sort();
   }, [estoqueRows, selectedCompany]);
+
+  const marcas = useMemo(() => {
+    const setMarcas = new Set();
+    vendasRows.forEach(r => {
+      const m = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    estoqueRows.forEach(r => {
+      const m = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
+      const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (m) setMarcas.add(m.trim().toUpperCase());
+    });
+    return Array.from(setMarcas).sort();
+  }, [vendasRows, estoqueRows, selectedCompany]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(10);
@@ -81,6 +101,23 @@ export default function Alertas() {
       diasPeriodo = (maxDate - minDate) / (1000 * 60 * 60 * 24) + 1;
       if (diasPeriodo < 1) diasPeriodo = 1;
     }
+
+    const skuToDesc = {};
+    const skuToBrand = {};
+    estoqueRows.forEach(r => {
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      if (sku && desc) skuToDesc[sku] = desc;
+      const brand = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      if (sku && brand) skuToBrand[sku] = brand.trim().toUpperCase();
+    });
+    vendasRows.forEach(r => {
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      if (sku && brand && !skuToBrand[sku]) skuToBrand[sku] = brand.trim().toUpperCase();
+    });
 
     const vendasMap = {};
 
@@ -149,6 +186,7 @@ export default function Alertas() {
       const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
       const skuPlat = r?.c?.[7]?.v || "";
       let descricao = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      descricao = skuToDesc[sku] || descricao;
       const qtdEstoque = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
       const key = local + "|" + sku;
       const vendas = vendasMap[key] || 0;
@@ -185,7 +223,11 @@ export default function Alertas() {
 
         alertasTudo.push({ local, sku, skuPlat, descricao: cleanDesc, qtdEstoque, vendas, cobertura, alertaT, alertaI });
 
-        if (filtroLocal && local !== filtroLocal) return;
+        if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
+
+        const brand = (r?.c?.[COL_ESTOQUE.MARCA]?.v || skuToBrand[sku] || "").trim().toUpperCase();
+        if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
+
         if (tipoAlerta !== "todos" && tipoAlerta !== alertaT) return;
 
         alertas.push({ local, sku, skuPlat, descricao: cleanDesc, qtdEstoque, vendas, cobertura, alertaT, alertaI });
@@ -218,14 +260,14 @@ export default function Alertas() {
     }
 
     return { alertas, alertasTudo, total: alertas.length, totalTudo: alertasTudo.length, dataEstoque, dataVendas };
-  }, [estoqueRows, vendasRows, badStockRows, dataIni, dataFim, tipoAlerta, filtroLocal, busca, sortConfig, selectedCompany]);
+  }, [estoqueRows, vendasRows, badStockRows, dataIni, dataFim, tipoAlerta, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.alertas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.alertas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type) => {
-    const hasActiveFilters = busca.trim() !== '' || filtroLocal !== '' || tipoAlerta !== 'todos';
+    const hasActiveFilters = busca.trim() !== '' || filtroLocal.length > 0 || filtroMarca.length > 0 || tipoAlerta !== 'todos';
     if (hasActiveFilters) {
       setPendingExportType(type);
       setIsExportPromptOpen(true);
@@ -245,7 +287,8 @@ export default function Alertas() {
       subTitle: `Central de Alertas • Período: ${dataIni && dataFim ? `${dataIni.split('-').reverse().join('/')} a ${dataFim.split('-').reverse().join('/')}` : 'Completo'} • Canal: ${selectedCompany}`,
       filters: useFilters ? [
         busca.trim() && `Busca: "${busca.trim()}"`,
-        filtroLocal && `Local: ${filtroLocal}`,
+        filtroLocal.length > 0 && `Local: ${filtroLocal.join(', ')}`,
+        filtroMarca.length > 0 && `Marca: ${filtroMarca.join(', ')}`,
         tipoAlerta !== 'todos' && `Tipo Alerta: ${tipoAlerta.toUpperCase()}`
       ].filter(Boolean) : [],
       kpis: [
@@ -267,7 +310,7 @@ export default function Alertas() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [dataIni, dataFim, tipoAlerta, filtroLocal, busca, selectedCompany]);
+  }, [dataIni, dataFim, tipoAlerta, filtroLocal, filtroMarca, busca, selectedCompany]);
 
   if (loading) {
     return (
@@ -341,16 +384,29 @@ export default function Alertas() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '260px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL / CANAL</label>
-          <Select 
-            options={[
-              { value: '', label: 'Todos' },
-              ...locais.map(l => ({ value: l, label: toTitleCase(l) }))
-            ]}
-            value={{ value: filtroLocal, label: filtroLocal ? toTitleCase(filtroLocal) : 'Todos' }}
-            onChange={opt => setFiltroLocal(opt.value)}
+          <Select
+            isMulti
+            closeMenuOnSelect={false}
+            options={locais.map(l => ({ value: l, label: toTitleCase(l) }))}
+            value={filtroLocal.map(l => ({ value: l, label: toTitleCase(l) }))}
+            onChange={opts => setFiltroLocal(opts ? opts.map(o => o.value) : [])}
             placeholder="Todos os Locais"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '260px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
+          <Select
+            isMulti
+            closeMenuOnSelect={false}
+            options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
+            value={filtroMarca.map(m => ({ value: m, label: toTitleCase(m) }))}
+            onChange={opts => setFiltroMarca(opts ? opts.map(o => o.value) : [])}
+            placeholder="Todas as Marcas"
             classNamePrefix="react-select"
             styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
           />
@@ -585,9 +641,14 @@ export default function Alertas() {
                       Busca: "{busca.trim()}"
                     </span>
                   )}
-                  {filtroLocal !== '' && (
+                  {filtroLocal.length > 0 && (
                     <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
-                      Local: {filtroLocal}
+                      Local: {filtroLocal.join(', ')}
+                    </span>
+                  )}
+                  {filtroMarca.length > 0 && (
+                    <span style={{ fontSize: '12px', background: '#ecfdf5', border: '1px solid #d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                      Marca: {filtroMarca.join(', ')}
                     </span>
                   )}
                   {tipoAlerta !== 'todos' && (

@@ -38,8 +38,8 @@ export default function Estoque() {
   const estoqueRows = data.estoque || [];
   const vendasRows = data.vendas || [];
 
-  const [filtroLocal, setFiltroLocal] = useState('');
-  const [filtroMarca, setFiltroMarca] = useState('');
+  const [filtroLocal, setFiltroLocal] = useState([]);
+  const [filtroMarca, setFiltroMarca] = useState([]);
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
 
@@ -142,7 +142,7 @@ export default function Estoque() {
       if (!sku && !descricao) return;
       if (!descricao) descricao = `SKU: ${sku}`;
 
-      if (filtroLocal && local !== filtroLocal) return;
+      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
 
       const custoLinha = quantidade * valorUnitario;
       totalGeral += quantidade;
@@ -261,12 +261,15 @@ export default function Estoque() {
     let chartTitleCusto = "Top Marcas por Valor de Custo";
 
     // Agora aplica o filtro de marca para a tabela de produtos
-    if (filtroMarca) {
-      const filtroMarcaNorm = filtroMarca.trim().toUpperCase();
-      linhas = linhas.filter(l => (l.marca || "Sem Marca").trim().toUpperCase() === filtroMarcaNorm);
+    if (filtroMarca.length > 0) {
+      linhas = linhas.filter(l => {
+        const brandName = (l.marca || "Sem Marca").trim().toUpperCase();
+        return filtroMarca.some(f => f.value.toUpperCase() === brandName);
+      });
 
-      chartTitleQtd = `Top Produtos da Marca ${toTitleCase(filtroMarca)} (Qtd)`;
-      chartTitleCusto = `Top Produtos da Marca ${toTitleCase(filtroMarca)} (Custo)`;
+      const marcasStr = filtroMarca.map(m => toTitleCase(m.value)).join(', ');
+      chartTitleQtd = `Top Produtos (${marcasStr}) (Qtd)`;
+      chartTitleCusto = `Top Produtos (${marcasStr}) (Custo)`;
 
       const topProdutosQtd = [...linhas]
         .sort((a, b) => b.total - a.total)
@@ -383,10 +386,11 @@ export default function Estoque() {
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type, mode = 'detalhado') => {
+    const isFilteredLocal = filtroLocal.length > 0;
     if (mode === 'resumido') {
-      const headers = filtroLocal ? ["Descrição", "Quantidade em Estoque"] : ["Descrição", "Local", "Quantidade em Estoque"];
+      const headers = isFilteredLocal ? ["Descrição", "Quantidade em Estoque"] : ["Descrição", "Local", "Quantidade em Estoque"];
       const exportData = dadosProcessados.linhas.map(item => {
-        if (filtroLocal) {
+        if (isFilteredLocal) {
           return [item.descricao, item.total];
         } else {
           return [item.descricao, item.local, item.total];
@@ -394,7 +398,7 @@ export default function Estoque() {
       });
       handleExport(type, "Estoque_Consolidado_Resumido", headers, exportData);
     } else {
-      const headers = filtroLocal ? ["SKU Sênior", "Descrição", "Quantidade em Estoque"] : ["SKU Sênior", "Descrição", "Local", "Quantidade em Estoque"];
+      const headers = isFilteredLocal ? ["SKU Sênior", "Descrição", "Quantidade em Estoque"] : ["SKU Sênior", "Descrição", "Local", "Quantidade em Estoque"];
       const exportData = [];
       dadosProcessados.linhas.forEach(item => {
         Object.values(item.cores).forEach(corObj => {
@@ -403,7 +407,7 @@ export default function Estoque() {
             const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
             const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
             
-            if (filtroLocal) {
+            if (isFilteredLocal) {
               exportData.push([v.sku, fullDesc, v.total]);
             } else {
               exportData.push([v.sku, fullDesc, item.local, v.total]);
@@ -514,12 +518,10 @@ export default function Estoque() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
           <Select 
-            options={[
-              { value: '', label: 'Todas as Marcas' },
-              ...marcas.map(m => ({ value: m, label: toTitleCase(m) }))
-            ]}
-            value={{ value: filtroMarca, label: filtroMarca ? toTitleCase(filtroMarca) : 'Todas as Marcas' }}
-            onChange={opt => setFiltroMarca(opt.value)}
+            isMulti
+            options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
+            value={filtroMarca}
+            onChange={setFiltroMarca}
             isSearchable={true}
             placeholder="Todas as Marcas"
             classNamePrefix="react-select"
@@ -530,12 +532,10 @@ export default function Estoque() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL</label>
           <Select 
-            options={[
-              { value: '', label: 'Todos os Locais' },
-              ...locais.map(l => ({ value: l, label: toTitleCase(l) }))
-            ]}
-            value={{ value: filtroLocal, label: filtroLocal ? toTitleCase(filtroLocal) : 'Todos os Locais' }}
-            onChange={opt => setFiltroLocal(opt.value)}
+            isMulti
+            options={locais.map(l => ({ value: l, label: toTitleCase(l) }))}
+            value={filtroLocal}
+            onChange={setFiltroLocal}
             isSearchable={true}
             placeholder="Todos os Locais"
             classNamePrefix="react-select"
@@ -644,7 +644,7 @@ export default function Estoque() {
             ),
             onSort: () => requestSort('descricao'),
           },
-          ...(!filtroLocal ? [{
+          ...(filtroLocal.length === 0 ? [{
             key: 'local',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
             rawLabel: 'Local',

@@ -80,7 +80,26 @@ const COLOR_ABBR_MAP = {
   'SORTIDO': 'SORT', 'SORTIDOS': 'SORT'
 };
 
-export function parseProductDescription(desc, sku = '', isWatch = false) {
+function isValidSize(val) {
+  if (!val) return false;
+  const valUpper = val.toUpperCase().trim();
+  if (['G1', 'G2', 'G3', 'G4', 'GG', 'XG', 'G', 'P', 'M', 'U', 'ÚNICO', 'UNICO', 'UNISSEX', 'UNISEX'].includes(valUpper)) {
+    return true;
+  }
+  if (/^\d{2}\/\d{2}$/.test(valUpper)) {
+    const parts = valUpper.split('/');
+    const n1 = parseInt(parts[0]);
+    const n2 = parseInt(parts[1]);
+    return n1 >= 14 && n1 <= 48 && n2 >= 14 && n2 <= 48;
+  }
+  const num = parseInt(valUpper);
+  if (!isNaN(num) && num >= 14 && num <= 48) {
+    return true;
+  }
+  return false;
+}
+
+export function parseProductDescription(desc, sku = '', isWatch = false, brand = '') {
   if (!desc) {
     return {
       baseTitle: sku || 'Produto Sem Descrição',
@@ -102,11 +121,17 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   sku = String(sku).trim();
 
   if (isWatchObj) {
-    let title = desc.trim();
-    // Limpezas básicas de parâmetros do Sheets para relógios
-    title = title.replace(/(?:Cor|Tamanho|Tam|Ref|cós|cos)\s*:\s*.*$/i, '');
-    title = title.replace(/;\s*.*$/i, '');
-    title = title.replace(/[\s\-,;:]+$/, '').trim();
+    let cleanBrand = brand;
+    if (!cleanBrand || cleanBrand.toUpperCase() === 'SEM MARCA') {
+      const descUpper = desc.toUpperCase();
+      if (descUpper.includes('TECHNOS')) cleanBrand = 'Technos';
+      else if (descUpper.includes('CONDOR')) cleanBrand = 'Condor';
+      else if (descUpper.includes('MONDAINE')) cleanBrand = 'Mondaine';
+      else if (descUpper.includes('SECULUS')) cleanBrand = 'Seculus';
+      else if (descUpper.includes('FOSSIL')) cleanBrand = 'Fossil';
+      else if (descUpper.includes('EURO')) cleanBrand = 'Euro';
+      else cleanBrand = '';
+    }
 
     const toTitleCase = (str) => {
       return str
@@ -117,7 +142,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
           if (word.startsWith('(') && word.endsWith(')')) {
             return word.toUpperCase();
           }
-          if (['chm', 'tc', 'sp', 'mg', 'ch30475g', 'ca31426d', 'rchch22788b'].includes(cleanWord.toLowerCase())) {
+          if (['nb', 'technos', 'condor', 'mondaine', 'seculus', 'fossil', 'euro'].includes(cleanWord.toLowerCase())) {
             return word.toUpperCase();
           }
           return word.charAt(0).toUpperCase() + word.slice(1);
@@ -125,12 +150,23 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
         .join(' ');
     };
 
-    const titleCased = toTitleCase(title);
-    
-    // Adiciona o SKU na descrição base do relógio para agrupamento único
-    const baseTitle = sku && !titleCased.toUpperCase().includes(sku.toUpperCase())
-      ? `${titleCased} (${sku})`
-      : titleCased;
+    let modelCode = '';
+    const cleanSku = String(sku).trim().toUpperCase();
+    if (cleanSku && !cleanSku.startsWith('MLB') && cleanSku.length >= 5 && cleanSku.length <= 15) {
+      modelCode = cleanSku;
+    } else {
+      const matches = desc.match(/\b([A-Z0-9]{5,15})\b/g) || [];
+      const forbidden = ['RELOGIO', 'RELÓGIO', 'TECHNOS', 'MASCULINO', 'FEMININO', 'PULSEIRA', 'MOSTRADOR', 'DOURADO', 'PRATA', 'SILICONE', 'RACER', 'LEGACY'];
+      const candidates = matches.filter(m => !forbidden.includes(m.toUpperCase()));
+      if (candidates.length > 0) {
+        modelCode = candidates[candidates.length - 1].toUpperCase();
+      } else {
+        modelCode = cleanSku;
+      }
+    }
+
+    const brandStr = cleanBrand ? toTitleCase(cleanBrand.trim()) : 'Technos';
+    const baseTitle = `Relógio ${brandStr} ${modelCode}`.replace(/\s+/g, ' ').trim();
 
     return {
       baseTitle,
@@ -150,10 +186,13 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   if (originalSizeMatch) {
     size = originalSizeMatch[1].toUpperCase();
   } else {
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
     const originalEndSizeMatch = desc.match(endSizeRegex);
     if (originalEndSizeMatch) {
-      size = originalEndSizeMatch[1].toUpperCase();
+      const val = originalEndSizeMatch[1].toUpperCase();
+      if (isValidSize(val)) {
+        size = val;
+      }
     } else {
       const brSizeMatch = desc.match(/\b(\d{2})\s*Br\b/i);
       if (brSizeMatch) {
@@ -170,6 +209,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   }
 
   let cleanDesc = desc.trim();
+
+  // Normalize common color spelling typos early
+  cleanDesc = cleanDesc.replace(/\bOFF\s+WHIT\s+E\b/gi, 'OFF WHITE');
 
   // Strip parenthesis around Fila reference codes (e.g. (F01TR00024) -> F01TR00024)
   cleanDesc = cleanDesc.replace(/\((F\d{2}[A-Z]{1,2}\d{3,5})\)/gi, '$1');
@@ -188,11 +230,21 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   cleanDesc = cleanDesc.replace(/;\s*.*$/i, '');
   cleanDesc = cleanDesc.replace(/[\s\-,;:]+$/, '').trim();
 
-  const isShoe = /tenis|tênis|papete|bota|sapatenis|sapatênis|slide|sandalia|sandália|chuteira|sapato/i.test(cleanDesc);
+  // Padroniza e limpa termos duplicados e formatos de versão
+  cleanDesc = cleanDesc
+    .replace(/\b(tenis|tênis)\b\s+\b(adidas|fila|nike|olympikus|puma|new\s+balance|nb)\b\s+\b(tenis|tênis)\b/gi, '$1 $2')
+    .replace(/\bRC\s*2\b/gi, 'RC2')
+    .replace(/\bSL\s*2\b/gi, 'SL2')
+    .replace(/\b([0-9])\s+([0-9])\b/g, '$1.$2');
+
+  const isShoe = /tenis|tênis|papete|bota|sapatenis|sapatênis|slide|sandalia|sandália|chuteira|sapato|chinelo/i.test(cleanDesc);
 
   if (isShoe) {
-    // 2. Remove qualquer código de cor de 4 dígitos para calçados (Fila, etc)
-    cleanDesc = cleanDesc.replace(/\b\d{4}\b/g, '');
+    // 2. Remove qualquer código de cor de 4 dígitos para calçados (apenas Fila)
+    const isFila = /fila/i.test(cleanDesc) || sku.toUpperCase().startsWith('F');
+    if (isFila) {
+      cleanDesc = cleanDesc.replace(/\b\d{4}\b/g, '');
+    }
 
     // 3. Remove código de cor específico da Adidas (ex: HQ0236, IH8217, KJ0082)
     cleanDesc = cleanDesc.replace(/\b[A-Z]{2}\d{4}\b/gi, '');
@@ -290,6 +342,20 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
 
   let baseTitle = cleanDesc;
   baseTitle = baseTitle.replace(/\b\d{2}\s*Br\b/gi, '').trim();
+
+  // Pre-replace multi-word color names with their single-word abbreviations to handle slashes correctly
+  const multiWordColors = [
+    'AZUL CLARO', 'AZUL ESCURO', 'AZUL ROYAL', 'AZUL NAVY', 'AZUL BEBÊ',
+    'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA',
+    'ROSA CLARO', 'ROSA ESCURO',
+    'MARROM CLARO', 'MARROM ESCURO',
+    'OFF WHITE', 'OFF-WHITE',
+    'PLEIN AIR', 'PLAIN AIR', 'FLAMENGO SCARLET'
+  ];
+  for (const phrase of multiWordColors) {
+    const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
+    baseTitle = baseTitle.replace(regex, COLOR_ABBR_MAP[phrase] || phrase);
+  }
 
   // 1. Check if SKU matches the standard Senior SKU pattern or custom kit SKU pattern
   let isSeniorSKU = false;
@@ -398,11 +464,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     } else {
       skuColor = SKU_COLOR_MAP[rawColor] || rawColor;
     }
-  } else if (sku.length === 23) {
-    const block = sku.substring(11, 17);
-    const p1 = block.substring(0, 2);
-    const p2 = block.substring(2, 4);
-    const p3 = block.substring(4, 6);
+  } else if (sku.length === 22 || sku.length === 23) {
+    let block = sku.substring(11, 17);
+    let p1 = block.substring(0, 2);
+    let p2 = block.substring(2, 4);
+    let p3 = block.substring(4, 6);
 
     if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
       isSeniorSKU = true;
@@ -413,18 +479,30 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
         if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
         if (p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
         if (p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
-        
         const uniqueColors = Array.from(new Set(colors));
         skuColor = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
       }
       skuSize = sku.substring(17, 19);
-    }
-  } else if (sku.length === 22) {
-    const block = sku.substring(14, 16);
-    if (SKU_COLOR_MAP[block]) {
-      isSeniorSKU = true;
-      skuColor = (block !== 'CN' && block !== '00') ? SKU_COLOR_MAP[block].toUpperCase() : 'SEM COR';
-      skuSize = sku.substring(16, 18);
+    } else {
+      block = sku.substring(12, 18);
+      p1 = block.substring(0, 2);
+      p2 = block.substring(2, 4);
+      p3 = block.substring(4, 6);
+
+      if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
+        isSeniorSKU = true;
+        if (block === 'AAAAAA') {
+          skuColor = 'ALL BLACK';
+        } else {
+          const colors = [];
+          if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
+          if (p2 !== 'CN' && p2 !== '00') colors.push(SKU_COLOR_MAP[p2]);
+          if (p3 !== 'CN' && p3 !== '00') colors.push(SKU_COLOR_MAP[p3]);
+          const uniqueColors = Array.from(new Set(colors));
+          skuColor = uniqueColors.length > 0 ? uniqueColors.join('/').toUpperCase() : 'SEM COR';
+        }
+        skuSize = sku.substring(18, 20);
+      }
     }
   }
 
@@ -436,12 +514,19 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     } else {
       size = skuSize.toUpperCase();
     }
+    if (size === '0' || size === '00') {
+      size = 'U';
+    }
+
 
     const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
 
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
-    baseTitle = baseTitle.replace(endSizeRegex, '');
+    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+    const endSizeMatch = baseTitle.match(endSizeRegex);
+    if (endSizeMatch && isValidSize(endSizeMatch[1])) {
+      baseTitle = baseTitle.replace(endSizeRegex, '');
+    }
 
     const colorSlashRegex = /\b(?:[A-Z0-9]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/g;
     baseTitle = baseTitle.replace(colorSlashRegex, '');
@@ -461,8 +546,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*([GPM]|GG|XG|G\d|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
 
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
-    baseTitle = baseTitle.replace(endSizeRegex, '');
+    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+    const endSizeMatch = baseTitle.match(endSizeRegex);
+    if (endSizeMatch && isValidSize(endSizeMatch[1])) {
+      baseTitle = baseTitle.replace(endSizeRegex, '');
+    }
 
     // Se a descrição tiver 'LUPO' por conta de mapeamento incorreto na planilha, forçamos para ser Sandrini
     if (baseTitle.toUpperCase().includes('DRY') && baseTitle.toUpperCase().includes('LUPO')) {
@@ -479,9 +567,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
         size = sizeMatch[1].toUpperCase();
         baseTitle = baseTitle.replace(sizeRegex, '').trim();
       } else {
-        const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
+        const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
         const endSizeMatch = baseTitle.match(endSizeRegex);
-        if (endSizeMatch) {
+        if (endSizeMatch && isValidSize(endSizeMatch[1])) {
           size = endSizeMatch[1].toUpperCase();
           baseTitle = baseTitle.replace(endSizeRegex, '').trim();
         }
@@ -489,23 +577,14 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
     } else {
       // Remove any size suffix from baseTitle if we already have it pre-extracted
       baseTitle = baseTitle.replace(sizeRegex, '').trim();
-      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2})$/i;
-      baseTitle = baseTitle.replace(endSizeRegex, '').trim();
+      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+      const endSizeMatch = baseTitle.match(endSizeRegex);
+      if (endSizeMatch && isValidSize(endSizeMatch[1])) {
+        baseTitle = baseTitle.replace(endSizeRegex, '').trim();
+      }
     }
 
-    // Pre-replace multi-word color names with their single-word abbreviations to handle slashes correctly
-    const multiWordColors = [
-      'AZUL CLARO', 'AZUL ESCURO', 'AZUL ROYAL', 'AZUL NAVY', 'AZUL BEBÊ',
-      'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA',
-      'ROSA CLARO', 'ROSA ESCURO',
-      'MARROM CLARO', 'MARROM ESCURO',
-      'OFF WHITE', 'OFF-WHITE',
-      'PLEIN AIR', 'PLAIN AIR', 'FLAMENGO SCARLET'
-    ];
-    for (const phrase of multiWordColors) {
-      const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
-      baseTitle = baseTitle.replace(regex, COLOR_ABBR_MAP[phrase] || phrase);
-    }
+
 
     if (!color || color === 'SEM COR') {
       const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
@@ -561,11 +640,16 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
   }
 
   baseTitle = baseTitle
-    .replace(/[\s\-,;:]+$/, '')
-    .replace(/^[\s\-,;:]+/, '')
+    .replace(/[\s\-,;:/]+$/, '')
+    .replace(/^[\s\-,;:/]+/, '')
+    .replace(/\s*-\s*-\s*/g, ' - ')
+    .replace(/\(\s*\)/g, '')
     .trim();
 
-  baseTitle = baseTitle.replace(/\s+/g, ' ');
+  // Remove termos de gênero para agrupar variações masculinas/femininas/infantis do mesmo modelo
+  baseTitle = baseTitle.replace(/\b(masculino|masculina|feminino|feminina|unisex|unissex|infantil|juvenil)\b/gi, '');
+
+  baseTitle = baseTitle.replace(/\s+/g, ' ').trim();
   const baseTitleUpper = baseTitle.toUpperCase();
 
   if (skuUpper.startsWith('KSA08000002350')) {
@@ -598,6 +682,21 @@ export function parseProductDescription(desc, sku = '', isWatch = false) {
       })
       .join(' ');
   };
+
+  // Preenche a marca se ela estiver omitida na descrição oficial
+  if (brand && brand.trim() && brand.toUpperCase() !== 'SEM MARCA') {
+    const brandUpper = brand.trim().toUpperCase();
+    const titleUpper = baseTitle.toUpperCase();
+    if (!titleUpper.includes(brandUpper)) {
+      const tenisRegex = /^(tenis|tênis|chinelo|bota|sapato|camiseta|regata|shorts?|kit)\b/i;
+      const matchTenis = baseTitle.match(tenisRegex);
+      if (matchTenis) {
+        baseTitle = `${matchTenis[0]} ${toTitleCase(brand)} ${baseTitle.substring(matchTenis[0].length).trim()}`;
+      } else {
+        baseTitle = `${toTitleCase(brand)} ${baseTitle}`;
+      }
+    }
+  }
 
   const titleCasedBase = toTitleCase(baseTitle);
   const colorPart = color && color !== 'SEM COR' ? ` ${color.toUpperCase()}` : '';
@@ -676,4 +775,43 @@ export function autoResolveMeliSku(sku, desc) {
   if (descUpper.includes('PUMA')) return 'PUMA';
 
   return sku;
+}
+
+export function normalizeBrand(brand, sku, desc) {
+  const brandUpper = String(brand || '').trim().toUpperCase();
+  const skuUpper = String(sku || '').trim().toUpperCase();
+  const descUpper = String(desc || '').trim().toUpperCase();
+
+  if (skuUpper.startsWith('NB') || descUpper.includes('NEW BALANCE') || descUpper.includes('NEWBALANCE')) {
+    return 'NEW BALANCE';
+  }
+  if (skuUpper.startsWith('FI') || skuUpper.startsWith('F0') || descUpper.includes('FILA')) {
+    return 'FILA';
+  }
+  if (skuUpper.startsWith('AD') || descUpper.includes('ADIDAS')) {
+    return 'ADIDAS';
+  }
+  if (skuUpper.startsWith('NI') || descUpper.includes('NIKE')) {
+    return 'NIKE';
+  }
+  if (skuUpper.startsWith('OL') || descUpper.includes('OLYMPIKUS')) {
+    return 'OLYMPIKUS';
+  }
+  if (skuUpper.startsWith('PU') || descUpper.includes('PUMA')) {
+    return 'PUMA';
+  }
+  if (skuUpper.startsWith('LU') || descUpper.includes('LUPO') || descUpper.includes('LOBA')) {
+    return 'LUPO';
+  }
+  if (skuUpper.startsWith('SK') || descUpper.includes('SKECHERS')) {
+    return 'SKECHERS';
+  }
+  if (skuUpper.startsWith('KSA') || skuUpper.includes('SANDRINI') || descUpper.includes('SANDRINI')) {
+    return 'SANDRINI';
+  }
+
+  if (brandUpper === '#N/A' || brandUpper === 'SEM MARCA' || !brandUpper) {
+    return 'SEM MARCA';
+  }
+  return brandUpper;
 }
