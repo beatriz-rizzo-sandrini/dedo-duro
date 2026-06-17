@@ -180,7 +180,9 @@ async function syncVendas() {
   ];
   const currentMonthTab = MONTHS[new Date().getMonth()];
   
-  if (currentMonthTab && currentMonthTab !== 'VENDAS') {
+  const activeTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
+  
+  if (currentMonthTab && currentMonthTab !== 'VENDAS' && activeTabs.includes(currentMonthTab)) {
     let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
     if (!isFullSync && query) {
       monthlyUrl += `&tq=${query}`;
@@ -196,6 +198,8 @@ async function syncVendas() {
     } catch (err) {
       console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não está ativa ou não pôde ser carregada:`, err.message);
     }
+  } else {
+    console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não existe ou está inativa na planilha.`);
   }
 
   // Deduplica dentro do próprio lote
