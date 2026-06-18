@@ -477,10 +477,30 @@ export default function Sellout() {
           const key1 = String(v.sku || '').toUpperCase().trim();
           const key2 = String(v.skuPlat || '').toUpperCase().trim();
           
-          if (key1 && mapToUse[key1] !== undefined) {
-            qtyCasa = mapToUse[key1];
-          } else if (key2 && mapToUse[key2] !== undefined) {
-            qtyCasa = mapToUse[key2];
+          const translateInvertedSku = (skuStr) => {
+            if (!skuStr) return skuStr;
+            const s = skuStr.toUpperCase().trim();
+            if (s.startsWith('NB001323396AJCNCN')) {
+              const size = s.substring(17, 19);
+              const suffixMap = { '38': '610', '39': '611', '40': '612', '41': '613', '42': '614', '43': '615' };
+              const suffix = suffixMap[size] || '';
+              return suffix ? `NB000GM500V2BOAWCN${size}${suffix}` : s;
+            } else if (s.startsWith('NB000GM500V2BOAWCN')) {
+              const size = s.substring(18, 20);
+              const suffixMap = { '39': '0333', '40': '0334', '41': '0335', '42': '0336', '43': '0337', '44': '0338' };
+              const suffix = suffixMap[size] || '';
+              return suffix ? `NB001323396AJCNCN${size}${suffix}` : s;
+            }
+            return skuStr;
+          };
+          
+          const searchKey1 = translateInvertedSku(key1);
+          const searchKey2 = translateInvertedSku(key2);
+          
+          if (searchKey1 && mapToUse[searchKey1] !== undefined) {
+            qtyCasa = mapToUse[searchKey1];
+          } else if (searchKey2 && mapToUse[searchKey2] !== undefined) {
+            qtyCasa = mapToUse[searchKey2];
           }
           
           v.estoqueCasa = qtyCasa;
