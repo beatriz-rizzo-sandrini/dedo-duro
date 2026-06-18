@@ -730,33 +730,20 @@ export default function Sellout() {
 
   const triggerExport = (type, mode = 'detalhado') => {
     setIsExportMenuOpen(false);
-    
-    if (type === 'pdf') {
-      setPendingPdfArgs({ mode });
-      setIsPdfChoiceOpen(true);
-    } else {
-      const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
-      if (hasActiveFilters) {
-        setPendingExportType(type);
-        setPendingExportMode(mode);
-        setIsExportPromptOpen(true);
-      } else {
-        executeExport(type, mode, false);
-      }
-    }
+    setPendingExportType(type);
+    setPendingExportMode(mode);
+    setIsPdfChoiceOpen(true);
   };
 
-  const handlePdfChoice = (typeOfPdf) => {
-    setPdfType(typeOfPdf);
+  const handlePdfChoice = (typeOfReport) => {
+    setPdfType(typeOfReport);
     setIsPdfChoiceOpen(false);
     
     const hasActiveFilters = busca.trim() !== '' || filtroMarca.length > 0 || filtroLocal.length > 0;
     if (hasActiveFilters) {
-      setPendingExportType('pdf');
-      setPendingExportMode(pendingPdfArgs.mode);
       setIsExportPromptOpen(true);
     } else {
-      executeExport('pdf', pendingPdfArgs.mode, false, typeOfPdf);
+      executeExport(pendingExportType, pendingExportMode, false, typeOfReport);
     }
   };
 
@@ -917,7 +904,9 @@ export default function Sellout() {
         });
       } else {
         // Flat layout for Excel/CSV (easy to filter/analyze in Excel)
-        headers = ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Estoque Total", "Cobertura"];
+        headers = isSupplier
+          ? ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Total"]
+          : ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
           Object.values(item.cores).forEach(corObj => {
@@ -933,17 +922,28 @@ export default function Sellout() {
               const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
               const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
 
-              exportData.push([
-                v.sku,
-                eanMapping[String(v.sku).toUpperCase().trim()] || '-',
-                fullDesc,
-                item.marca,
-                sales,
-                v.estoquePlataforma,
-                v.estoqueCasa,
-                v.estoqueTotal,
-                coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
-              ]);
+              if (isSupplier) {
+                exportData.push([
+                  v.sku,
+                  eanMapping[String(v.sku).toUpperCase().trim()] || '-',
+                  fullDesc,
+                  item.marca,
+                  sales,
+                  v.estoqueTotal
+                ]);
+              } else {
+                exportData.push([
+                  v.sku,
+                  eanMapping[String(v.sku).toUpperCase().trim()] || '-',
+                  fullDesc,
+                  item.marca,
+                  sales,
+                  v.estoquePlataforma,
+                  v.estoqueCasa,
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
+                ]);
+              }
             });
           });
         });
@@ -1732,14 +1732,14 @@ export default function Sellout() {
                         border: '1px solid #cbd5e1'
                       }}
                     >
-                      <FileText size={24} color="#ef4444" />
+                      <FileText size={24} color="#3b82f6" />
                     </div>
                     <div>
                       <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
-                        Tipo de PDF para Exportação
+                        Tipo de Relatório para Exportação
                       </h3>
                       <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#64748b', lineHeight: '20px' }}>
-                        Selecione o destinatário deste PDF para ajustar a visibilidade das colunas.
+                        Selecione o destinatário deste relatório para ajustar a visibilidade das colunas.
                       </p>
                     </div>
                   </div>
