@@ -840,7 +840,7 @@ export default function Sellout() {
     } else {
       if (type === 'pdf') {
         headers = isSupplier
-          ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Total"]
+          ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Total", "Cobertura"]
           : ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
@@ -851,7 +851,8 @@ export default function Sellout() {
               item.descricao,
               item.marca,
               parentSales,
-              item.totalEstoque
+              item.totalEstoque,
+              '-'
             ]);
           } else {
             exportData.push([
@@ -886,7 +887,8 @@ export default function Sellout() {
                   descStr,
                   skuStr,
                   sales,
-                  v.estoqueTotal
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
                 ]);
               } else {
                 exportData.push([
@@ -905,7 +907,7 @@ export default function Sellout() {
       } else {
         // Flat layout for Excel/CSV (easy to filter/analyze in Excel)
         headers = isSupplier
-          ? ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Total"]
+          ? ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Total", "Cobertura"]
           : ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
@@ -929,7 +931,8 @@ export default function Sellout() {
                   fullDesc,
                   item.marca,
                   sales,
-                  v.estoqueTotal
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
                 ]);
               } else {
                 exportData.push([
@@ -1750,7 +1753,7 @@ export default function Sellout() {
                       <strong>Uso Interno:</strong> Exibe todas as colunas (Estoque Plataforma, Estoque Casa, Estoque Total e Cobertura).
                     </div>
                     <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #f1f5f9', fontSize: '13px', color: '#475569' }}>
-                      <strong>Fornecedor:</strong> Oculta Estoque Plataforma, Estoque Casa e Cobertura (exibe apenas o Estoque Total).
+                      <strong>Fornecedor:</strong> Oculta Estoque Plataforma e Estoque Casa (exibe apenas o Estoque Total e Cobertura).
                     </div>
                   </div>
 
