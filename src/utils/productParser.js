@@ -631,7 +631,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     const parts = cleanColor.split(/[\s/-]+/);
     const normalizedParts = parts
       .map(p => COLOR_ABBR_MAP[p] || p)
-      .filter(p => p && p !== 'SEM COR');
+      .filter(p => p && p !== 'SEM COR' && p !== 'E' && p !== 'AND' && p !== 'COM' && p !== 'WITH');
     
     normalizedParts.sort();
     color = normalizedParts.length > 0 ? normalizedParts.join('/') : 'SEM COR';
@@ -650,6 +650,33 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   baseTitle = baseTitle.replace(/\b(masculino|masculina|feminino|feminina|unisex|unissex|infantil|juvenil)\b/gi, '');
 
   baseTitle = baseTitle.replace(/\s+/g, ' ').trim();
+
+  // 1. Standardize accents on common e-commerce terms
+  baseTitle = baseTitle
+    .replace(/tênis/gi, 'Tenis')
+    .replace(/tenis/gi, 'Tenis')
+    .replace(/sapatênis/gi, 'Sapatenis')
+    .replace(/sapatenis/gi, 'Sapatenis')
+    .replace(/sandália/gi, 'Sandalia')
+    .replace(/sandalia/gi, 'Sandalia')
+    .replace(/relógio/gi, 'Relogio')
+    .replace(/relogio/gi, 'Relogio');
+
+  // 2. Remove redundant NB if New Balance is brand or in title
+  if (/NEW BALANCE/i.test(baseTitle) || (brand && brand.toUpperCase() === 'NEW BALANCE') || skuUpper.startsWith('NB')) {
+    baseTitle = baseTitle.replace(/\bNB\b/gi, '');
+  }
+
+  // 3. Remove generic e-commerce adjectives that hinder grouping
+  baseTitle = baseTitle.replace(/\b(original|originals|classico|classica|clássico|clássica|urbano|urbana|casual|esportivo|esportiva|running|kids|adulto|escolar)\b/gi, '');
+
+  // 4. Clean up multiple spaces, dashes, commas, and trim
+  baseTitle = baseTitle
+    .replace(/\s+/g, ' ')
+    .replace(/[\s\-,;:/]+$/, '')
+    .replace(/^[\s\-,;:/]+/, '')
+    .trim();
+
   const baseTitleUpper = baseTitle.toUpperCase();
 
   if (skuUpper.startsWith('KSA08000002350')) {

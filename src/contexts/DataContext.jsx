@@ -151,7 +151,9 @@ async function fetchEstoqueSupabase() {
     try {
       const { data: dateRows, error: dateError } = await supabase
         .from('silver_estoque')
-        .select('data_atualizacao');
+        .select('data_atualizacao')
+        .order('id', { ascending: false })
+        .limit(2000);
       
       if (!dateError && dateRows && dateRows.length > 0) {
         const dateCounts = {};
