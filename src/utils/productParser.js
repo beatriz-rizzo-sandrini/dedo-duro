@@ -620,6 +620,13 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     }
   }
 
+  const skuUpperForOverride = String(sku || '').trim().toUpperCase();
+  if (skuUpperForOverride.startsWith('NB001323396AJCNCN')) {
+    color = 'MUS';
+  } else if (skuUpperForOverride.startsWith('NB000GM500V2BOAWCN')) {
+    color = 'VD';
+  }
+
   // Global Color Normalization: runs for Senior, Sandrini, and Fallback parsed colors.
   if (color && color.toUpperCase() !== 'SEM COR') {
     let cleanColor = color.toUpperCase()
