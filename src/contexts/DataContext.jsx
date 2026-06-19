@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase.js';
 import { autoResolveMeliSku, normalizeBrand } from '../utils/productParser.js';
 import { normalizeDateStr, parseToTimestamp } from '../utils/dateUtils.js';
+import { useAuth } from './AuthContext.jsx';
 
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
@@ -421,6 +422,7 @@ async function fetchMapeamentosSupabase() {
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
+  const { user } = useAuth();
   const [data, setData]           = useState({});
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
@@ -593,7 +595,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (user) {
+      fetchAll();
+    } else {
+      setData({});
+      setLoading(true);
+    }
+  }, [user]);
 
   return (
     <DataContext.Provider value={{ data, loading, error, lastFetch, refetch: () => fetchAll(true) }}>

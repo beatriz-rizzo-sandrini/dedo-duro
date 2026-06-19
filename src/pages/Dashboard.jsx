@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity, FileSpreadsheet, UserCog } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import './Dashboard.css';
 
 const cards = [
@@ -32,6 +33,19 @@ const itemVariants = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const displayCards = [...cards];
+  if (user && (user.role === 'admin' || user.role === 'gestor')) {
+    displayCards.push({
+      id: 'usuarios',
+      title: 'Usuários',
+      desc: 'Controle de acesso e usuários',
+      icon: UserCog,
+      path: '/usuarios',
+      className: 'card-usuarios'
+    });
+  }
 
   return (
     <div className="dashboard-container">
@@ -41,7 +55,7 @@ export default function Dashboard() {
         initial="hidden"
         animate="show"
       >
-        {cards.map((card) => {
+        {displayCards.map((card) => {
           const Icon = card.icon;
           return (
             <motion.button
@@ -64,3 +78,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

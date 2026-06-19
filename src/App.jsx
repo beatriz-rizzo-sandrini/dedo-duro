@@ -10,32 +10,51 @@ import Produto from './pages/Produto';
 import Alertas from './pages/Alertas';
 import Sellout from './pages/Sellout';
 import Planilha from './pages/Planilha';
+import Login from './pages/Login';
+import Usuarios from './pages/Usuarios';
 import './index.css';
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { CompanyProvider } from './contexts/CompanyContext.jsx';
 import { DataProvider } from './contexts/DataContext.jsx';
 
+function AppContent() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Login />;
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="vendas" element={<Vendas />} />
+          <Route path="cobertura" element={<Cobertura />} />
+          <Route path="estoque" element={<Estoque />} />
+          <Route path="produto" element={<Produto />} />
+          <Route path="reposicao" element={<Reposicao />} />
+          <Route path="sellout" element={<Sellout />} />
+          <Route path="alertas" element={<Alertas />} />
+          <Route path="planilha" element={<Planilha />} />
+          <Route path="usuarios" element={<Usuarios />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 function App() {
   return (
-    <DataProvider>
-      <CompanyProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="vendas" element={<Vendas />} />
-              <Route path="cobertura" element={<Cobertura />} />
-              <Route path="estoque" element={<Estoque />} />
-              <Route path="produto" element={<Produto />} />
-              <Route path="reposicao" element={<Reposicao />} />
-              <Route path="sellout" element={<Sellout />} />
-              <Route path="alertas" element={<Alertas />} />
-              <Route path="planilha" element={<Planilha />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </CompanyProvider>
-    </DataProvider>
+    <AuthProvider>
+      <DataProvider>
+        <CompanyProvider>
+          <AppContent />
+        </CompanyProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 
 export default App;
+

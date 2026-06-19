@@ -1,9 +1,13 @@
 import React from 'react';
 import Select from 'react-select';
 import { useCompany } from '../contexts/CompanyContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function CompanySelector() {
   const { selectedCompany, setSelectedCompany } = useCompany();
+  const { user } = useAuth();
+
+  const isDisabled = user && user.empresa !== 'TODAS';
 
   const options = [
     { value: 'TODAS', label: 'Todas' },
@@ -21,6 +25,7 @@ export default function CompanySelector() {
       fontWeight: 600,
       color: '#1e293b',
       boxShadow: 'none',
+      backgroundColor: isDisabled ? '#f1f5f9' : 'white',
       '&:hover': {
         borderColor: '#cbd5e1'
       }
@@ -47,7 +52,9 @@ export default function CompanySelector() {
         styles={customStyles}
         isSearchable={false}
         classNamePrefix="react-select"
+        isDisabled={isDisabled}
       />
     </div>
   );
 }
+

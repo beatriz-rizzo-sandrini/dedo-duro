@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet, Users, LogOut } from 'lucide-react';
 import { useCompany } from '../contexts/CompanyContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import './Sidebar.css';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const { selectedCompany, setSelectedCompany } = useCompany();
+  const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -34,6 +36,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { to: "/alertas", icon: <Bell size={20} />, label: "Alertas" },
     { to: "/planilha", icon: <FileSpreadsheet size={20} />, label: "Pedidos" },
   ];
+
+  // Adiciona a página de Usuários para administradores e gestores
+  if (user && (user.role === 'admin' || user.role === 'gestor')) {
+    links.push({ to: "/usuarios", icon: <Users size={20} />, label: "Usuários" });
+  }
 
   return (
     <>
@@ -85,6 +92,30 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           </ul>
         </nav>
 
+        {/* Logout Action */}
+        <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
+          <button 
+            onClick={logout}
+            className="nav-link" 
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer', 
+              width: '100%', 
+              textAlign: 'left',
+              color: '#f87171',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              padding: '10px 14px'
+            }}
+            title={isCollapsed ? "Sair" : ""}
+          >
+            <LogOut size={20} />
+            <span className="nav-label">Sair</span>
+          </button>
+        </div>
+
         {/* Botão colapsar — só no desktop */}
         <button className="toggle-btn" onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
@@ -93,3 +124,4 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     </>
   );
 }
+

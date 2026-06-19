@@ -261,3 +261,14 @@ body {
     display: none !important;
   }
 }
+
+/* ─── CUSTOM RULES FOR USER MANAGEMENT PAGE ─── */
+.usuarios-tr-row:hover {
+  background-color: #f8fafc !important;
+}
+
+.usuarios-delete-btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
