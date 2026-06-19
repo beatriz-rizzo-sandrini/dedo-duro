@@ -523,20 +523,30 @@ export default function Sellout() {
 
     // 3. Filtro de Busca (na tabela) para gerar filteredRows
     let filteredRows = rows.filter(r => {
-      const hasFilter = filtroMarca.length > 0 || filtroLocal.length > 0;
-      
-      // Se há filtro ativo de marca/local, só mostra itens com venda no período filtrado
-      if (hasFilter && r.vendasFiltradas === 0) return false;
+      // Filtrar por Marca
+      if (filtroMarca.length > 0) {
+        const matchesBrand = filtroMarca.some(m => m.value === r.marca);
+        if (!matchesBrand) return false;
+      }
+
+      // Filtrar por Local
+      if (filtroLocal.length > 0) {
+        // Se houver filtro de local, o produto deve ter tido vendas nesse local no período
+        if (r.vendasFiltradas === 0) return false;
+      }
+
       if (!busca) return r.vendasFiltradas > 0 || r.totalEstoque > 0;
 
       const termos = busca.toLowerCase().trim().split(/\s+/);
       const skusArray = r.skusArr.map(s => s.toLowerCase());
       const descLower = (r.descricao || "").toLowerCase();
 
-      return termos.every(termo => 
+      const matchesSearch = termos.every(termo => 
         descLower.includes(termo) || 
         skusArray.some(sku => sku.includes(termo))
       );
+
+      return matchesSearch && (r.vendasFiltradas > 0 || r.totalEstoque > 0);
     });
 
     // 4. Calcular KPIs dinamicamente com base em filteredRows
@@ -870,7 +880,7 @@ export default function Sellout() {
             const sortedVariations = sortVariationsBySize(Object.values(corObj.variacoes));
             sortedVariations.forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
-              if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
+              if (sales === 0 && v.estoqueTotal === 0) return;
               
               const vmdSKU = numDias > 0 ? sales / numDias : 0;
               const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
@@ -915,7 +925,7 @@ export default function Sellout() {
             const sortedVariations = sortVariationsBySize(Object.values(corObj.variacoes));
             sortedVariations.forEach(v => {
               const sales = useFilters ? v.vendasFiltradas : (v.vendasPeriodo || 0);
-              if (!useFilters && sales === 0 && v.estoqueTotal === 0) return;
+              if (sales === 0 && v.estoqueTotal === 0) return;
               
               const vmdSKU = numDias > 0 ? sales / numDias : 0;
               const coberturaSKU = vmdSKU > 0 ? Math.round(v.estoqueTotal / vmdSKU) : (v.estoqueTotal > 0 ? '∞' : 0);
