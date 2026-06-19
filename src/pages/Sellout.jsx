@@ -62,55 +62,15 @@ function parseGoogleJSON(text) {
   }
 }
 
-async function fetchSandriniCasa() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1674603035`;
-    const res = await fetch(url);
-    const text = await res.text();
-    const rows = parseGoogleJSON(text);
-    const map = {};
-    rows.forEach(r => {
-      if (!r || !r.c) return;
-      const sku = String(r.c[3]?.v || '').trim().toUpperCase();
-      const qtd = Number(r.c[5]?.v) || 0;
-      if (sku) {
-        map[sku] = (map[sku] || 0) + qtd;
-      }
-    });
-    return map;
-  } catch (err) {
-    console.error("Erro ao carregar planilha Sandrini Casa:", err.message);
-    return {};
-  }
-}
 
-async function fetchBuyclockCasa() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/gviz/tq?tqx=out:json&sheet=%20INVENT%C3%81RIO_BUY`;
-    const res = await fetch(url);
-    const text = await res.text();
-    const rows = parseGoogleJSON(text);
-    const map = {};
-    rows.forEach(r => {
-      if (!r || !r.c) return;
-      const sku = String(r.c[0]?.v || '').trim().toUpperCase();
-      const qtd = Number(r.c[37]?.v) || 0;
-      if (sku) {
-        map[sku] = (map[sku] || 0) + qtd;
-      }
-    });
-    return map;
-  } catch (err) {
-    console.error("Erro ao carregar planilha Buyclock Casa:", err.message);
-    return {};
-  }
-}
 
 export default function Sellout() {
   const { data, loading, error } = useData();
   const { selectedCompany } = useCompany();
   const vendasRows = data.vendas || [];
   const estoqueRows = data.estoque || [];
+  const sandriniCasaMap = data.sandriniCasaMap || {};
+  const buyclockCasaMap = data.buyclockCasaMap || {};
 
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
@@ -135,10 +95,7 @@ export default function Sellout() {
   const [pendingExportType, setPendingExportType] = useState('csv');
   const [pendingExportMode, setPendingExportMode] = useState('detalhado');
 
-  // External stock states
-  const [sandriniCasaMap, setSandriniCasaMap] = useState({});
-  const [buyclockCasaMap, setBuyclockCasaMap] = useState({});
-  const [loadingCasaMaps, setLoadingCasaMaps] = useState(true);
+
 
   // PDF choice states
   const [isPdfChoiceOpen, setIsPdfChoiceOpen] = useState(false);
@@ -165,33 +122,7 @@ export default function Sellout() {
     setPdfDownloadCallback(null);
   };
 
-  // Fetch external stocks on mount
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        setLoadingCasaMaps(true);
-        const [sandrini, buyclock] = await Promise.all([
-          fetchSandriniCasa(),
-          fetchBuyclockCasa()
-        ]);
-        if (active) {
-          setSandriniCasaMap(sandrini);
-          setBuyclockCasaMap(buyclock);
-        }
-      } catch (err) {
-        console.error("Erro ao carregar estoques externos:", err);
-      } finally {
-        if (active) {
-          setLoadingCasaMaps(false);
-        }
-      }
-    }
-    load();
-    return () => {
-      active = false;
-    };
-  }, []);
+
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -988,7 +919,7 @@ export default function Sellout() {
     }
   };
 
-  const isPageLoading = loading || loadingCasaMaps;
+  const isPageLoading = loading;
 
   if (isPageLoading) {
     return (

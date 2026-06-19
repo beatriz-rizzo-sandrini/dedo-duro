@@ -6,7 +6,7 @@ import { normalizeDateStr, parseToTimestamp } from '../utils/dateUtils.js';
 const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 
 // Abas do Google Sheets (badstock, caminho, sellout) - estoque e vendas vem do Supabase
-const SHEETS_FROM_GS = ['sellout'];
+const SHEETS_FROM_GS = [];
 
 // Data de corte do histórico de vendas no Supabase
 const VENDAS_CUTOFF = '2026-03-29';
@@ -295,14 +295,92 @@ async function fetchEstoqueSupabase() {
   }
 }
 
-async function fetchCaminho() {
-  console.log('[DataContext] Buscando caminho do Google Sheets...');
-  return fetchSheet('CAMINHO');
+async function fetchCaminhoSupabase() {
+  console.log('[DataContext] Buscando reposição (caminho) do Supabase...');
+  const { data, error } = await supabase
+    .from('silver_reposicao')
+    .select('sku_produto, descricao_produto, local_destino, quantidade_enviada, status_envio, previsao_chegada, numero_nota_fiscal')
+    .neq('status_envio', 'FINALIZADO');
+  if (error) {
+    console.error('Erro ao buscar reposicao do Supabase:', error.message);
+    return [];
+  }
+  return data.map(r => ({
+    c: [
+      { v: r.sku_produto },
+      { v: r.descricao_produto },
+      { v: r.local_destino },
+      null,
+      { v: Number(r.quantidade_enviada) || 0 },
+      { v: r.status_envio },
+      { v: r.previsao_chegada },
+      { v: r.numero_nota_fiscal }
+    ]
+  }));
 }
 
-async function fetchBadstock() {
-  console.log('[DataContext] Buscando badstock do Google Sheets...');
-  return fetchSheet('BAD STOCK');
+async function fetchBadstockSupabase() {
+  console.log('[DataContext] Buscando badstock do Supabase...');
+  const { data, error } = await supabase
+    .from('silver_badstock')
+    .select('sku_produto, local_badstock');
+  if (error) {
+    console.error('Erro ao buscar badstock do Supabase:', error.message);
+    return [];
+  }
+  return data.map(r => ({
+    c: [
+      null,
+      { v: r.sku_produto },
+      { v: r.local_badstock }
+    ]
+  }));
+}
+
+async function fetchSandriniCasa() {
+  try {
+    console.log('[DataContext] Buscando estoque Sandrini Casa de planilha externa...');
+    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1674603035`;
+    const res = await fetch(url);
+    const text = await res.text();
+    const rows = parseGoogleJSON(text);
+    const map = {};
+    rows.forEach(r => {
+      if (!r || !r.c) return;
+      const sku = String(r.c[3]?.v || '').trim().toUpperCase();
+      const qtd = Number(r.c[5]?.v) || 0;
+      if (sku) {
+        map[sku] = (map[sku] || 0) + qtd;
+      }
+    });
+    return map;
+  } catch (err) {
+    console.error("Erro ao carregar planilha Sandrini Casa:", err.message);
+    return {};
+  }
+}
+
+async function fetchBuyclockCasa() {
+  try {
+    console.log('[DataContext] Buscando estoque Buyclock Casa de planilha externa...');
+    const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/gviz/tq?tqx=out:json&sheet=%20INVENT%C3%81RIO_BUY`;
+    const res = await fetch(url);
+    const text = await res.text();
+    const rows = parseGoogleJSON(text);
+    const map = {};
+    rows.forEach(r => {
+      if (!r || !r.c) return;
+      const sku = String(r.c[0]?.v || '').trim().toUpperCase();
+      const qtd = Number(r.c[37]?.v) || 0;
+      if (sku) {
+        map[sku] = (map[sku] || 0) + qtd;
+      }
+    });
+    return map;
+  } catch (err) {
+    console.error("Erro ao carregar planilha Buyclock Casa:", err.message);
+    return {};
+  }
 }
 
 async function fetchMapeamentosSupabase() {
@@ -369,14 +447,16 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      // Busca em paralelo: Google Sheets (sellout) + Supabase/Local (vendas, estoque, caminho, badstock) + Mapeamentos
-      const [gsResults, vendas, estoque, caminho, badstock, mappings] = await Promise.all([
+      // Busca em paralelo: Google Sheets (se houver) + Supabase (vendas, estoque, caminho, badstock, mapeamento) + Planilhas Externas
+      const [gsResults, vendas, estoque, caminho, badstock, mappings, sandriniCasaMap, buyclockCasaMap] = await Promise.all([
         Promise.all(SHEETS_FROM_GS.map(async name => ({ name, rows: await fetchSheet(name) }))),
         fetchVendasSupabase(),
         fetchEstoqueSupabase(),
-        fetchCaminho(),
-        fetchBadstock(),
+        fetchCaminhoSupabase(),
+        fetchBadstockSupabase(),
         fetchMapeamentosSupabase(),
+        fetchSandriniCasa(),
+        fetchBuyclockCasa()
       ]);
 
       // Cria o lookup de mapeamento
@@ -493,7 +573,9 @@ export function DataProvider({ children }) {
         vendas: mappedVendas, 
         estoque: mappedEstoque, 
         caminho: mappedCaminho, 
-        badstock: mappedBadstock 
+        badstock: mappedBadstock,
+        sandriniCasaMap,
+        buyclockCasaMap
       };
       gsResults.forEach(({ name, rows }) => { combined[name] = rows; });
 
