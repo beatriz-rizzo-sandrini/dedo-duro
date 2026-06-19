@@ -350,7 +350,10 @@ async function fetchSandriniCasa() {
       const sku = String(r.c[3]?.v || '').trim().toUpperCase();
       const qtd = Number(r.c[5]?.v) || 0;
       if (sku) {
-        map[sku] = (map[sku] || 0) + qtd;
+        if (!map[sku]) {
+          map[sku] = { estoqueCasa: 0, expedicao: 0 };
+        }
+        map[sku].estoqueCasa += qtd;
       }
     });
     return map;
@@ -391,19 +394,28 @@ async function fetchBuyclockCasa() {
     if (lines.length > 2) {
       const headers = parseCSVLine(lines[2]); // Linha index 2 contém cabeçalhos no CSV
       const estoqueCasaIdx = headers.indexOf('ESTOQUE CASA');
+      const expedicaoIdx = headers.indexOf('EXPEDIÇÃO -105');
       
-      if (estoqueCasaIdx !== -1) {
-        for (let i = 3; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
-          const cols = parseCSVLine(lines[i]);
-          const sku = String(cols[0] || '').trim().toUpperCase();
-          const qtd = Number(cols[estoqueCasaIdx]) || 0;
-          if (sku) {
-            map[sku] = (map[sku] || 0) + qtd;
+      const finalEstoqueIdx = estoqueCasaIdx !== -1 ? estoqueCasaIdx : 37;
+      const finalExpedicaoIdx = expedicaoIdx !== -1 ? expedicaoIdx : 4;
+      
+      for (let i = 3; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const cols = parseCSVLine(lines[i]);
+        const sku = String(cols[0] || '').trim().toUpperCase();
+        const ean = String(cols[1] || '').trim();
+        const brand = String(cols[2] || '').trim().toUpperCase();
+        const estoqueCasaVal = Number(cols[finalEstoqueIdx]) || 0;
+        const expedicaoVal = Number(cols[finalExpedicaoIdx]) || 0;
+        if (sku) {
+          if (!map[sku]) {
+            map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '' };
           }
+          map[sku].estoqueCasa += estoqueCasaVal;
+          map[sku].expedicao += expedicaoVal;
+          map[sku].brand = brand || map[sku].brand;
+          map[sku].ean = ean || map[sku].ean;
         }
-      } else {
-        console.warn('[DataContext] Coluna "ESTOQUE CASA" não encontrada na planilha Buyclock!');
       }
     }
     return map;
@@ -414,10 +426,11 @@ async function fetchBuyclockCasa() {
 }
 
 
+
 async function fetchMapeamentosSupabase() {
   try {
     console.log('[DataContext] Buscando mapeamentos do Supabase (produção)...');
-    const PAGE_SIZE = 2000;
+    const PAGE_SIZE = 1000;
     let allData = [];
     let from = 0;
     let hasMore = true;
