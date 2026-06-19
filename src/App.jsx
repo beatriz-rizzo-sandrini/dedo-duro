@@ -20,7 +20,7 @@ import { DataProvider } from './contexts/DataContext.jsx';
 function AppContent() {
   const { user } = useAuth();
 
-  if (!user) {
+  if (!user || user.status === 'novo') {
     return <Login />;
   }
 

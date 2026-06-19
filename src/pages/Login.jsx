@@ -5,7 +5,7 @@ import { Lock, Mail, Eye, EyeOff, ShieldAlert, ArrowRight, CheckCircle2 } from '
 import './Login.css';
 
 export default function Login() {
-  const { login, changePassword, loading } = useAuth();
+  const { login, changePassword, loading, user } = useAuth();
   
   // Login states
   const [email, setEmail] = useState('');
@@ -14,7 +14,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Password change states (for first access)
-  const [isFirstAccess, setIsFirstAccess] = useState(false);
+  const [isFirstAccess, setIsFirstAccess] = useState(() => !!(user && user.status === 'novo'));
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -83,8 +83,8 @@ export default function Login() {
         className="login-card"
       >
         <div className="login-header">
-          <div className="login-logo-container">
-            <span className="login-logo-text">DD</span>
+          <div className="login-logo-image-container">
+            <img src="/logo_cortado.png" alt="Grupo Sandrini" className="login-logo-image" />
           </div>
           <h2 className="login-title">Dedo Duro</h2>
           <p className="login-subtitle">
@@ -112,12 +112,12 @@ export default function Login() {
               )}
 
               <div className="login-input-group">
-                <label className="login-label">E-mail</label>
+                <label className="login-label">Usuário ou E-mail</label>
                 <div className="login-input-wrapper">
                   <Mail size={18} className="login-input-icon" />
                   <input 
-                    type="email" 
-                    placeholder="exemplo@empresa.com"
+                    type="text" 
+                    placeholder="nome.sobrenome ou e-mail..."
                     className="login-input"
                     value={email}
                     onChange={e => setEmail(e.target.value)}

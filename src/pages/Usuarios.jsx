@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Edit2, Trash2, Shield, Building, ToggleLeft, ToggleRight, Check, X, AlertTriangle } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Shield, Building, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { toTitleCase } from '../utils/stringUtils';
 
 export default function Usuarios() {
@@ -17,17 +17,16 @@ export default function Usuarios() {
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
   const [senha, setSenha] = useState('');
+  const [showSenha, setShowSenha] = useState(false);
   const [role, setRole] = useState('usuario');
-  const [empresa, setEmpresa] = useState(() => {
-    return currentUser && currentUser.empresa !== 'TODAS' ? currentUser.empresa : 'SANDRINI';
-  });
+  const [empresa, setEmpresa] = useState('TODAS');
 
   // Edit states
   const [editingUser, setEditingUser] = useState(null);
   const [editNome, setEditNome] = useState('');
   const [editRole, setEditRole] = useState('usuario');
   const [editStatus, setEditStatus] = useState('ativo');
-  const [editEmpresa, setEditEmpresa] = useState('SANDRINI');
+  const [editEmpresa, setEditEmpresa] = useState('TODAS');
 
   // Delete states
   const [deletingUser, setDeletingUser] = useState(null);
@@ -164,40 +163,76 @@ export default function Usuarios() {
               <form onSubmit={handleAddSubmit} style={styles.form}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Nome Completo</label>
-                  <input type="text" className="input-padrao" value={nome} onChange={e => setNome(e.target.value)} required />
+                  <input 
+                    type="text" 
+                    className="input-padrao" 
+                    value={nome} 
+                    onChange={e => setNome(e.target.value)} 
+                    required 
+                    autoComplete="off"
+                    name="dd-new-user-fullname"
+                    id="dd-new-user-fullname"
+                  />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>E-mail</label>
-                  <input type="email" className="input-padrao" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <input 
+                    type="email" 
+                    className="input-padrao" 
+                    placeholder="usuario@gruposandrini.com.br" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    required 
+                    autoComplete="off"
+                    name="dd-new-user-email"
+                    id="dd-new-user-email"
+                  />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Senha de 1º Acesso</label>
-                  <input type="password" className="input-padrao" placeholder="Min. 5 caracteres..." value={senha} onChange={e => setSenha(e.target.value)} required />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <input 
+                      type={showSenha ? 'text' : 'password'} 
+                      className="input-padrao" 
+                      placeholder="Min. 5 caracteres..." 
+                      value={senha} 
+                      onChange={e => setSenha(e.target.value)} 
+                      required 
+                      style={{ paddingRight: '46px' }}
+                      autoComplete="new-password"
+                      name="dd-new-user-password"
+                      id="dd-new-user-password"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowSenha(!showSenha)}
+                      style={{
+                        position: 'absolute',
+                        right: '16px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderLeft: 'none',
+                        outline: 'none'
+                      }}
+                    >
+                      {showSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div style={{ ...styles.formGroup, flex: 1 }}>
-                    <label style={styles.label}>Nível de Acesso (Role)</label>
-                    <select className="input-padrao" value={role} onChange={e => setRole(e.target.value)}>
-                      <option value="usuario">Usuário</option>
-                      <option value="gestor">Gestor</option>
-                      {isAdmin && <option value="admin">Administrador</option>}
-                    </select>
-                  </div>
-                  
-                  <div style={{ ...styles.formGroup, flex: 1 }}>
-                    <label style={styles.label}>Empresa</label>
-                    <select 
-                      className="input-padrao" 
-                      value={isGestor ? currentUser.empresa : empresa} 
-                      onChange={e => setEmpresa(e.target.value)}
-                      disabled={isGestor}
-                    >
-                      {isAdmin && <option value="TODAS">Todas</option>}
-                      <option value="SANDRINI">Sandrini</option>
-                      <option value="BUY CLOCK">Buy Clock</option>
-                    </select>
-                  </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nível de Acesso (Role)</label>
+                  <select className="input-padrao" value={role} onChange={e => setRole(e.target.value)}>
+                    <option value="usuario">Usuário</option>
+                    <option value="gestor">Gestor</option>
+                    {isAdmin && <option value="admin">Administrador</option>}
+                  </select>
                 </div>
 
                 <div style={styles.modalActions}>
@@ -235,29 +270,13 @@ export default function Usuarios() {
                   <input type="email" className="input-padrao" value={editingUser.email} disabled style={{ opacity: 0.7 }} />
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div style={{ ...styles.formGroup, flex: 1 }}>
-                    <label style={styles.label}>Nível de Acesso (Role)</label>
-                    <select className="input-padrao" value={editRole} onChange={e => setEditRole(e.target.value)}>
-                      <option value="usuario">Usuário</option>
-                      <option value="gestor">Gestor</option>
-                      {isAdmin && <option value="admin">Administrador</option>}
-                    </select>
-                  </div>
-                  
-                  <div style={{ ...styles.formGroup, flex: 1 }}>
-                    <label style={styles.label}>Empresa</label>
-                    <select 
-                      className="input-padrao" 
-                      value={isGestor ? currentUser.empresa : editEmpresa} 
-                      onChange={e => setEditEmpresa(e.target.value)}
-                      disabled={isGestor}
-                    >
-                      {isAdmin && <option value="TODAS">Todas</option>}
-                      <option value="SANDRINI">Sandrini</option>
-                      <option value="BUY CLOCK">Buy Clock</option>
-                    </select>
-                  </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nível de Acesso (Role)</label>
+                  <select className="input-padrao" value={editRole} onChange={e => setEditRole(e.target.value)}>
+                    <option value="usuario">Usuário</option>
+                    <option value="gestor">Gestor</option>
+                    {isAdmin && <option value="admin">Administrador</option>}
+                  </select>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -321,7 +340,6 @@ export default function Usuarios() {
                 <th style={{ ...styles.th, textAlign: 'left' }}>Nome</th>
                 <th style={{ ...styles.th, textAlign: 'left' }}>E-mail</th>
                 <th style={{ ...styles.th, textAlign: 'center' }}>Role</th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>Empresa</th>
                 <th style={{ ...styles.th, textAlign: 'center' }}>Status</th>
                 <th style={{ ...styles.th, textAlign: 'right' }}>Ações</th>
               </tr>
@@ -329,7 +347,7 @@ export default function Usuarios() {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ ...styles.td, textAlign: 'center', color: '#94a3b8', padding: '40px 0' }}>
+                  <td colSpan="5" style={{ ...styles.td, textAlign: 'center', color: '#94a3b8', padding: '40px 0' }}>
                     Nenhum usuário cadastrado.
                   </td>
                 </tr>
@@ -350,16 +368,7 @@ export default function Usuarios() {
                           <Shield size={12} style={{ marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }} /> {toTitleCase(u.role)}
                         </span>
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'center' }}>
-                        <span style={{ 
-                          ...styles.badge, 
-                          color: '#0f172a',
-                          background: '#f1f5f9',
-                          border: '1px solid #cbd5e1'
-                        }}>
-                          <Building size={12} style={{ marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }} /> {u.empresa === 'TODAS' ? 'Todas' : toTitleCase(u.empresa)}
-                        </span>
-                      </td>
+
                       <td style={{ ...styles.td, textAlign: 'center' }}>
                         <span style={{ 
                           ...styles.badge, 
