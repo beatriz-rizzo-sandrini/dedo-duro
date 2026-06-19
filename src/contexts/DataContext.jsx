@@ -357,6 +357,35 @@ async function fetchSandriniCasa() {
         map[sku].estoqueCasa += qtd;
       }
     });
+
+    try {
+      console.log('[DataContext] Buscando expedição Sandrini da aba INVENTÁRIO_SANDRINI...');
+      const sandriniExpUrl = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1109424210`;
+      const expRes = await fetch(sandriniExpUrl);
+      const expText = await expRes.text();
+      const expLines = expText.split(/\r?\n/);
+      if (expLines.length > 1) {
+        const expHeaders = parseCSVLine(expLines[1]); // Linha 1 contém os cabeçalhos
+        const expIdx = expHeaders.indexOf('EXPEDIÇÃO -105');
+        const finalExpIdx = expIdx !== -1 ? expIdx : 4;
+        
+        for (let i = 2; i < expLines.length; i++) {
+          if (!expLines[i].trim()) continue;
+          const cols = parseCSVLine(expLines[i]);
+          const sku = String(cols[0] || '').trim().toUpperCase();
+          const expedicaoVal = Number(cols[finalExpIdx]) || 0;
+          if (sku && expedicaoVal > 0) {
+            if (!map[sku]) {
+              map[sku] = { estoqueCasa: 0, expedicao: 0 };
+            }
+            map[sku].expedicao += expedicaoVal;
+          }
+        }
+      }
+    } catch (expErr) {
+      console.error("Erro ao carregar expedição Sandrini da planilha externa:", expErr.message);
+    }
+
     return map;
   } catch (err) {
     console.error("Erro ao carregar planilha Sandrini Casa:", err.message);

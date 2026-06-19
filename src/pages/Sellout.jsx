@@ -942,9 +942,7 @@ export default function Sellout() {
       if (type === 'pdf') {
         headers = isSupplier
           ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Total", "Cobertura"]
-          : (selectedCompany === 'BUY CLOCK'
-              ? ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Expedição", "Estoque CD", "Estoque Total", "Cobertura"]
-              : ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Estoque Total", "Cobertura"]);
+          : ["Descrição / SKU", "Marca / EAN", "Vendas", "Estoque Plat", "Estoque Casa", "Expedição", "Estoque CD", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
           const parentSales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
@@ -958,29 +956,17 @@ export default function Sellout() {
               '-'
             ]);
           } else {
-            if (selectedCompany === 'BUY CLOCK') {
-              exportData.push([
-                item.descricao,
-                item.marca,
-                parentSales,
-                item.estoquePlataforma,
-                item.estoqueCasa,
-                item.expedicao,
-                item.estoqueCD,
-                item.totalEstoque,
-                '-'
-              ]);
-            } else {
-              exportData.push([
-                item.descricao,
-                item.marca,
-                parentSales,
-                item.estoquePlataforma,
-                item.estoqueCasa,
-                item.totalEstoque,
-                '-'
-              ]);
-            }
+            exportData.push([
+              item.descricao,
+              item.marca,
+              parentSales,
+              item.estoquePlataforma,
+              item.estoqueCasa,
+              item.expedicao,
+              item.estoqueCD,
+              item.totalEstoque,
+              '-'
+            ]);
           }
           
           Object.values(item.cores).forEach(corObj => {
@@ -1008,29 +994,17 @@ export default function Sellout() {
                   coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
                 ]);
               } else {
-                if (selectedCompany === 'BUY CLOCK') {
-                  exportData.push([
-                    descStr,
-                    skuStr,
-                    sales,
-                    v.estoquePlataforma,
-                    v.estoqueCasa,
-                    v.expedicao,
-                    v.estoqueCD,
-                    v.estoqueTotal,
-                    coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
-                  ]);
-                } else {
-                  exportData.push([
-                    descStr,
-                    skuStr,
-                    sales,
-                    v.estoquePlataforma,
-                    v.estoqueCasa,
-                    v.estoqueTotal,
-                    coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
-                  ]);
-                }
+                exportData.push([
+                  descStr,
+                  skuStr,
+                  sales,
+                  v.estoquePlataforma,
+                  v.estoqueCasa,
+                  v.expedicao,
+                  v.estoqueCD,
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
+                ]);
               }
             });
           });
@@ -1039,9 +1013,7 @@ export default function Sellout() {
         // Flat layout for Excel/CSV (easy to filter/analyze in Excel)
         headers = isSupplier
           ? ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Total", "Cobertura"]
-          : (selectedCompany === 'BUY CLOCK'
-              ? ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque CD", "Estoque Total", "Cobertura"]
-              : ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Estoque Total", "Cobertura"]);
+          : ["SKU Sênior", "EAN", "Descrição", "Marca", "Vendas (Período)", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque CD", "Estoque Total", "Cobertura"];
         
         rowsToExport.forEach(item => {
           Object.values(item.cores).forEach(corObj => {
@@ -1068,33 +1040,19 @@ export default function Sellout() {
                   coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
                 ]);
               } else {
-                if (selectedCompany === 'BUY CLOCK') {
-                  exportData.push([
-                    v.sku,
-                    eanMapping[String(v.sku).toUpperCase().trim()] || '-',
-                    fullDesc,
-                    item.marca,
-                    sales,
-                    v.estoquePlataforma,
-                    v.estoqueCasa,
-                    v.expedicao,
-                    v.estoqueCD,
-                    v.estoqueTotal,
-                    coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
-                  ]);
-                } else {
-                  exportData.push([
-                    v.sku,
-                    eanMapping[String(v.sku).toUpperCase().trim()] || '-',
-                    fullDesc,
-                    item.marca,
-                    sales,
-                    v.estoquePlataforma,
-                    v.estoqueCasa,
-                    v.estoqueTotal,
-                    coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
-                  ]);
-                }
+                exportData.push([
+                  v.sku,
+                  eanMapping[String(v.sku).toUpperCase().trim()] || '-',
+                  fullDesc,
+                  item.marca,
+                  sales,
+                  v.estoquePlataforma,
+                  v.estoqueCasa,
+                  v.expedicao,
+                  v.estoqueCD,
+                  v.estoqueTotal,
+                  coberturaSKU === '∞' ? '∞' : `${coberturaSKU} dias`
+                ]);
               }
             });
           });
@@ -1479,15 +1437,9 @@ export default function Sellout() {
                           <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU Sênior</th>
                           <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>EAN</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Plataforma</th>
-                          {selectedCompany === 'BUY CLOCK' ? (
-                            <>
-                              <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
-                              <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Expedição</th>
-                              <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque CD</th>
-                            </>
-                          ) : (
-                            <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Casa</th>
-                          )}
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Expedição</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque CD</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Total</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Cobertura</th>
@@ -1524,23 +1476,15 @@ export default function Sellout() {
                               <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
                                 {v.estoquePlataforma.toLocaleString('pt-BR')} un
                               </td>
-                              {selectedCompany === 'BUY CLOCK' ? (
-                                <>
-                                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                    {(v.estoqueCasa || 0).toLocaleString('pt-BR')} un
-                                  </td>
-                                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                    {(v.expedicao || 0).toLocaleString('pt-BR')} un
-                                  </td>
-                                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                    {(v.estoqueCD || 0).toLocaleString('pt-BR')} un
-                                  </td>
-                                </>
-                              ) : (
-                                <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                  {v.estoqueCasa.toLocaleString('pt-BR')} un
-                                </td>
-                              )}
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {(v.estoqueCasa || 0).toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {(v.expedicao || 0).toLocaleString('pt-BR')} un
+                              </td>
+                              <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {(v.estoqueCD || 0).toLocaleString('pt-BR')} un
+                              </td>
                               <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.estoqueTotal === 0 ? '#ef4444' : '#0f172a' }}>
                                 {v.estoqueTotal.toLocaleString('pt-BR')} un
                               </td>
@@ -1624,15 +1568,9 @@ export default function Sellout() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
                               <span>Est. Plat: {v.estoquePlataforma}</span>
-                              {selectedCompany === 'BUY CLOCK' ? (
-                                <>
-                                  <span>Est. Casa: {v.estoqueCasa}</span>
-                                  <span>Exp: {v.expedicao}</span>
-                                  <span>CD: {v.estoqueCD}</span>
-                                </>
-                              ) : (
-                                  <span>Est. Casa: {v.estoqueCasa}</span>
-                              )}
+                              <span>Est. Casa: {v.estoqueCasa}</span>
+                              <span>Exp: {v.expedicao}</span>
+                              <span>CD: {v.estoqueCD}</span>
                               <span style={{ fontWeight: 600, color: v.estoqueTotal === 0 ? '#ef4444' : '#1e293b' }}>Total: {v.estoqueTotal}</span>
                             </div>
                           </div>
