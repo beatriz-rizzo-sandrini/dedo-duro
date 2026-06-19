@@ -360,28 +360,59 @@ async function fetchSandriniCasa() {
   }
 }
 
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map(s => s.trim().replace(/^"|"$/g, ''));
+}
+
 async function fetchBuyclockCasa() {
   try {
-    console.log('[DataContext] Buscando estoque Buyclock Casa de planilha externa...');
-    const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/gviz/tq?tqx=out:json&sheet=%20INVENT%C3%81RIO_BUY`;
+    console.log('[DataContext] Buscando estoque Buyclock Casa de planilha externa via CSV...');
+    const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1072598256`;
     const res = await fetch(url);
     const text = await res.text();
-    const rows = parseGoogleJSON(text);
+    const lines = text.split(/\r?\n/);
     const map = {};
-    rows.forEach(r => {
-      if (!r || !r.c) return;
-      const sku = String(r.c[0]?.v || '').trim().toUpperCase();
-      const qtd = Number(r.c[37]?.v) || 0;
-      if (sku) {
-        map[sku] = (map[sku] || 0) + qtd;
+    
+    if (lines.length > 2) {
+      const headers = parseCSVLine(lines[2]); // Linha index 2 contém cabeçalhos no CSV
+      const estoqueCasaIdx = headers.indexOf('ESTOQUE CASA');
+      
+      if (estoqueCasaIdx !== -1) {
+        for (let i = 3; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const cols = parseCSVLine(lines[i]);
+          const sku = String(cols[0] || '').trim().toUpperCase();
+          const qtd = Number(cols[estoqueCasaIdx]) || 0;
+          if (sku) {
+            map[sku] = (map[sku] || 0) + qtd;
+          }
+        }
+      } else {
+        console.warn('[DataContext] Coluna "ESTOQUE CASA" não encontrada na planilha Buyclock!');
       }
-    });
+    }
     return map;
   } catch (err) {
-    console.error("Erro ao carregar planilha Buyclock Casa:", err.message);
+    console.error("Erro ao carregar planilha Buyclock Casa via CSV:", err.message);
     return {};
   }
 }
+
 
 async function fetchMapeamentosSupabase() {
   try {
