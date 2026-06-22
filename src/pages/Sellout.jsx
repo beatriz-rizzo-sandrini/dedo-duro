@@ -21,7 +21,7 @@ import HeaderDates from '../components/HeaderDates';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
+import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
 import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 import MobileTable from '../components/MobileTable';
 
@@ -194,6 +194,24 @@ export default function Sellout() {
 
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
+
+    const skuToDesc = {};
+    estoqueRows.forEach(r => {
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      if (sku && desc) skuToDesc[sku] = desc;
+    });
+    vendasRows.forEach(r => {
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
+    const caminhoRows = data.caminho || [];
+    caminhoRows.forEach(r => {
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
 
     // 1. Processar Estoque primeiro para registrar todos os produtos e suas variações
     estoqueRows.forEach(r => {
@@ -402,7 +420,7 @@ export default function Sellout() {
         const brand = String(info.brand || 'Sem Marca').toUpperCase().trim();
         if (brand) setMarcas.add(brand);
 
-        const parsed = parseProductDescription('', sku, true, brand);
+        const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, true, brand);
         const prodKey = `${parsed.baseTitle}|${brand}`;
 
         if (!stats[prodKey]) {
@@ -468,7 +486,7 @@ export default function Sellout() {
         const brand = normalizeBrand('', sku, '');
         if (brand) setMarcas.add(brand);
 
-        const parsed = parseProductDescription('', sku, false, brand);
+        const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, false, brand);
         const prodKey = `${parsed.baseTitle}|${brand}`;
 
         if (!stats[prodKey]) {

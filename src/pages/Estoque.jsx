@@ -19,7 +19,7 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE } from '../utils/sheetColumns';
+import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
 import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 
@@ -119,6 +119,17 @@ export default function Estoque() {
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
+    vendasRows.forEach(r => {
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
+    const caminhoRows = data.caminho || [];
+    caminhoRows.forEach(r => {
+      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
+    });
 
     const stats = {};
     const setMarcas = new Set();
@@ -214,7 +225,7 @@ export default function Estoque() {
         const brand = String(info.brand || 'Sem Marca').toUpperCase().trim();
         if (brand) setMarcas.add(brand);
 
-        const parsed = parseProductDescription('', sku, true, brand);
+        const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, true, brand);
         const prodKey = `${parsed.baseTitle}|${brand}`;
 
         if (!stats[prodKey]) {
@@ -279,7 +290,7 @@ export default function Estoque() {
         const brand = normalizeBrand('', sku, '');
         if (brand) setMarcas.add(brand);
 
-        const parsed = parseProductDescription('', sku, false, brand);
+        const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, false, brand);
         const prodKey = `${parsed.baseTitle}|${brand}`;
 
         if (!stats[prodKey]) {
