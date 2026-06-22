@@ -21,7 +21,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
-import { parseProductDescription } from '../utils/productParser';
+import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 
 ChartJS.register(
   CategoryScale,
@@ -107,6 +107,9 @@ export default function Estoque() {
   const dadosProcessados = useMemo(() => {
     if (!estoqueRows) return { linhas: [], totalGeral: 0, totalCustoGeral: 0, dataEstoque: "", dataVendas: "" };
 
+    const sandriniCasaMap = data.sandriniCasaMap || {};
+    const buyclockCasaMap = data.buyclockCasaMap || {};
+
     const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
 
@@ -117,116 +120,340 @@ export default function Estoque() {
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
-    let totalGeral = 0;
-    let totalCustoGeral = 0;
-    const agrupado = {};
+    const stats = {};
+    const setMarcas = new Set();
+    const setLocais = new Set();
 
+    // 1. Processar estoque principal da base
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
-      // Corrigido: Filtra pela data para não somar histórico
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
-      let descricao = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
-      const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
-      const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const quantidade = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
-      const valorUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
-      const marca = (r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").trim().toUpperCase();
-
-      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      if (!descricao && skuToDesc[sku]) descricao = skuToDesc[sku];
-      if (!sku && !descricao) return;
-      if (!descricao) descricao = `SKU: ${sku}`;
-
-      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
-
-      const custoLinha = quantidade * valorUnitario;
-      totalGeral += quantidade;
-      totalCustoGeral += custoLinha;
-
-      const parsed = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"));
-
-      // Group by Base Title + Local (Model & Platform level)
-      const prodKey = `${parsed.baseTitle}|${local}`;
-      if (!agrupado[prodKey]) {
-        agrupado[prodKey] = {
-          descricao: parsed.baseTitle,
-          local: local,
-          marca: r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca",
-          total: 0,
-          custoTotal: 0,
-          cores: {},
-          skusArr: [],
-          id: prodKey
-        };
-      }
-      agrupado[prodKey].total += quantidade;
-      agrupado[prodKey].custoTotal += custoLinha;
-      agrupado[prodKey].skusArr.push(sku);
-      if (skuPlat) agrupado[prodKey].skusArr.push(skuPlat);
-
-      // Group by color
-      const corKey = parsed.color;
-      if (!agrupado[prodKey].cores[corKey]) {
-        agrupado[prodKey].cores[corKey] = {
-          cor: corKey,
-          total: 0,
-          custoTotal: 0,
-          variacoes: {}
-        };
-      }
-      agrupado[prodKey].cores[corKey].total += quantidade;
-      agrupado[prodKey].cores[corKey].custoTotal += custoLinha;
-
-      // Group by variation (size only to consolidate duplicates like SD2513 / MLB)
-      const varKey = parsed.size || 'ÚNICO';
-      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
-        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
-          sku: sku,
-          size: parsed.size,
-          total: 0,
-          valorUnitario: valorUnitario,
-          custoTotal: 0
-        };
+      if (
+        sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
+        skuPlat === 'TENISNEWBB80CBRPTOT38' || skuPlat === 'TENISNEWBB80CBRPTOT41' || skuPlat === 'AD000IF4135ABAJCN430031'
+      ) {
+        return;
       }
       
-      const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
-      existing.total += quantidade;
-      existing.custoTotal += custoLinha;
+      const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
+      const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
+      const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
+      const valorUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
+      const marca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
 
-      // Keep the specific senior SKU if the existing one is generic/MLB
-      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existing.sku) || existing.sku.startsWith('MLB');
-      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
-      if (isCurrentGeneric && isNewBetter) {
-        existing.sku = sku;
-      }
-      if (valorUnitario > 0 && (existing.valorUnitario === 0 || isCurrentGeneric && isNewBetter)) {
-        existing.valorUnitario = valorUnitario;
+      if (sku) {
+        if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
+        
+        if (marca) setMarcas.add(marca);
+        if (local) setLocais.add(local);
+
+        const parsed = parseProductDescription(rawDesc || skuToDesc[sku] || `SKU: ${sku}`, sku, local.includes("BUY CLOCK"), marca);
+        const prodKey = `${parsed.baseTitle}|${marca}`;
+
+        if (!stats[prodKey]) {
+          stats[prodKey] = {
+            descricao: parsed.baseTitle,
+            marca,
+            total: 0,
+            custoTotal: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            cores: {},
+            id: prodKey,
+            skusArr: []
+          };
+        }
+
+        if (sku && !stats[prodKey].skusArr.includes(sku)) stats[prodKey].skusArr.push(sku);
+        if (skuPlat && !stats[prodKey].skusArr.includes(skuPlat)) stats[prodKey].skusArr.push(skuPlat);
+
+        const corKey = parsed.color;
+        if (!stats[prodKey].cores[corKey]) {
+          stats[prodKey].cores[corKey] = { cor: corKey, total: 0, custoTotal: 0, estoquePlataforma: 0, estoqueCasa: 0, expedicao: 0, variacoes: {} };
+        }
+
+        const varKey = `${sku}|${parsed.size}`;
+        if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
+          stats[prodKey].cores[corKey].variacoes[varKey] = { 
+            sku, 
+            skuPlat, 
+            size: parsed.size, 
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            total: 0,
+            valorUnitario,
+            custoTotal: 0
+          };
+        }
+        
+        const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
+        if (isPlat) {
+          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+        }
+        
+        if (valorUnitario > 0) {
+          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = valorUnitario;
+        }
+        stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = lojaEstoque;
       }
     });
 
-    let linhas = Object.values(agrupado);
+    // 2. Processar itens das planilhas de casa para garantir que apareçam
+    if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
+      Object.entries(buyclockCasaMap).forEach(([sku, info]) => {
+        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
+        if (totalCD <= 0) return;
 
+        const brand = String(info.brand || 'Sem Marca').toUpperCase().trim();
+        if (brand) setMarcas.add(brand);
+
+        const parsed = parseProductDescription('', sku, true, brand);
+        const prodKey = `${parsed.baseTitle}|${brand}`;
+
+        if (!stats[prodKey]) {
+          stats[prodKey] = {
+            descricao: parsed.baseTitle,
+            marca: brand,
+            total: 0,
+            custoTotal: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            cores: {},
+            id: prodKey,
+            skusArr: []
+          };
+        }
+
+        if (!stats[prodKey].skusArr.includes(sku)) {
+          stats[prodKey].skusArr.push(sku);
+        }
+
+        const corKey = parsed.color;
+        if (!stats[prodKey].cores[corKey]) {
+          stats[prodKey].cores[corKey] = {
+            cor: corKey,
+            total: 0,
+            custoTotal: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            variacoes: {}
+          };
+        }
+
+        const varKey = `${sku}|${parsed.size}`;
+        if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
+          stats[prodKey].cores[corKey].variacoes[varKey] = {
+            sku,
+            skuPlat: '',
+            size: parsed.size,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            total: 0,
+            valorUnitario: info.cost || 0,
+            custoTotal: 0
+          };
+        }
+        
+        stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = 'BUY CLOCK';
+        if (info.cost > 0) {
+          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = info.cost;
+        }
+      });
+    }
+
+    if (selectedCompany === 'SANDRINI' || selectedCompany === 'TODAS') {
+      Object.entries(sandriniCasaMap).forEach(([sku, info]) => {
+        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
+        if (totalCD <= 0) return;
+
+        const brand = normalizeBrand('', sku, '');
+        if (brand) setMarcas.add(brand);
+
+        const parsed = parseProductDescription('', sku, false, brand);
+        const prodKey = `${parsed.baseTitle}|${brand}`;
+
+        if (!stats[prodKey]) {
+          stats[prodKey] = {
+            descricao: parsed.baseTitle,
+            marca: brand,
+            total: 0,
+            custoTotal: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            cores: {},
+            id: prodKey,
+            skusArr: []
+          };
+        }
+
+        if (!stats[prodKey].skusArr.includes(sku)) {
+          stats[prodKey].skusArr.push(sku);
+        }
+
+        const corKey = parsed.color;
+        if (!stats[prodKey].cores[corKey]) {
+          stats[prodKey].cores[corKey] = {
+            cor: corKey,
+            total: 0,
+            custoTotal: 0,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            variacoes: {}
+          };
+        }
+
+        const varKey = `${sku}|${parsed.size}`;
+        if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
+          stats[prodKey].cores[corKey].variacoes[varKey] = {
+            sku,
+            skuPlat: '',
+            size: parsed.size,
+            estoquePlataforma: 0,
+            estoqueCasa: 0,
+            expedicao: 0,
+            total: 0,
+            valorUnitario: info.cost || 0,
+            custoTotal: 0
+          };
+        }
+
+        stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = 'SANDRINI';
+        if (info.cost > 0) {
+          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = info.cost;
+        }
+      });
+    }
+
+    // 3. Recalcular os estoques e custos casa usando os mapas das planilhas externas
+    Object.values(stats).forEach(prod => {
+      let prodPlatEstoque = 0;
+      let prodCasaEstoque = 0;
+      let prodExpedicao = 0;
+      let prodTotalEstoque = 0;
+      let prodCustoTotal = 0;
+      
+      Object.values(prod.cores).forEach(cor => {
+        let corPlatEstoque = 0;
+        let corCasaEstoque = 0;
+        let corExpedicao = 0;
+        let corTotalEstoque = 0;
+        let corCustoTotal = 0;
+        
+        Object.values(cor.variacoes).forEach(v => {
+          const company = v.lojaEstoque || 'SANDRINI';
+          let qtyCasa = 0;
+          let qtyExpedicao = 0;
+          const mapToUse = company === 'BUY CLOCK' ? buyclockCasaMap : sandriniCasaMap;
+          
+          const key1 = String(v.sku || '').toUpperCase().trim();
+          const key2 = String(v.skuPlat || '').toUpperCase().trim();
+          
+          const translateInvertedSku = (skuStr) => {
+            if (!skuStr) return skuStr;
+            const s = skuStr.toUpperCase().trim();
+            if (s.startsWith('NB001323396AJCNCN')) {
+              const size = s.substring(17, 19);
+              const suffixMap = { '38': '610', '39': '611', '40': '612', '41': '613', '42': '614', '43': '615' };
+              const suffix = suffixMap[size] || '';
+              return suffix ? `NB000GM500V2BOAWCN${size}${suffix}` : s;
+            } else if (s.startsWith('NB000GM500V2BOAWCN')) {
+              const size = s.substring(18, 20);
+              const suffixMap = { '39': '0333', '40': '0334', '41': '0335', '42': '0336', '43': '0337', '44': '0338' };
+              const suffix = suffixMap[size] || '';
+              return suffix ? `NB001323396AJCNCN${size}${suffix}` : s;
+            }
+            return skuStr;
+          };
+          
+          const searchKey1 = translateInvertedSku(key1);
+          const searchKey2 = translateInvertedSku(key2);
+          
+          if (searchKey1 && mapToUse[searchKey1] !== undefined) {
+            qtyCasa = mapToUse[searchKey1].estoqueCasa || 0;
+            qtyExpedicao = mapToUse[searchKey1].expedicao || 0;
+            if (mapToUse[searchKey1].cost > 0) {
+              v.valorUnitario = mapToUse[searchKey1].cost;
+            }
+          } else if (searchKey2 && mapToUse[searchKey2] !== undefined) {
+            qtyCasa = mapToUse[searchKey2].estoqueCasa || 0;
+            qtyExpedicao = mapToUse[searchKey2].expedicao || 0;
+            if (mapToUse[searchKey2].cost > 0) {
+              v.valorUnitario = mapToUse[searchKey2].cost;
+            }
+          }
+          
+          v.estoqueCasa = qtyCasa;
+          v.expedicao = qtyExpedicao;
+          v.total = v.estoquePlataforma + qtyCasa + qtyExpedicao;
+          v.custoTotal = v.total * v.valorUnitario;
+          
+          corPlatEstoque += v.estoquePlataforma;
+          corCasaEstoque += v.estoqueCasa;
+          corExpedicao += v.expedicao;
+          corTotalEstoque += v.total;
+          corCustoTotal += v.custoTotal;
+        });
+        
+        cor.estoquePlataforma = corPlatEstoque;
+        cor.estoqueCasa = corCasaEstoque;
+        cor.expedicao = corExpedicao;
+        cor.total = corTotalEstoque;
+        cor.custoTotal = corCustoTotal;
+        
+        prodPlatEstoque += corPlatEstoque;
+        prodCasaEstoque += corCasaEstoque;
+        prodExpedicao += corExpedicao;
+        prodTotalEstoque += corTotalEstoque;
+        prodCustoTotal += corCustoTotal;
+      });
+      
+      prod.estoquePlataforma = prodPlatEstoque;
+      prod.estoqueCasa = prodCasaEstoque;
+      prod.expedicao = prodExpedicao;
+      prod.total = prodTotalEstoque;
+      prod.custoTotal = prodCustoTotal;
+    });
+
+    let linhas = Object.values(stats);
+
+    // Aplicar filtros de busca e locais/marcas
     if (busca) {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
-        const localLower = (l.local || "").toLowerCase();
         const skusArray = l.skusArr.map(s => s.toLowerCase());
         
         return termos.every(termo => 
           descLower.includes(termo) || 
-          localLower.includes(termo) ||
           skusArray.some(sku => sku.includes(termo))
         );
       });
     }
 
-    // 3. Agrupamento por marca para KPIs e gráficos (respeita busca, local, empresa, mas ignora o filtroMarca)
+    if (filtroLocal.length > 0) {
+      linhas = linhas.filter(l => {
+        return filtroLocal.some(f => {
+          const val = f.value.toUpperCase();
+          if (val.includes('CASA')) return l.estoqueCasa > 0;
+          if (val.includes('EXPEDI') || val.includes('OUT') || val.includes('TRANS')) return l.expedicao > 0;
+          return l.estoquePlataforma > 0;
+        });
+      });
+    }
+
+    // 4. Agrupamento por marca para KPIs e gráficos (respeita busca, empresa, mas ignora o filtroMarca)
     const marcasStatsObj = {};
     linhas.forEach(l => {
       const brandName = (l.marca || "Sem Marca").trim().toUpperCase();
@@ -379,26 +606,29 @@ export default function Estoque() {
       chartTitleQtd,
       chartTitleCusto
     };
-  }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany]);
+  }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany, data.sandriniCasaMap, data.buyclockCasaMap]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const handleExportData = (type, mode = 'detalhado') => {
-    const isFilteredLocal = filtroLocal.length > 0;
     if (mode === 'resumido') {
-      const headers = isFilteredLocal ? ["Descrição", "Quantidade em Estoque"] : ["Descrição", "Local", "Quantidade em Estoque"];
+      const headers = ["Descrição", "Marca", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque Total", "Custo Total"];
       const exportData = dadosProcessados.linhas.map(item => {
-        if (isFilteredLocal) {
-          return [item.descricao, item.total];
-        } else {
-          return [item.descricao, item.local, item.total];
-        }
+        return [
+          item.descricao,
+          item.marca,
+          item.estoquePlataforma,
+          item.estoqueCasa,
+          item.expedicao,
+          item.total,
+          item.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        ];
       });
       handleExport(type, "Estoque_Consolidado_Resumido", headers, exportData);
     } else {
-      const headers = isFilteredLocal ? ["SKU Sênior", "Descrição", "Quantidade em Estoque"] : ["SKU Sênior", "Descrição", "Local", "Quantidade em Estoque"];
+      const headers = ["SKU Sênior", "Descrição", "Marca", "Custo Unitário", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque Total", "Custo Total"];
       const exportData = [];
       dadosProcessados.linhas.forEach(item => {
         Object.values(item.cores).forEach(corObj => {
@@ -407,11 +637,17 @@ export default function Estoque() {
             const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
             const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
             
-            if (isFilteredLocal) {
-              exportData.push([v.sku, fullDesc, v.total]);
-            } else {
-              exportData.push([v.sku, fullDesc, item.local, v.total]);
-            }
+            exportData.push([
+              v.sku,
+              fullDesc,
+              item.marca,
+              v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+              v.estoquePlataforma,
+              v.estoqueCasa,
+              v.expedicao,
+              v.total,
+              v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            ]);
           });
         });
       });
@@ -644,26 +880,40 @@ export default function Estoque() {
             ),
             onSort: () => requestSort('descricao'),
           },
-          ...(filtroLocal.length === 0 ? [{
-            key: 'local',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Local {getSortIcon('local')}</div>,
-            rawLabel: 'Local',
-            render: (row) => toTitleCase(row.local),
-            onSort: () => requestSort('local'),
-          }] : []),
+          {
+            key: 'estoquePlataforma',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Plataforma {getSortIcon('estoquePlataforma')}</div>,
+            rawLabel: 'Est. Plataforma',
+            render: (row) => <span>{row.estoquePlataforma.toLocaleString('pt-BR')} un</span>,
+            onSort: () => requestSort('estoquePlataforma'),
+          },
+          {
+            key: 'estoqueCasa',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Casa {getSortIcon('estoqueCasa')}</div>,
+            rawLabel: 'Est. Casa',
+            render: (row) => <span>{row.estoqueCasa.toLocaleString('pt-BR')} un</span>,
+            onSort: () => requestSort('estoqueCasa'),
+          },
+          {
+            key: 'expedicao',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Expedição {getSortIcon('expedicao')}</div>,
+            rawLabel: 'Expedição',
+            render: (row) => <span>{row.expedicao.toLocaleString('pt-BR')} un</span>,
+            onSort: () => requestSort('expedicao'),
+          },
+          {
+            key: 'total',
+            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total {getSortIcon('total')}</div>,
+            rawLabel: 'Total',
+            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')} un</span>,
+            onSort: () => requestSort('total'),
+          },
           {
             key: 'custoTotal',
             label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Custo Total {getSortIcon('custoTotal')}</div>,
             rawLabel: 'Custo Total',
-            render: (row) => <span style={{ fontWeight: 800, color: '#1e293b' }}>{row.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>,
+            render: (row) => <span style={{ fontWeight: 800, color: '#10b981' }}>{row.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>,
             onSort: () => requestSort('custoTotal'),
-          },
-          {
-            key: 'total',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total em Estoque {getSortIcon('total')}</div>,
-            rawLabel: 'Total em Estoque',
-            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')} pçs</span>,
-            onSort: () => requestSort('total'),
           },
         ]}
         rows={linhasPaginadas}
@@ -703,8 +953,11 @@ export default function Estoque() {
                         <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
                         <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Unit.</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Plat</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Expedição</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Total</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Total</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Qtd em Estoque</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -720,7 +973,7 @@ export default function Estoque() {
                         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                         return aVal.localeCompare(bVal);
                       }).map((v) => (
-                        <tr key={v.size || 'ÚNICO'} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                        <tr key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                           <td style={{ padding: '10px 20px', textAlign: 'center' }}>
                             <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
                               {v.size || 'Único'}
@@ -732,11 +985,20 @@ export default function Estoque() {
                           <td style={{ padding: '10px 20px', textAlign: 'right', color: '#475569', fontWeight: 500 }}>
                             {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#047857', fontWeight: 600 }}>
-                            {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                            {v.estoquePlataforma.toLocaleString('pt-BR')} un
                           </td>
                           <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                            {v.total.toLocaleString('pt-BR')} peças
+                            {v.estoqueCasa.toLocaleString('pt-BR')} un
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                            {v.expedicao.toLocaleString('pt-BR')} un
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#0f172a' }}>
+                            {v.total.toLocaleString('pt-BR')} un
+                          </td>
+                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#047857', fontWeight: 600 }}>
+                            {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
                         </tr>
                       ))}
@@ -784,19 +1046,24 @@ export default function Estoque() {
                       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                       return aVal.localeCompare(bVal);
                     }).map((v, vIdx, arr) => (
-                      <div key={v.size || 'ÚNICO'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
-                            {v.size || 'Único'}
-                          </span>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
-                            <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                      <div key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                              {v.size || 'Único'}
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                              <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>{v.total} pçs</span>
-                          <span style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>Total: {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                          <span>Est. Plat: {v.estoquePlataforma}</span>
+                          <span>Est. Casa: {v.estoqueCasa}</span>
+                          <span>Exp: {v.expedicao}</span>
+                          <span style={{ fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#1e293b' }}>Total: {v.total} un</span>
+                          <span style={{ fontWeight: 600, color: '#047857' }}>Custo: {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                       </div>
                     ))}

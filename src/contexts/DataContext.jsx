@@ -350,9 +350,12 @@ async function fetchSandriniCasa() {
       if (!r || !r.c) return;
       const sku = String(r.c[3]?.v || '').trim().toUpperCase();
       const qtd = Number(r.c[5]?.v) || 0;
+      const brand = String(r.c[2]?.v || 'SANDRINI').trim().toUpperCase();
+      const desc = r.c[4]?.v || '';
+      const cost = Number(String(r.c[7]?.v || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
       if (sku) {
         if (!map[sku]) {
-          map[sku] = { estoqueCasa: 0, expedicao: 0 };
+          map[sku] = { estoqueCasa: 0, expedicao: 0, brand, desc, cost };
         }
         map[sku].estoqueCasa += qtd;
       }
@@ -376,7 +379,7 @@ async function fetchSandriniCasa() {
           const expedicaoVal = Number(cols[finalExpIdx]) || 0;
           if (sku && expedicaoVal > 0) {
             if (!map[sku]) {
-              map[sku] = { estoqueCasa: 0, expedicao: 0 };
+              map[sku] = { estoqueCasa: 0, expedicao: 0, brand: 'SANDRINI', desc: '', cost: 0 };
             }
             map[sku].expedicao += expedicaoVal;
           }
@@ -437,14 +440,17 @@ async function fetchBuyclockCasa() {
         const brand = String(cols[2] || '').trim().toUpperCase();
         const estoqueCasaVal = Number(cols[finalEstoqueIdx]) || 0;
         const expedicaoVal = Number(cols[finalExpedicaoIdx]) || 0;
+        const costVal = cols[34];
+        const cost = Number(String(costVal || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
         if (sku) {
           if (!map[sku]) {
-            map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '' };
+            map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '', cost: 0 };
           }
           map[sku].estoqueCasa += estoqueCasaVal;
           map[sku].expedicao += expedicaoVal;
           map[sku].brand = brand || map[sku].brand;
           map[sku].ean = ean || map[sku].ean;
+          map[sku].cost = cost || map[sku].cost;
         }
       }
     }
