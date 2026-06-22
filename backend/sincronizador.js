@@ -15,7 +15,7 @@ const SPREADSHEET_SANDRINI_ID = '1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo';
 const SPREADSHEET_BUYCLOCK_ID = '1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k';
 
 const EXTRA_ESTOQUE_URLS = {
-  sandrini: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_SANDRINI_ID}/gviz/tq?tqx=out:json&sheet=CD%20SJN`,
+  sandrini: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_SANDRINI_ID}/gviz/tq?tqx=out:json&gid=1363555604`,
   buyclock: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_BUYCLOCK_ID}/export?format=csv&gid=1072598256`
 };
 

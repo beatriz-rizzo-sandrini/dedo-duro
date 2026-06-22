@@ -341,7 +341,7 @@ async function fetchBadstockSupabase() {
 async function fetchSandriniCasa() {
   try {
     console.log('[DataContext] Buscando estoque Sandrini Casa de planilha externa...');
-    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1674603035`;
+    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1363555604`;
     const res = await fetch(url);
     const text = await res.text();
     const rows = parseGoogleJSON(text);
