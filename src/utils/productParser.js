@@ -184,7 +184,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     };
   }
 
-  sku = String(sku).trim();
+  sku = String(sku).trim().replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
   let size = '';
   let color = '';
 

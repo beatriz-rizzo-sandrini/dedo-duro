@@ -19,7 +19,13 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
+import * as SheetCols from '../utils/sheetColumns';
+
+// Utility to normalize SKUs by stripping suffixes
+function normalizeSku(sku) {
+  return String(sku).replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
+}
+const { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } = SheetCols;
 import MobileTable from '../components/MobileTable';
 import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 
@@ -89,7 +95,7 @@ export default function Estoque() {
     const setMarcas = new Set();
     const { dataEstoque } = getLatestDates(estoqueRows, vendasRows);
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
-    
+
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
@@ -115,12 +121,12 @@ export default function Estoque() {
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
     vendasRows.forEach(r => {
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
     });
@@ -141,7 +147,7 @@ export default function Estoque() {
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
-      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
       if (
         sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
@@ -149,7 +155,7 @@ export default function Estoque() {
       ) {
         return;
       }
-      
+
       const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
@@ -159,7 +165,7 @@ export default function Estoque() {
 
       if (sku) {
         if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
-        
+
         if (marca) setMarcas.add(marca);
         if (local) setLocais.add(local);
 
@@ -191,10 +197,10 @@ export default function Estoque() {
 
         const varKey = `${sku}|${parsed.size}`;
         if (!stats[prodKey].cores[corKey].variacoes[varKey]) {
-          stats[prodKey].cores[corKey].variacoes[varKey] = { 
-            sku, 
-            skuPlat, 
-            size: parsed.size, 
+          stats[prodKey].cores[corKey].variacoes[varKey] = {
+            sku,
+            skuPlat,
+            size: parsed.size,
             estoquePlataforma: 0,
             estoqueCasa: 0,
             expedicao: 0,
@@ -203,12 +209,12 @@ export default function Estoque() {
             custoTotal: 0
           };
         }
-        
+
         const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
         }
-        
+
         if (valorUnitario > 0) {
           stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = valorUnitario;
         }
@@ -274,7 +280,7 @@ export default function Estoque() {
             custoTotal: 0
           };
         }
-        
+
         stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = 'BUY CLOCK';
         if (info.cost > 0) {
           stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = info.cost;
@@ -354,23 +360,23 @@ export default function Estoque() {
       let prodExpedicao = 0;
       let prodTotalEstoque = 0;
       let prodCustoTotal = 0;
-      
+
       Object.values(prod.cores).forEach(cor => {
         let corPlatEstoque = 0;
         let corCasaEstoque = 0;
         let corExpedicao = 0;
         let corTotalEstoque = 0;
         let corCustoTotal = 0;
-        
+
         Object.values(cor.variacoes).forEach(v => {
           const company = v.lojaEstoque || 'SANDRINI';
           let qtyCasa = 0;
           let qtyExpedicao = 0;
           const mapToUse = company === 'BUY CLOCK' ? buyclockCasaMap : sandriniCasaMap;
-          
+
           const key1 = String(v.sku || '').toUpperCase().trim();
           const key2 = String(v.skuPlat || '').toUpperCase().trim();
-          
+
           const translateInvertedSku = (skuStr) => {
             if (!skuStr) return skuStr;
             const s = skuStr.toUpperCase().trim();
@@ -387,10 +393,10 @@ export default function Estoque() {
             }
             return skuStr;
           };
-          
+
           const searchKey1 = translateInvertedSku(key1);
           const searchKey2 = translateInvertedSku(key2);
-          
+
           if (searchKey1 && mapToUse[searchKey1] !== undefined) {
             qtyCasa = mapToUse[searchKey1].estoqueCasa || 0;
             qtyExpedicao = mapToUse[searchKey1].expedicao || 0;
@@ -404,32 +410,32 @@ export default function Estoque() {
               v.valorUnitario = mapToUse[searchKey2].cost;
             }
           }
-          
+
           v.estoqueCasa = qtyCasa;
           v.expedicao = qtyExpedicao;
           v.total = v.estoquePlataforma + qtyCasa + qtyExpedicao;
           v.custoTotal = v.total * v.valorUnitario;
-          
+
           corPlatEstoque += v.estoquePlataforma;
           corCasaEstoque += v.estoqueCasa;
           corExpedicao += v.expedicao;
           corTotalEstoque += v.total;
           corCustoTotal += v.custoTotal;
         });
-        
+
         cor.estoquePlataforma = corPlatEstoque;
         cor.estoqueCasa = corCasaEstoque;
         cor.expedicao = corExpedicao;
         cor.total = corTotalEstoque;
         cor.custoTotal = corCustoTotal;
-        
+
         prodPlatEstoque += corPlatEstoque;
         prodCasaEstoque += corCasaEstoque;
         prodExpedicao += corExpedicao;
         prodTotalEstoque += corTotalEstoque;
         prodCustoTotal += corCustoTotal;
       });
-      
+
       prod.estoquePlataforma = prodPlatEstoque;
       prod.estoqueCasa = prodCasaEstoque;
       prod.expedicao = prodExpedicao;
@@ -445,9 +451,9 @@ export default function Estoque() {
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
         const skusArray = l.skusArr.map(s => s.toLowerCase());
-        
-        return termos.every(termo => 
-          descLower.includes(termo) || 
+
+        return termos.every(termo =>
+          descLower.includes(termo) ||
           skusArray.some(sku => sku.includes(termo))
         );
       });
@@ -483,7 +489,7 @@ export default function Estoque() {
 
     let marcaLiderQtd = { marca: '-', totalQtd: 0 };
     let marcaLiderCusto = { marca: '-', totalCusto: 0 };
-    
+
     marcasStatsArray.forEach(m => {
       if (m.totalQtd > marcaLiderQtd.totalQtd) {
         marcaLiderQtd = m;
@@ -589,7 +595,7 @@ export default function Estoque() {
         let bVal = b[sortConfig.key];
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
         if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-        
+
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -603,11 +609,11 @@ export default function Estoque() {
       finalTotalCustoGeral += l.custoTotal;
     });
 
-    return { 
-      linhas, 
-      totalGeral: finalTotalGeral, 
-      totalCustoGeral: finalTotalCustoGeral, 
-      dataEstoque, 
+    return {
+      linhas,
+      totalGeral: finalTotalGeral,
+      totalCustoGeral: finalTotalCustoGeral,
+      dataEstoque,
       dataVendas,
       totalMarcas: marcasStatsArray.length,
       marcaLiderQtd,
@@ -625,7 +631,7 @@ export default function Estoque() {
 
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
-      const headers = ["Descrição", "Marca", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque Total", "Custo Total"];
+      const headers = ["Descrição", "Marca", "Estoque Plataforma", "Estoque Casa", " Estoque Expedição", "Estoque Total", "Custo Total"];
       const exportData = dadosProcessados.linhas.map(item => {
         return [
           item.descricao,
@@ -639,7 +645,7 @@ export default function Estoque() {
       });
       handleExport(type, "Estoque_Consolidado_Resumido", headers, exportData);
     } else {
-      const headers = ["SKU Sênior", "Descrição", "Marca", "Custo Unitário", "Estoque Plataforma", "Estoque Casa", "Expedição", "Estoque Total", "Custo Total"];
+      const headers = ["SKU Sênior", "Descrição", "Marca", "Custo Unitário", "Estoque Plataforma", "Estoque Casa", "Estoque Expedição", "Estoque Total", "Custo Total"];
       const exportData = [];
       dadosProcessados.linhas.forEach(item => {
         Object.values(item.cores).forEach(corObj => {
@@ -647,7 +653,7 @@ export default function Estoque() {
             const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
             const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
             const fullDesc = `${item.descricao}${colorPart}${sizePart}`;
-            
+
             exportData.push([
               v.sku,
               fullDesc,
@@ -713,7 +719,7 @@ export default function Estoque() {
             </button>
             <AnimatePresence>
               {isExportMenuOpen && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                   style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
                 >
@@ -746,25 +752,25 @@ export default function Estoque() {
 
       <div className="filters-container">
         <CompanySelector />
-        
+
         <div style={{ flex: 1, minWidth: '150px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PESQUISAR (SKU OU DESCRIÇÃO)</label>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
-            <input 
-              type="text" 
-              className="input-padrao" 
+            <input
+              type="text"
+              className="input-padrao"
               style={{ width: '100%', paddingLeft: '42px' }}
-              placeholder="Digite para buscar..." 
-              value={buscaInput} 
-              onChange={e => setBuscaInput(e.target.value)} 
+              placeholder="Digite para buscar..."
+              value={buscaInput}
+              onChange={e => setBuscaInput(e.target.value)}
             />
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>MARCA</label>
-          <Select 
+          <Select
             isMulti
             options={marcas.map(m => ({ value: m, label: toTitleCase(m) }))}
             value={filtroMarca}
@@ -778,7 +784,7 @@ export default function Estoque() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL</label>
-          <Select 
+          <Select
             isMulti
             options={locais.map(l => ({ value: l, label: toTitleCase(l) }))}
             value={filtroLocal}
@@ -800,7 +806,7 @@ export default function Estoque() {
             <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.totalMarcas} marcas</div>
           </div>
         </div>
-        
+
         <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '24px' }}>📦</span>
           <div style={{ overflow: 'hidden' }}>
@@ -836,14 +842,14 @@ export default function Estoque() {
           </h3>
           {dadosProcessados.chartBrandQtdData ? (
             <div style={{ height: '280px' }}>
-              <Bar 
-                data={dadosProcessados.chartBrandQtdData} 
-                options={{ 
+              <Bar
+                data={dadosProcessados.chartBrandQtdData}
+                options={{
                   maintainAspectRatio: false,
                   indexAxis: 'y',
                   plugins: { legend: { display: false } },
                   scales: { x: { beginAtZero: true } }
-                }} 
+                }}
               />
             </div>
           ) : (
@@ -859,14 +865,14 @@ export default function Estoque() {
           </h3>
           {dadosProcessados.chartBrandCustoData ? (
             <div style={{ height: '280px' }}>
-              <Bar 
-                data={dadosProcessados.chartBrandCustoData} 
-                options={{ 
+              <Bar
+                data={dadosProcessados.chartBrandCustoData}
+                options={{
                   maintainAspectRatio: false,
                   indexAxis: 'y',
                   plugins: { legend: { display: false } },
                   scales: { x: { beginAtZero: true } }
-                }} 
+                }}
               />
             </div>
           ) : (
@@ -956,7 +962,7 @@ export default function Estoque() {
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Tabela de Variações */}
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
@@ -964,9 +970,9 @@ export default function Estoque() {
                         <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
                         <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Unit.</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Plat</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Plataforma</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Expedição</th>
+                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Expedição</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Total</th>
                         <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Total</th>
                       </tr>
@@ -1042,7 +1048,7 @@ export default function Estoque() {
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Lista de Variações Mobile */}
                   <div style={{ padding: '0 14px' }}>
                     {Object.values(corObj.variacoes).sort((a, b) => {
@@ -1089,11 +1095,11 @@ export default function Estoque() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          Mostrar 
-          <select 
-            className="input-padrao" 
-            style={{ width: 'auto', padding: '6px 30px 6px 12px' }} 
-            value={itensPorPagina} 
+          Mostrar
+          <select
+            className="input-padrao"
+            style={{ width: 'auto', padding: '6px 30px 6px 12px' }}
+            value={itensPorPagina}
             onChange={e => { setItensPorPagina(Number(e.target.value)); setCurrentPage(1); }}
           >
             <option value={10}>10</option>
@@ -1107,20 +1113,20 @@ export default function Estoque() {
 
         {totalPaginas > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
               style={{ padding: '8px', borderRadius: '8px', background: currentPage === 1 ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
             >
               <ChevronLeft size={20} color={currentPage === 1 ? '#94a3b8' : '#0f172a'} />
             </button>
-            
+
             <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
               Página {currentPage} de {totalPaginas}
             </span>
 
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))} 
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))}
               disabled={currentPage === totalPaginas}
               style={{ padding: '8px', borderRadius: '8px', background: currentPage === totalPaginas ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === totalPaginas ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
             >

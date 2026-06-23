@@ -615,28 +615,52 @@ async function syncMapeamento() {
           finalSkuSen && 
           (finalSkuSen.toUpperCase().startsWith('LP') || finalSkuSen.toUpperCase().startsWith('KLP') || (finalDesc && finalDesc.toUpperCase().includes('LUPO')));
 
-        if (isSandriniDry && isMappedToLupo) {
+        if (isSandriniDry) {
           const skuPlatUpper = skuPlat.toUpperCase().trim();
-          finalSkuSen = skuPlatUpper; // Sênior = Plataforma para não misturar com Lupo
+          
+          let size = '';
+          if (skuPlatUpper.endsWith('TGG') || skuPlatUpper.endsWith('GG')) size = 'GG';
+          else if (skuPlatUpper.endsWith('TG') || skuPlatUpper.endsWith('G')) size = 'G';
+          else if (skuPlatUpper.endsWith('TM') || skuPlatUpper.endsWith('M')) size = 'M';
+          else if (skuPlatUpper.endsWith('TP') || skuPlatUpper.endsWith('P')) size = 'P';
 
-          if (skuPlatUpper.startsWith('K4') || skuPlatUpper.startsWith('KIT4')) {
-            finalDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
-          } else if (skuPlatUpper.startsWith('K2') || skuPlatUpper.startsWith('KIT2')) {
-            finalDesc = 'Kit 2 Camisetas Dry Sandrini Manga Curta';
-          } else if (skuPlatUpper.startsWith('K3') || skuPlatUpper.startsWith('KIT3')) {
-            finalDesc = 'Kit 3 Camisetas Dry Sandrini Manga Curta';
-          } else if (skuPlatUpper.startsWith('K5') || skuPlatUpper.startsWith('KIT5')) {
-            finalDesc = 'Kit 5 Camisetas Dry Sandrini Manga Curta';
-          } else if (skuPlatUpper.startsWith('K8') || skuPlatUpper.startsWith('KIT8')) {
-            finalDesc = 'Kit 8 Camisetas Dry Sandrini Manga Curta';
-          } else if (skuPlatUpper.startsWith('K') || skuPlatUpper.includes('KIT')) {
-            finalDesc = 'Kit Camisetas Dry Sandrini Manga Curta';
-          } else {
-            // Individual
-            if (skuPlatUpper.includes('2351') || skuPlatUpper.includes('2352') || skuPlatUpper.includes('2353') || skuPlatUpper.includes('ML')) {
-              finalDesc = 'Camiseta Dry Fit Sandrini M.l';
+          let officialSku = null;
+          let officialDesc = null;
+
+          if (skuPlatUpper.includes('2350') && (skuPlatUpper.includes('CSORT') || skuPlatUpper.includes('CSTOT') || skuPlatUpper.includes('SORT'))) {
+            if (size === 'P') officialSku = 'KSA04000002350CM0P0147';
+            else if (size === 'M') officialSku = 'KSA04000002350CM0M0146';
+            else if (size === 'G') officialSku = 'KSA04000002350CM0G0145';
+            else if (size === 'GG') officialSku = 'KSA04000002350CMGG0144';
+            
+            officialDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
+          }
+
+          if (officialSku) {
+            finalSkuSen = officialSku;
+            finalDesc = officialDesc;
+          } else if (isMappedToLupo) {
+            finalSkuSen = skuPlatUpper; // Sênior = Plataforma para não misturar com Lupo
+
+            if (skuPlatUpper.startsWith('K4') || skuPlatUpper.startsWith('KIT4')) {
+              finalDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
+            } else if (skuPlatUpper.startsWith('K2') || skuPlatUpper.startsWith('KIT2')) {
+              finalDesc = 'Kit 2 Camisetas Dry Sandrini Manga Curta';
+            } else if (skuPlatUpper.startsWith('K3') || skuPlatUpper.startsWith('KIT3')) {
+              finalDesc = 'Kit 3 Camisetas Dry Sandrini Manga Curta';
+            } else if (skuPlatUpper.startsWith('K5') || skuPlatUpper.startsWith('KIT5')) {
+              finalDesc = 'Kit 5 Camisetas Dry Sandrini Manga Curta';
+            } else if (skuPlatUpper.startsWith('K8') || skuPlatUpper.startsWith('KIT8')) {
+              finalDesc = 'Kit 8 Camisetas Dry Sandrini Manga Curta';
+            } else if (skuPlatUpper.startsWith('K') || skuPlatUpper.includes('KIT')) {
+              finalDesc = 'Kit Camisetas Dry Sandrini Manga Curta';
             } else {
-              finalDesc = 'Camiseta Dry Fit Sandrini M.c';
+              // Individual
+              if (skuPlatUpper.includes('2351') || skuPlatUpper.includes('2352') || skuPlatUpper.includes('2353') || skuPlatUpper.includes('ML')) {
+                finalDesc = 'Camiseta Dry Fit Sandrini M.l';
+              } else {
+                finalDesc = 'Camiseta Dry Fit Sandrini M.c';
+              }
             }
           }
         }
@@ -683,6 +707,28 @@ async function syncMapeamento() {
           descricao_oficial: mapping.desc,
           marca_oficial: 'FILA'
         });
+      }
+    }
+
+    // Adiciona mapeamentos automáticos para unificar os SKUs do Kit 4 Camisetas Dry Sandrini Sortido
+    const drySortidoVariations = [
+      { size: 'P', skuSen: 'KSA04000002350CM0P0147', skuPlats: ['K4CAMISETADRY2350CSORT1TP', 'K4CAMISETAS2350CSTOTP', 'K4CAMISETADRY2350CSORTTP'] },
+      { size: 'M', skuSen: 'KSA04000002350CM0M0146', skuPlats: ['K4CAMISETADRY2350CSORT1TM', 'K4CAMISETAS2350CSTOTM', 'K4CAMISETADRY2350CSORTTM'] },
+      { size: 'G', skuSen: 'KSA04000002350CM0G0145', skuPlats: ['K4CAMISETADRY2350CSORT1TG', 'K4CAMISETAS2350CSTOTG', 'K4CAMISETADRY2350CSORTTG'] },
+      { size: 'GG', skuSen: 'KSA04000002350CMGG0144', skuPlats: ['K4CAMISETADRY2350CSORT1TGG', 'K4CAMISETAS2350CSTOTGG', 'K4CAMISETADRY2350CSORTTGG'] }
+    ];
+
+    for (const variation of drySortidoVariations) {
+      for (const skuPlat of variation.skuPlats) {
+        for (const plat of platforms) {
+          insertData.push({
+            sku_plataforma: skuPlat,
+            plataforma: plat,
+            sku_senior: variation.skuSen,
+            descricao_oficial: 'Kit 4 Camisetas Dry Sandrini Manga Curta',
+            marca_oficial: 'SANDRINI'
+          });
+        }
       }
     }
 

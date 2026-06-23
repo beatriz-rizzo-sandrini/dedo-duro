@@ -9,7 +9,13 @@ import HeaderDates from '../components/HeaderDates';
 import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
+import * as SheetCols from '../utils/sheetColumns';
+
+// Utility to normalize SKUs by stripping suffixes
+function normalizeSku(sku) {
+  return String(sku).replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
+}
+const { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } = SheetCols;
 import MobileTable from '../components/MobileTable';
 import { parseProductDescription } from '../utils/productParser';
 
@@ -118,14 +124,14 @@ export default function Cobertura() {
     const skuToDesc = {};
     const skuToBrand = {};
     vendasRows.forEach(r => {
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
       const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
       if (sku && brand) skuToBrand[sku] = brand.trim().toUpperCase();
     });
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
       const brand = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
@@ -143,7 +149,7 @@ export default function Cobertura() {
 
       const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const skuPlat = r?.c?.[6]?.v || "";
       let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
@@ -199,7 +205,7 @@ export default function Cobertura() {
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
       let desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       const local = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
@@ -249,7 +255,7 @@ export default function Cobertura() {
 
     // 3. Processar Caminho (Reposição)
     caminhoRows.forEach(r => {
-      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_CAMINHO.SKU]?.v || "");
       const skuPlat = r?.c?.[8]?.v || "";
       let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
       const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();

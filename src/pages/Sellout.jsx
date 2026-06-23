@@ -21,7 +21,13 @@ import HeaderDates from '../components/HeaderDates';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
-import { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } from '../utils/sheetColumns';
+import * as SheetCols from '../utils/sheetColumns';
+
+// Utility to normalize SKUs by stripping suffixes
+function normalizeSku(sku) {
+  return String(sku).replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
+}
+const { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } = SheetCols;
 import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 import MobileTable from '../components/MobileTable';
 
@@ -197,19 +203,20 @@ export default function Sellout() {
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       if (sku && desc) skuToDesc[sku] = desc;
     });
     vendasRows.forEach(r => {
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
     });
     const caminhoRows = data.caminho || [];
     caminhoRows.forEach(r => {
-      const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
+      const skuRaw = r?.c?.[COL_CAMINHO.SKU]?.v || "";
       const desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      const sku = skuRaw.replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
       if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
     });
 
@@ -219,7 +226,7 @@ export default function Sellout() {
       const normDataStr = dataStr ? normalizeDateStr(dataStr) : "";
       if (normDataEstoque && normDataStr !== normDataEstoque) return;
 
-      const sku = String(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
       if (
         sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
@@ -309,7 +316,7 @@ export default function Sellout() {
       const [d, m, y] = dataStr.split("/");
       const dataVendaTime = Date.UTC(Number(y), Number(m) - 1, Number(d));
       
-      const sku = String(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
       const skuPlat = r?.c?.[6]?.v || "";
       if (
         sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
