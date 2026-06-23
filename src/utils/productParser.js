@@ -738,7 +738,14 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     baseTitle = isKit ? 'Kit Tenis Sandrini Spryte (A623)' : 'Tenis Sandrini Spryte (A623)';
   } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046')) {
-    baseTitle = 'Kit 2 Shorts Sandrini Tactel Elástico (77046)';
+    const kitQtyMatch = skuUpper.match(/^K(?:SA)?(\d{2})/i) || skuUpper.match(/^K(\d+)\b/i) || baseTitleUpper.match(/KIT\s*(?:COM)?\s*(\d+)/i);
+    const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
+    if (isKit) {
+      const qty = kitQtyMatch ? parseInt(kitQtyMatch[1]) : 2;
+      baseTitle = `Kit ${qty} Shorts Sandrini Tactel Elástico (77046)`;
+    } else {
+      baseTitle = 'Shorts Sandrini Tactel Elástico (77046)';
+    }
   }
 
   const toTitleCase = (str) => {
