@@ -925,6 +925,7 @@ export default function Sellout() {
         { label: "ESTOQUE TOTAL", value: rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0).toLocaleString('pt-BR'), sub: "peças físicas" }
       ] : [
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
+        { label: "ESTOQUE TOTAL", value: rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0).toLocaleString('pt-BR'), sub: "peças físicas" },
         { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
         { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
         { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
