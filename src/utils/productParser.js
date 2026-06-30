@@ -867,13 +867,13 @@ export function normalizeBrand(brand, sku, desc) {
   const skuUpper = String(sku || '').trim().toUpperCase();
   const descUpper = String(desc || '').trim().toUpperCase();
 
-  if (skuUpper.startsWith('NB') || descUpper.includes('NEW BALANCE') || descUpper.includes('NEWBALANCE')) {
+  if (skuUpper.startsWith('NB') || skuUpper.startsWith('KNB') || descUpper.includes('NEW BALANCE') || descUpper.includes('NEWBALANCE')) {
     return 'NEW BALANCE';
   }
-  if (skuUpper.startsWith('FI') || skuUpper.startsWith('F0') || descUpper.includes('FILA')) {
+  if (skuUpper.startsWith('FL') || skuUpper.startsWith('KFL') || skuUpper.startsWith('FI') || skuUpper.startsWith('F0') || descUpper.includes('FILA')) {
     return 'FILA';
   }
-  if (skuUpper.startsWith('AD') || descUpper.includes('ADIDAS')) {
+  if (skuUpper.startsWith('AD') || skuUpper.startsWith('KAD') || descUpper.includes('ADIDAS')) {
     return 'ADIDAS';
   }
   if (skuUpper.startsWith('NI') || descUpper.includes('NIKE')) {
@@ -882,16 +882,16 @@ export function normalizeBrand(brand, sku, desc) {
   if (skuUpper.startsWith('OL') || descUpper.includes('OLYMPIKUS')) {
     return 'OLYMPIKUS';
   }
-  if (skuUpper.startsWith('PU') || descUpper.includes('PUMA')) {
+  if (skuUpper.startsWith('PU') || skuUpper.startsWith('PM') || skuUpper.startsWith('KPM') || skuUpper.startsWith('K5C') || skuUpper.startsWith('K9M') || skuUpper.startsWith('ME') || descUpper.includes('PUMA')) {
     return 'PUMA';
   }
-  if (skuUpper.startsWith('LU') || descUpper.includes('LUPO') || descUpper.includes('LOBA')) {
+  if (skuUpper.startsWith('LU') || skuUpper.startsWith('LP') || skuUpper.startsWith('KLP') || skuUpper.startsWith('523') || skuUpper.startsWith('K64') || skuUpper.startsWith('K6M') || descUpper.includes('LUPO') || descUpper.includes('LOBA')) {
     return 'LUPO';
   }
   if (skuUpper.startsWith('SK') || descUpper.includes('SKECHERS')) {
     return 'SKECHERS';
   }
-  if (skuUpper.startsWith('KSA') || /^SA\d+/.test(skuUpper) || skuUpper.includes('SANDRINI') || descUpper.includes('SANDRINI')) {
+  if (skuUpper.startsWith('KSA') || skuUpper.startsWith('SA') || skuUpper.startsWith('K4C') || skuUpper.startsWith('129') || skuUpper.startsWith('K10') || skuUpper.startsWith('000') || skuUpper.includes('SANDRINI') || descUpper.includes('SANDRINI')) {
     return 'SANDRINI';
   }
 
