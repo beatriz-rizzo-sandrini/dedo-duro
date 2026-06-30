@@ -13,7 +13,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Select from 'react-select';
-import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer, Package } from 'lucide-react';
 import { handleExport, generatePDFBlob } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import eanMapping from '../utils/eanMapping.json';
@@ -1269,6 +1269,13 @@ export default function Sellout() {
           sub="Peças no período" 
           icon={FileText} 
           color="#3b82f6" 
+        />
+        <KPICard 
+          title="Estoque Total" 
+          value={dadosProcessados.totalEstoque.toLocaleString('pt-BR')} 
+          sub="Peças físicas" 
+          icon={Package} 
+          color="#14b8a6" 
         />
         <KPICard 
           title="VMD" 
