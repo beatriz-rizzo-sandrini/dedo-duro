@@ -163,12 +163,22 @@ export const generatePDFBlob = (title, headers, data, options = {}) => {
       // 6. Draw KPI grid if provided (ONLY on the first page to save space)
       if (data.pageNumber === 1 && options.kpis && options.kpis.length > 0) {
         const kpiY = 28;
-        const boxWidth = 60;
         const boxHeight = 22;
-        const boxGap = 7;
+        const boxGap = 5;
+        
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 14;
+        const availWidth = pageWidth - 2 * margin;
+        const numKpis = options.kpis.length;
+        
+        const maxBoxWidth = 60;
+        let boxWidth = (availWidth - (numKpis - 1) * boxGap) / numKpis;
+        if (boxWidth > maxBoxWidth) {
+          boxWidth = maxBoxWidth;
+        }
         
         options.kpis.forEach((kpi, idx) => {
-          const kpiX = 14 + idx * (boxWidth + boxGap);
+          const kpiX = margin + idx * (boxWidth + boxGap);
           
           // Draw soft background box
           doc.setFillColor(248, 250, 252); // slate-50

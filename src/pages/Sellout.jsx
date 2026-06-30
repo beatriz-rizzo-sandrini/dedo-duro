@@ -667,7 +667,7 @@ export default function Sellout() {
 
     // 4. Calcular KPIs dinamicamente com base em filteredRows
     const totalGeralPeriodo = filteredRows.reduce((sum, r) => sum + r.vendasFiltradas, 0);
-    const totalEstoque = filteredRows.reduce((sum, r) => sum + r.totalEstoque, 0);
+    const totalEstoque = Math.round(filteredRows.reduce((sum, r) => sum + r.totalEstoque, 0));
 
     let skusComVenda = 0;
     let skusRuptura = 0;
@@ -685,7 +685,7 @@ export default function Sellout() {
       });
     });
 
-    const vmd = (totalGeralPeriodo / numDias).toFixed(1);
+    const vmd = Number(totalGeralPeriodo / numDias).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     // Recalcular Share dinâmico para os itens filtrados
     const finalFilteredRows = filteredRows.map(r => {
@@ -921,12 +921,12 @@ export default function Sellout() {
       ].filter(Boolean),
       kpis: isSupplier ? [
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
-        { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
-        { label: "ESTOQUE TOTAL", value: rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0).toLocaleString('pt-BR'), sub: "peças físicas" }
+        { label: "VMD", value: Number(totalSalesVal / numDias).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), sub: "venda média diária" },
+        { label: "ESTOQUE TOTAL", value: Math.round(rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0)).toLocaleString('pt-BR'), sub: "peças físicas" }
       ] : [
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
-        { label: "ESTOQUE TOTAL", value: rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0).toLocaleString('pt-BR'), sub: "peças físicas" },
-        { label: "VMD", value: (totalSalesVal / numDias).toFixed(1), sub: "venda média diária" },
+        { label: "ESTOQUE TOTAL", value: Math.round(rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0)).toLocaleString('pt-BR'), sub: "peças físicas" },
+        { label: "VMD", value: Number(totalSalesVal / numDias).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), sub: "venda média diária" },
         { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
         { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
       ]
