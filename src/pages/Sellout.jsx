@@ -927,7 +927,6 @@ export default function Sellout() {
         { label: "TOTAL VENDIDO", value: totalSalesVal.toLocaleString('pt-BR'), sub: "peças vendidas" },
         { label: "ESTOQUE TOTAL", value: Math.round(rowsToExport.reduce((sum, r) => sum + (r.totalEstoque || 0), 0)).toLocaleString('pt-BR'), sub: "peças físicas" },
         { label: "VMD", value: Number(totalSalesVal / numDias).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), sub: "venda média diária" },
-        { label: "SKUS COM VENDA", value: String(dadosProcessados.skusComVenda), sub: "itens únicos" },
         { label: "RUPTURA", value: String(dadosProcessados.skusRuptura), sub: "itens sem estoque" }
       ]
     };
@@ -1284,13 +1283,6 @@ export default function Sellout() {
           sub="Venda Média Diária" 
           icon={ArrowUp} 
           color="#10b981" 
-        />
-        <KPICard 
-          title="SKUs com Venda" 
-          value={dadosProcessados.skusComVenda} 
-          sub="SKUs únicos vendidos" 
-          icon={Search} 
-          color="#8b5cf6" 
         />
         <KPICard 
           title="Ruptura" 
