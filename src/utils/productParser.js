@@ -331,22 +331,25 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       const refRegex = new RegExp(`\\b${refCode}\\b`, 'gi');
       cleanTitle = cleanTitle.replace(refRegex, '').replace(/\s+/g, ' ').trim();
 
-      // Auto-inject gender based on Fila code (F01 = Masculino, F02 = Feminino) if not already present
-      if (refCode.startsWith('F0')) {
-        const titleUpper = cleanTitle.toUpperCase();
-        const hasMasculino = titleUpper.includes('MASCULINO') || titleUpper.includes('MASCULINA');
-        const hasFeminino = titleUpper.includes('FEMININO') || titleUpper.includes('FEMININA');
+      // Only append the refCode and auto-inject gender if the title has no other descriptive model words
+      const modelWords = cleanTitle.toLowerCase().split(/\s+/).filter(w => !['tenis', 'tênis', 'fila', 'masculino', 'feminino', 'infantil', 'unisex', 'unissex'].includes(w));
+      if (modelWords.length === 0) {
+        // Auto-inject gender based on Fila code (F01 = Masculino, F02 = Feminino) if not already present
+        if (refCode.startsWith('F0')) {
+          const titleUpper = cleanTitle.toUpperCase();
+          const hasMasculino = titleUpper.includes('MASCULINO') || titleUpper.includes('MASCULINA');
+          const hasFeminino = titleUpper.includes('FEMININO') || titleUpper.includes('FEMININA');
 
-        if (!hasMasculino && !hasFeminino) {
-          if (refCode.startsWith('F01')) {
-            cleanTitle = `${cleanTitle} Masculino`;
-          } else if (refCode.startsWith('F02')) {
-            cleanTitle = `${cleanTitle} Feminino`;
+          if (!hasMasculino && !hasFeminino) {
+            if (refCode.startsWith('F01')) {
+              cleanTitle = `${cleanTitle} Masculino`;
+            } else if (refCode.startsWith('F02')) {
+              cleanTitle = `${cleanTitle} Feminino`;
+            }
           }
         }
+        cleanTitle = `${cleanTitle} ${refCode}`;
       }
-
-      cleanTitle = `${cleanTitle} ${refCode}`;
     }
 
     cleanDesc = cleanTitle;
