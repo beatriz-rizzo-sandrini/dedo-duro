@@ -544,6 +544,72 @@ function obterMarcaPorSkuEDesc(sku, desc) {
   if (cleanSku.startsWith('KMS')) {
     return 'MASH';
   }
+  if (cleanSku.startsWith('KRB')) {
+    return 'REEBOK';
+  }
+  if (cleanSku.startsWith('KZB')) {
+    return 'ZORBA';
+  }
+  if (cleanSku.startsWith('SP')) {
+    return 'SPEEDO';
+  }
+  if (cleanSku.startsWith('PN') || cleanSku.startsWith('DT')) {
+    return 'PENALTY';
+  }
+  if (cleanSku.startsWith('DM')) {
+    return 'DEMOCRATA';
+  }
+  if (cleanSku.startsWith('MD')) {
+    return 'MODARE';
+  }
+  if (cleanSku.startsWith('PE')) {
+    return 'PEGADA';
+  }
+  if (cleanSku.startsWith('SI')) {
+    return 'SIGVARIS';
+  }
+  if (cleanSku.startsWith('FE')) {
+    return 'FERRACINI';
+  }
+  if (cleanSku.startsWith('KL')) {
+    return 'KLIN';
+  }
+  if (cleanSku.startsWith('KCV')) {
+    return 'CAVALERA';
+  }
+  if (cleanSku.startsWith('BT')) {
+    return 'BULL TERRIER';
+  }
+  if (cleanSku.startsWith('TM') || cleanSku.startsWith('TMW')) {
+    return 'TOMMY HILFIGER';
+  }
+  if (cleanSku.startsWith('AM')) {
+    return 'ARAMIS';
+  }
+  if (cleanSku.startsWith('KRP')) {
+    return 'ROSA PURPURA';
+  }
+  if (cleanSku.startsWith('CL')) {
+    return 'CHANTAL';
+  }
+  if (cleanSku.startsWith('KRS')) {
+    return 'ROSSI';
+  }
+  if (cleanSku.startsWith('VN')) {
+    return 'VENOSAN';
+  }
+  if (cleanSku.startsWith('UA')) {
+    return 'UNDER ARMOUR';
+  }
+  if (cleanSku.startsWith('BB')) {
+    return 'BIBI';
+  }
+  if (cleanSku.startsWith('EV')) {
+    return 'EVERLAST';
+  }
+  if (cleanSku.startsWith('RI')) {
+    return 'RIDER';
+  }
 
   // 2. Fallback to checking terms in description/SKU
   if (cleanDesc.includes('SANDRINI') || cleanSku.includes('SANDRINI')) return 'SANDRINI';
@@ -565,6 +631,29 @@ function obterMarcaPorSkuEDesc(sku, desc) {
   if (cleanDesc.includes('MORMAII') || cleanSku.includes('MORMAII')) return 'MORMAII';
   if (cleanDesc.includes('ACTVITA') || cleanSku.includes('ACTVITA')) return 'ACTVITA';
   if (cleanDesc.includes('NAUTICA') || cleanSku.includes('NAUTICA')) return 'NAUTICA';
+  if (cleanDesc.includes('REEBOK') || cleanSku.includes('REEBOK')) return 'REEBOK';
+  if (cleanDesc.includes('ZORBA') || cleanSku.includes('ZORBA')) return 'ZORBA';
+  if (cleanDesc.includes('SPEEDO') || cleanSku.includes('SPEEDO')) return 'SPEEDO';
+  if (cleanDesc.includes('PENALTY') || cleanSku.includes('PENALTY')) return 'PENALTY';
+  if (cleanDesc.includes('DEMOCRATA') || cleanSku.includes('DEMOCRATA')) return 'DEMOCRATA';
+  if (cleanDesc.includes('MODARE') || cleanSku.includes('MODARE')) return 'MODARE';
+  if (cleanDesc.includes('PEGADA') || cleanSku.includes('PEGADA')) return 'PEGADA';
+  if (cleanDesc.includes('SIGVARIS') || cleanSku.includes('SIGVARIS')) return 'SIGVARIS';
+  if (cleanDesc.includes('FERRACINI') || cleanSku.includes('FERRACINI')) return 'FERRACINI';
+  if (cleanDesc.includes('KLIN') || cleanSku.includes('KLIN')) return 'KLIN';
+  if (cleanDesc.includes('CAVALERA') || cleanSku.includes('CAVALERA')) return 'CAVALERA';
+  if (cleanDesc.includes('BULL TERRIER') || cleanSku.includes('BULLTERRIER')) return 'BULL TERRIER';
+  if (cleanDesc.includes('TOMMY') || cleanSku.includes('TOMMY')) return 'TOMMY HILFIGER';
+  if (cleanDesc.includes('ARAMIS') || cleanSku.includes('ARAMIS')) return 'ARAMIS';
+  if (cleanDesc.includes('WILSON') || cleanSku.includes('WILSON')) return 'WILSON';
+  if (cleanDesc.includes('ROSA PURPURA') || cleanDesc.includes('ROSA PÚRPURA') || cleanSku.includes('KRP')) return 'ROSA PURPURA';
+  if (cleanDesc.includes('CHANTAL') || cleanDesc.includes('BARUK') || cleanSku.includes('CL')) return 'CHANTAL';
+  if (cleanDesc.includes('ROSSI') || cleanSku.includes('KRS')) return 'ROSSI';
+  if (cleanDesc.includes('VENOSAN') || cleanSku.includes('VN')) return 'VENOSAN';
+  if (cleanDesc.includes('UNDER ARMOUR') || cleanSku.includes('UA')) return 'UNDER ARMOUR';
+  if (cleanDesc.includes('BIBI') || cleanSku.includes('BB')) return 'BIBI';
+  if (cleanDesc.includes('EVERLAST') || cleanSku.includes('EV')) return 'EVERLAST';
+  if (cleanDesc.includes('RIDER') || cleanSku.includes('RI')) return 'RIDER';
 
   return 'Sem Marca';
 }
