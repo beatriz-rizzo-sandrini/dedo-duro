@@ -781,21 +781,6 @@ export default function Estoque() {
           </div>
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
-        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
-            <Package size={28} />
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL EM ESTOQUE</div>
-              <div style={{ fontSize: '24px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
-            </div>
-          </div>
-          <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
-            <DollarSign size={28} />
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.9 }}>CUSTO TOTAL DO ESTOQUE</div>
-              <div style={{ fontSize: '24px', fontWeight: 800 }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
-            </div>
-          </div>
           <div style={{ position: 'relative' }}>
             <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
               <Download size={18} /> Exportar
@@ -880,8 +865,26 @@ export default function Estoque() {
         </div>
       </div>
 
+      {/* Main KPIs Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
+        <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '20px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
+          <Package size={36} style={{ opacity: 0.9 }} />
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, letterSpacing: '0.5px' }}>TOTAL EM ESTOQUE</div>
+            <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '2px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+          </div>
+        </div>
+        <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '20px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
+          <DollarSign size={36} style={{ opacity: 0.9 }} />
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, letterSpacing: '0.5px' }}>CUSTO TOTAL DO ESTOQUE</div>
+            <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '2px' }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Brand KPIs Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px', marginTop: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px' }}>
         <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '24px' }}>🏷️</span>
           <div>
