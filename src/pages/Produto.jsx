@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown , Palette , AlertCircle , AlertOctagon } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
@@ -35,8 +35,8 @@ function SkuRow({ s, loc, addToCart }) {
             Plat: {s.skuPlat}
           </span>
         )}
-        {s.isRuptura && ' 🔴'} 
-        {s.isBad && ' ⛔'}
+        {s.isRuptura && <AlertCircle size={14} color="#ef4444" style={{marginLeft: '4px', display: 'inline-block', verticalAlign: 'middle'}}/>} 
+        {s.isBad && <AlertOctagon size={14} color="#b45309" style={{marginLeft: '4px', display: 'inline-block', verticalAlign: 'middle'}}/>}
       </td>
       <td style={{ textAlign: 'center', padding: '10px 20px' }}>{s.estoque} un</td>
       <td style={{ textAlign: 'center', padding: '10px 20px', fontWeight: 600, color: s.aCaminho > 0 ? '#3b82f6' : '#475569' }}>
@@ -715,7 +715,7 @@ export default function Produto() {
                     {/* Cabeçalho da Cor */}
                     <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <Palette size={16} color="#64748b" />
                         <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -762,7 +762,7 @@ export default function Produto() {
                   <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                     {/* Cabeçalho Cor Mobile */}
                     <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }}/> Cor: {corObj.cor || 'Sem Cor'}</span>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: '12px' }}>
                         {corObj.totalEstoque} un
                       </span>
@@ -785,8 +785,8 @@ export default function Produto() {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '4px' }}>
-                              {s.isRuptura && <span style={{ fontSize: '10px', color: '#ef4444', background: '#fee2e2', padding: '1px 5px', borderRadius: '4px' }}>🔴 Ruptura</span>}
-                              {s.isBad && <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}>⛔ Bad</span>}
+                              {s.isRuptura && <span style={{ fontSize: '10px', color: '#ef4444', background: '#fee2e2', padding: '1px 5px', borderRadius: '4px' }}><AlertCircle size={10} style={{ marginRight: "2px", display: "inline-block", verticalAlign: "middle" }}/> Ruptura</span>}
+                              {s.isBad && <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}><AlertOctagon size={10} style={{ marginRight: "2px", display: "inline-block", verticalAlign: "middle" }}/> Bad</span>}
                             </div>
                           </div>
 
@@ -884,7 +884,7 @@ export default function Produto() {
         </>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1', padding: '40px', textAlign: 'center', margin: '20px 0' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔎</div>
+          <div style={{ marginBottom: "16px", color: "#94a3b8" }}><Search size={48} /></div>
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#334155', margin: '0 0 8px 0' }}>Análise de Produto</h3>
           <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
             Digite no campo de busca acima para carregar e analisar as informações do produto desejado.
@@ -904,7 +904,7 @@ export default function Produto() {
                 <thead><tr><th>Produto</th><th>Local</th><th>SKU</th><th>Reposição</th><th></th></tr></thead>
                 <tbody>
                   {carrinho.map((item, i) => (
-                    <tr key={i}><td>{toTitleCase(item.produto)}</td><td>{item.local}</td><td>{item.sku}</td><td style={{ fontWeight: 'bold', color: '#e74c3c' }}>{item.reposicao}</td><td><button onClick={() => setCarrinho(p => p.filter((_, idx) => idx !== i))}>❌</button></td></tr>
+                    <tr key={i}><td>{toTitleCase(item.produto)}</td><td>{item.local}</td><td>{item.sku}</td><td style={{ fontWeight: 'bold', color: '#e74c3c' }}>{item.reposicao}</td><td><button onClick={() => setCarrinho(p => p.filter((_, idx) => idx !== i))} style={{background: "none", border: "none", cursor: "pointer", color: "#ef4444"}}><X size={16} /></button></td></tr>
                   ))}
                 </tbody>
               </table>

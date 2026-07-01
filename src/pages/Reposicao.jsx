@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { Truck, Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet , Package , ShoppingBag , Palette } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
@@ -471,7 +471,7 @@ export default function Reposicao() {
               }}
               onClick={() => setVisao('envio')}
             >
-              📦 Lotes (NF)
+              <Package size={16} style={{ marginRight: "6px", display: "inline-block", verticalAlign: "middle" }}/> Lotes (NF)
             </button>
             <button 
               className="btn-padrao"
@@ -494,7 +494,7 @@ export default function Reposicao() {
               }}
               onClick={() => setVisao('produto')}
             >
-              👟 Por Produto
+              <ShoppingBag size={16} style={{ marginRight: "6px", display: "inline-block", verticalAlign: "middle" }}/> Por Produto
             </button>
           </div>
 
@@ -745,7 +745,7 @@ export default function Reposicao() {
                     {/* Cabeçalho do Modelo */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '18px' }}>👟</span>
+                        <ShoppingBag size={18} color="#64748b" />
                         <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>{toTitleCase(model.baseTitle)}</span>
                       </div>
                       <span style={{ fontSize: '12px', fontWeight: 800, color: '#8b5cf6', background: '#f5f3ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ddd6fe' }}>
@@ -760,7 +760,7 @@ export default function Reposicao() {
                           {/* Cabeçalho da Cor */}
                           <div style={{ padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '14px' }}>🎨</span>
+                              <Palette size={14} color="#64748b" />
                               <span style={{ fontWeight: 600, color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
                             </div>
                             <span style={{ fontSize: '11px', fontWeight: 700, color: '#4b5563', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px' }}>
@@ -821,7 +821,7 @@ export default function Reposicao() {
                     {/* Cabeçalho da Cor */}
                     <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '16px' }}>🎨</span>
+                        <Palette size={16} color="#64748b" />
                         <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
                       </div>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#8b5cf6', background: '#f5f3ff', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ddd6fe' }}>
@@ -919,7 +919,7 @@ export default function Reposicao() {
                       {Object.values(model.cores).map((corObj) => (
                         <div key={corObj.cor} style={{ border: '1px solid #f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
                           <div style={{ padding: '6px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                            <span style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }}/> Cor: {corObj.cor || 'Sem Cor'}</span>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563' }}>{corObj.total} un</span>
                           </div>
                           <div style={{ padding: '0 10px' }}>
@@ -958,7 +958,7 @@ export default function Reposicao() {
                 Object.values(item.cores).map((corObj) => (
                   <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                     <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }}/> Cor: {corObj.cor || 'Sem Cor'}</span>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', background: '#f5f3ff', padding: '2px 8px', borderRadius: '12px' }}>
                         {corObj.total} un
                       </span>

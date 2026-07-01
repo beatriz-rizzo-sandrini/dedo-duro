@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Building2, Cloud, Truck, DollarSign } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Building2, Cloud, Truck, DollarSign , Tags , Banknote , Palette } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -457,7 +457,7 @@ export default function Estoque() {
           v.estoqueCasa = qtyCasa;
           v.expedicao = qtyExpedicao;
           v.total = v.estoquePlataforma + qtyCasa + qtyExpedicao;
-          
+
           v.custoPlataforma = v.estoquePlataforma * v.valorUnitario;
           v.custoCasa = qtyCasa * v.valorUnitario;
           v.custoExpedicao = qtyExpedicao * v.valorUnitario;
@@ -771,41 +771,41 @@ export default function Estoque() {
 
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
-          <div style={{ position: 'relative' }}>
-            <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
-              <Download size={18} /> Exportar
-            </button>
-            <AnimatePresence>
-              {isExportMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
-                >
-                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (CORES/TAMANHOS)</div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
-                    <FileText size={14} color="#64748b" /> CSV
-                  </div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
-                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
-                  </div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
-                    <FileText size={14} color="#ef4444" /> PDF
-                  </div>
-                  <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
-                    <FileText size={14} color="#64748b" /> CSV
-                  </div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
-                    <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
-                  </div>
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
-                    <FileText size={14} color="#ef4444" /> PDF
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+        <div style={{ position: 'relative' }}>
+          <button className="btn-padrao" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
+            <Download size={18} /> Exportar
+          </button>
+          <AnimatePresence>
+            {isExportMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                style={{ position: 'absolute', top: '110%', right: 0, background: 'white', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 50, overflow: 'hidden', minWidth: '220px' }}
+              >
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR DETALHADO (CORES/TAMANHOS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'detalhado'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+                <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', letterSpacing: '0.5px' }}>EXPORTAR RESUMIDO (MODELOS)</div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('csv', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#64748b" /> CSV
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }} onClick={() => { handleExportData('xlsx', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileSpreadsheet size={14} color="#10b981" /> Excel (XLSX)
+                </div>
+                <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => { handleExportData('pdf', 'resumido'); setIsExportMenuOpen(false); }}>
+                  <FileText size={14} color="#ef4444" /> PDF
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+      </div>
 
       <div className="filters-container">
         <CompanySelector />
@@ -856,7 +856,7 @@ export default function Estoque() {
 
       {/* Main KPIs Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
-        
+
         {/* Card 1 - Consolidado */}
         <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.3)' }}>
           <Package size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
@@ -881,7 +881,7 @@ export default function Estoque() {
         <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
           <Cloud size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>MERCADOS / PLAT</div>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>PLATAFORMAS</div>
             <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} pçs</div>
             <div style={{ fontSize: '16px', fontWeight: 600, color: '#fde68a' }}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
           </div>
@@ -902,7 +902,7 @@ export default function Estoque() {
       {/* Brand KPIs Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px' }}>
         <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>🏷️</span>
+          <Tags size={28} color="#64748b" />
           <div>
             <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Marcas</div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.totalMarcas} marcas</div>
@@ -910,7 +910,7 @@ export default function Estoque() {
         </div>
 
         <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>📦</span>
+          <Package size={28} color="#3b82f6" />
           <div style={{ overflow: 'hidden' }}>
             <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Peças</div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderQtd.marca)}>
@@ -923,7 +923,7 @@ export default function Estoque() {
         </div>
 
         <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>💰</span>
+          <Banknote size={28} color="#10b981" />
           <div style={{ overflow: 'hidden' }}>
             <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Custo</div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderCusto.marca)}>
@@ -1052,7 +1052,7 @@ export default function Estoque() {
                   {/* Cabeçalho da Cor */}
                   <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '16px' }}>🎨</span>
+                      <Palette size={16} color="#64748b" />
                       <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -1140,7 +1140,7 @@ export default function Estoque() {
                 <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                   {/* Cabeçalho Cor */}
                   <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}>🎨 Cor: {corObj.cor || 'Sem Cor'}</span>
+                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }}/> Cor: {corObj.cor || 'Sem Cor'}</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '12px' }}>
                         {corObj.total} pçs

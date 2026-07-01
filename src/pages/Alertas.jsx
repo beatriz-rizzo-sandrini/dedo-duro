@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Download, AlertTriangle, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter } from 'lucide-react';
+import { Bell, Download, AlertTriangle, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter , AlertOctagon , AlertCircle , ShoppingCart } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
@@ -202,16 +202,16 @@ export default function Alertas() {
 
       if (isBad) {
         alertaT = "badstock";
-        alertaI = "⛔ Badstock";
+        alertaI = "Badstock";
       } else if (qtdEstoque === 0 && vendas > 0) {
         alertaT = "ruptura";
-        alertaI = "🔴 Ruptura";
+        alertaI = "Ruptura";
       } else if (typeof cobertura === "number" && cobertura <= 29) { // Using <= 29 to match Cobertura critical
         alertaT = "cobertura";
-        alertaI = "⚠️ Cobertura crítica";
+        alertaI = "Cobertura crítica";
         if (temReposicaoCentral(sku)) {
           alertaT = "reposicao";
-          alertaI = "🛒 Reposição disponível";
+          alertaI = "Reposição disponível";
         }
       }
 
@@ -499,7 +499,7 @@ export default function Alertas() {
                 color: row.alertaT === 'badstock' ? '#b91c1c' : row.alertaT === 'ruptura' ? '#dc2626' : '#b45309',
                 padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px'
               }}>
-                {row.alertaI}
+                {row.alertaI === "Badstock" ? <AlertOctagon size={14} color="#b45309" style={{marginRight:"4px", verticalAlign:"middle"}}/> : row.alertaI === "Ruptura" ? <AlertCircle size={14} color="#ef4444" style={{marginRight:"4px", verticalAlign:"middle"}}/> : row.alertaI === "Cobertura crítica" ? <AlertTriangle size={14} color="#f59e0b" style={{marginRight:"4px", verticalAlign:"middle"}}/> : row.alertaI === "Reposição disponível" ? <ShoppingCart size={14} color="#10b981" style={{marginRight:"4px", verticalAlign:"middle"}}/> : null} {row.alertaI}
               </span>
             ),
             onSort: () => requestSort('alertaI'),
