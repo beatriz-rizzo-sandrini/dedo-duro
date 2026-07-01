@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Building2, Cloud, Truck, DollarSign , Tags , Banknote , Palette } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Building2, Cloud, Truck, DollarSign, Tags, Banknote, Palette, LayoutGrid } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -767,7 +767,7 @@ export default function Estoque() {
       <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Estoque Consolidado</h1>
-          <p style={{ marginBottom: '8px' }}>Visão geral dos produtos em armazém</p>
+          <p style={{ marginBottom: '8px' }}>Visão geral dos produtos em estoque</p>
 
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
@@ -889,197 +889,278 @@ export default function Estoque() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main KPIs Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
-
-        {/* Card 1 - Consolidado */}
-        <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.3)' }}>
-          <Package size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ESTOQUE CONSOLIDADO</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#38bdf8' }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <LayoutGrid size={28} color="#f59e0b" />
+            <div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Modelos</div>
+              <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.linhas.length}</div>
+            </div>
           </div>
         </div>
 
-        {/* Card 2 - Casa */}
-        <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
-          <Building2 size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ARMAZÉM CASA</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdCasa.toLocaleString('pt-BR')} pçs</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#a7f3d0' }}>{dadosProcessados.custoCasa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+        {/* Main KPIs Section */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
+
+          {/* Card 1 - Consolidado */}
+          <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.3)' }}>
+            <Package size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ESTOQUE CONSOLIDADO</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#38bdf8' }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            </div>
           </div>
-        </div>
 
-        {/* Card 3 - Plataforma */}
-        <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
-          <Cloud size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>PLATAFORMAS</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} pçs</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#fde68a' }}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          {/* Card 2 - Casa */}
+          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
+            <Building2 size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ESTOQUE CASA</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdCasa.toLocaleString('pt-BR')} pçs</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#a7f3d0' }}>{dadosProcessados.custoCasa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            </div>
           </div>
-        </div>
 
-        {/* Card 4 - Expedição */}
-        <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-          <Truck size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>EXPEDIÇÃO</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdExpedicao.toLocaleString('pt-BR')} pçs</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#ddd6fe' }}>{dadosProcessados.custoExpedicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          {/* Card 3 - Plataforma */}
+          <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
+            <Cloud size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>PLATAFORMAS</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} pçs</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#fde68a' }}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            </div>
           </div>
+
+          {/* Card 4 - Expedição */}
+          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+            <Truck size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>EXPEDIÇÃO</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdExpedicao.toLocaleString('pt-BR')} pçs</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#ddd6fe' }}>{dadosProcessados.custoExpedicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            </div>
+          </div>
+
         </div>
 
-      </div>
-
-      {/* Brand Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {dadosProcessados.chartTitleQtd}
-          </h3>
-          {dadosProcessados.chartBrandQtdData ? (
-            <div style={{ height: '280px' }}>
-              <Bar
-                data={dadosProcessados.chartBrandQtdData}
-                options={{
-                  maintainAspectRatio: false,
-                  indexAxis: 'y',
-                  plugins: { legend: { display: false } },
-                  scales: { x: { beginAtZero: true } }
-                }}
-              />
-            </div>
-          ) : (
-            <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-              Sem dados disponíveis.
-            </div>
-          )}
-        </div>
-
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {dadosProcessados.chartTitleCusto}
-          </h3>
-          {dadosProcessados.chartBrandCustoData ? (
-            <div style={{ height: '280px' }}>
-              <Bar
-                data={dadosProcessados.chartBrandCustoData}
-                options={{
-                  maintainAspectRatio: false,
-                  indexAxis: 'y',
-                  plugins: { legend: { display: false } },
-                  scales: { x: { beginAtZero: true } }
-                }}
-              />
-            </div>
-          ) : (
-            <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-              Sem dados disponíveis.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <MobileTable
-        columns={[
-          {
-            key: 'descricao',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>,
-            rawLabel: 'Produto',
-            render: (row) => (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.3px' }}>Marca: {row.marca || 'Sem Marca'}</span>
+        {/* Brand Charts Section */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {dadosProcessados.chartTitleQtd}
+            </h3>
+            {dadosProcessados.chartBrandQtdData ? (
+              <div style={{ height: '280px' }}>
+                <Bar
+                  data={dadosProcessados.chartBrandQtdData}
+                  options={{
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                  }}
+                />
               </div>
-            ),
-            onSort: () => requestSort('descricao'),
-          },
-          {
-            key: 'estoquePlataforma',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Plataforma {getSortIcon('estoquePlataforma')}</div>,
-            rawLabel: 'Est. Plataforma',
-            render: (row) => <span>{row.estoquePlataforma.toLocaleString('pt-BR')} un</span>,
-            onSort: () => requestSort('estoquePlataforma'),
-          },
-          {
-            key: 'estoqueCasa',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Casa {getSortIcon('estoqueCasa')}</div>,
-            rawLabel: 'Est. Casa',
-            render: (row) => <span>{row.estoqueCasa.toLocaleString('pt-BR')} un</span>,
-            onSort: () => requestSort('estoqueCasa'),
-          },
-          {
-            key: 'expedicao',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Expedição {getSortIcon('expedicao')}</div>,
-            rawLabel: 'Expedição',
-            render: (row) => <span>{row.expedicao.toLocaleString('pt-BR')} un</span>,
-            onSort: () => requestSort('expedicao'),
-          },
-          {
-            key: 'total',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total {getSortIcon('total')}</div>,
-            rawLabel: 'Total',
-            render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')} un</span>,
-            onSort: () => requestSort('total'),
-          },
-          {
-            key: 'custoTotal',
-            label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Custo Total {getSortIcon('custoTotal')}</div>,
-            rawLabel: 'Custo Total',
-            render: (row) => <span style={{ fontWeight: 800, color: '#10b981' }}>{row.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>,
-            onSort: () => requestSort('custoTotal'),
-          },
-        ]}
-        rows={linhasPaginadas}
-        keyExtractor={(row) => row.id}
-        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
-        isExpanded={(row) => expandedId === row.id}
-        renderExpandedDesktop={(item) => (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {Object.values(item.cores).map((corObj) => (
-                <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                  {/* Cabeçalho da Cor */}
-                  <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Palette size={16} color="#64748b" />
-                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '4px 10px', borderRadius: '20px' }}>
-                        {corObj.total.toLocaleString('pt-BR')} peças
-                      </span>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
-                        Custo: {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </span>
-                    </div>
-                  </div>
+            ) : (
+              <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                Sem dados disponíveis.
+              </div>
+            )}
+          </div>
 
-                  {/* Tabela de Variações */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Unit.</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Plataforma</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Expedição</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Total</th>
-                        <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {dadosProcessados.chartTitleCusto}
+            </h3>
+            {dadosProcessados.chartBrandCustoData ? (
+              <div style={{ height: '280px' }}>
+                <Bar
+                  data={dadosProcessados.chartBrandCustoData}
+                  options={{
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                Sem dados disponíveis.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <MobileTable
+          columns={[
+            {
+              key: 'descricao',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Descrição do Produto {getSortIcon('descricao')}</div>,
+              rawLabel: 'Produto',
+              render: (row) => (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 600 }}>{toTitleCase(row.descricao)}</span>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.3px' }}>Marca: {row.marca || 'Sem Marca'}</span>
+                </div>
+              ),
+              onSort: () => requestSort('descricao'),
+            },
+            {
+              key: 'estoquePlataforma',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Plataforma {getSortIcon('estoquePlataforma')}</div>,
+              rawLabel: 'Est. Plataforma',
+              render: (row) => <span>{row.estoquePlataforma.toLocaleString('pt-BR')} un</span>,
+              onSort: () => requestSort('estoquePlataforma'),
+            },
+            {
+              key: 'estoqueCasa',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Est. Casa {getSortIcon('estoqueCasa')}</div>,
+              rawLabel: 'Est. Casa',
+              render: (row) => <span>{row.estoqueCasa.toLocaleString('pt-BR')} un</span>,
+              onSort: () => requestSort('estoqueCasa'),
+            },
+            {
+              key: 'expedicao',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Expedição {getSortIcon('expedicao')}</div>,
+              rawLabel: 'Expedição',
+              render: (row) => <span>{row.expedicao.toLocaleString('pt-BR')} un</span>,
+              onSort: () => requestSort('expedicao'),
+            },
+            {
+              key: 'total',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Total {getSortIcon('total')}</div>,
+              rawLabel: 'Total',
+              render: (row) => <span style={{ fontWeight: 800 }}>{row.total.toLocaleString('pt-BR')} un</span>,
+              onSort: () => requestSort('total'),
+            },
+            {
+              key: 'custoTotal',
+              label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Custo Total {getSortIcon('custoTotal')}</div>,
+              rawLabel: 'Custo Total',
+              render: (row) => <span style={{ fontWeight: 800, color: '#10b981' }}>{row.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>,
+              onSort: () => requestSort('custoTotal'),
+            },
+          ]}
+          rows={linhasPaginadas}
+          keyExtractor={(row) => row.id}
+          onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+          isExpanded={(row) => expandedId === row.id}
+          renderExpandedDesktop={(item) => (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ padding: '20px 40px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    {/* Cabeçalho da Cor */}
+                    <div style={{ padding: '12px 20px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Palette size={16} color="#64748b" />
+                        <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cor: {corObj.cor || 'Sem Cor'}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '4px 10px', borderRadius: '20px' }}>
+                          {corObj.total.toLocaleString('pt-BR')} peças
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '4px 10px', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                          Custo: {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Tabela de Variações */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: '100px', background: '#fafafa' }}>Tamanho</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>SKU</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Unit.</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Plataforma</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Casa</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Estoque Expedição</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Total</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '130px', background: '#fafafa' }}>Custo Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.values(corObj.variacoes).sort((a, b) => {
+                          const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
+                          const aVal = String(a.size || '').toUpperCase().trim();
+                          const bVal = String(b.size || '').toUpperCase().trim();
+                          if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
+                          if (sizeWeights[aVal] !== undefined) return -1;
+                          if (sizeWeights[bVal] !== undefined) return 1;
+                          const aNum = parseFloat(aVal);
+                          const bNum = parseFloat(bVal);
+                          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                          return aVal.localeCompare(bVal);
+                        }).map((v) => (
+                          <tr key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                            <td style={{ padding: '10px 20px', textAlign: 'center' }}>
+                              <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                {v.size || 'Único'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
+                              {v.sku}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', color: '#475569', fontWeight: 500 }}>
+                              {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.estoquePlataforma.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.estoqueCasa.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {v.expedicao.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#0f172a' }}>
+                              {v.total.toLocaleString('pt-BR')} un
+                            </td>
+                            <td style={{ padding: '10px 20px', textAlign: 'right', color: '#047857', fontWeight: 600 }}>
+                              {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+          renderExpanded={(item) => (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {Object.values(item.cores).map((corObj) => (
+                  <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    {/* Cabeçalho Cor */}
+                    <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }} /> Cor: {corObj.cor || 'Sem Cor'}</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '12px' }}>
+                          {corObj.total} pçs
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '12px' }}>
+                          {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Lista de Variações Mobile */}
+                    <div style={{ padding: '0 14px' }}>
                       {Object.values(corObj.variacoes).sort((a, b) => {
                         const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
                         const aVal = String(a.size || '').toUpperCase().trim();
@@ -1091,152 +1172,79 @@ export default function Estoque() {
                         const bNum = parseFloat(bVal);
                         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                         return aVal.localeCompare(bVal);
-                      }).map((v) => (
-                        <tr key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
-                          <td style={{ padding: '10px 20px', textAlign: 'center' }}>
-                            <span style={{ display: 'inline-block', fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '32px', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
-                              {v.size || 'Único'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
-                            {v.sku}
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#475569', fontWeight: 500 }}>
-                            {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                            {v.estoquePlataforma.toLocaleString('pt-BR')} un
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                            {v.estoqueCasa.toLocaleString('pt-BR')} un
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                            {v.expedicao.toLocaleString('pt-BR')} un
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#0f172a' }}>
-                            {v.total.toLocaleString('pt-BR')} un
-                          </td>
-                          <td style={{ padding: '10px 20px', textAlign: 'right', color: '#047857', fontWeight: 600 }}>
-                            {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-        renderExpanded={(item) => (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '16px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {Object.values(item.cores).map((corObj) => (
-                <div key={corObj.cor} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                  {/* Cabeçalho Cor */}
-                  <div style={{ padding: '10px 14px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px', textTransform: 'uppercase' }}><Palette size={14} style={{ marginRight: "4px", display: "inline-block", verticalAlign: "middle" }}/> Cor: {corObj.cor || 'Sem Cor'}</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1e293b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '12px' }}>
-                        {corObj.total} pçs
-                      </span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '12px' }}>
-                        {corObj.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Lista de Variações Mobile */}
-                  <div style={{ padding: '0 14px' }}>
-                    {Object.values(corObj.variacoes).sort((a, b) => {
-                      const sizeWeights = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'XG': 6, 'XXG': 7, 'U': 99, 'ÚNICO': 99, 'UNICO': 99 };
-                      const aVal = String(a.size || '').toUpperCase().trim();
-                      const bVal = String(b.size || '').toUpperCase().trim();
-                      if (sizeWeights[aVal] !== undefined && sizeWeights[bVal] !== undefined) return sizeWeights[aVal] - sizeWeights[bVal];
-                      if (sizeWeights[aVal] !== undefined) return -1;
-                      if (sizeWeights[bVal] !== undefined) return 1;
-                      const aNum = parseFloat(aVal);
-                      const bNum = parseFloat(bVal);
-                      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-                      return aVal.localeCompare(bVal);
-                    }).map((v, vIdx, arr) => (
-                      <div key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
-                              {v.size || 'Único'}
-                            </span>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
-                              <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                      }).map((v, vIdx, arr) => (
+                        <div key={v.sku + '_' + (v.size || 'ÚNICO')} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: 700, color: '#1e293b', background: '#f1f5f9', minWidth: '28px', padding: '3px 6px', borderRadius: '5px', textAlign: 'center', fontSize: '12px' }}>
+                                {v.size || 'Único'}
+                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                                <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                              </div>
                             </div>
                           </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                            <span>Est. Plat: {v.estoquePlataforma}</span>
+                            <span>Est. Casa: {v.estoqueCasa}</span>
+                            <span>Exp: {v.expedicao}</span>
+                            <span style={{ fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#1e293b' }}>Total: {v.total} un</span>
+                            <span style={{ fontWeight: 600, color: '#047857' }}>Custo: {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-                          <span>Est. Plat: {v.estoquePlataforma}</span>
-                          <span>Est. Casa: {v.estoqueCasa}</span>
-                          <span>Exp: {v.expedicao}</span>
-                          <span style={{ fontWeight: 600, color: v.total === 0 ? '#ef4444' : '#1e293b' }}>Total: {v.total} un</span>
-                          <span style={{ fontWeight: 600, color: '#047857' }}>Custo: {v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-        emptyMessage="Nenhum dado encontrado para os filtros aplicados."
-      />
+                ))}
+              </div>
+            </motion.div>
+          )}
+          emptyMessage="Nenhum dado encontrado para os filtros aplicados."
+        />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
-        <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          Mostrar
-          <select
-            className="input-padrao"
-            style={{ width: 'auto', padding: '6px 30px 6px 12px' }}
-            value={itensPorPagina}
-            onChange={e => { setItensPorPagina(Number(e.target.value)); setCurrentPage(1); }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-            <option value={999999}>Todos</option>
-          </select>
-          linhas
-        </div>
-
-        {totalPaginas > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              style={{ padding: '8px', borderRadius: '8px', background: currentPage === 1 ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Mostrar
+            <select
+              className="input-padrao"
+              style={{ width: 'auto', padding: '6px 30px 6px 12px' }}
+              value={itensPorPagina}
+              onChange={e => { setItensPorPagina(Number(e.target.value)); setCurrentPage(1); }}
             >
-              <ChevronLeft size={20} color={currentPage === 1 ? '#94a3b8' : '#0f172a'} />
-            </button>
-
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
-              Página {currentPage} de {totalPaginas}
-            </span>
-
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))}
-              disabled={currentPage === totalPaginas}
-              style={{ padding: '8px', borderRadius: '8px', background: currentPage === totalPaginas ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === totalPaginas ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronRight size={20} color={currentPage === totalPaginas ? '#94a3b8' : '#0f172a'} />
-            </button>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={999999}>Todos</option>
+            </select>
+            linhas
           </div>
-        )}
-      </div>
+
+          {totalPaginas > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '8px', borderRadius: '8px', background: currentPage === 1 ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronLeft size={20} color={currentPage === 1 ? '#94a3b8' : '#0f172a'} />
+              </button>
+
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
+                Página {currentPage} de {totalPaginas}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPaginas))}
+                disabled={currentPage === totalPaginas}
+                style={{ padding: '8px', borderRadius: '8px', background: currentPage === totalPaginas ? '#e2e8f0' : 'white', border: '1px solid #cbd5e1', cursor: currentPage === totalPaginas ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronRight size={20} color={currentPage === totalPaginas ? '#94a3b8' : '#0f172a'} />
+              </button>
+            </div>
+          )}
+        </div>
 
     </motion.div>
   );
