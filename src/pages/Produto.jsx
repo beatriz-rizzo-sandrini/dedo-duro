@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import { getLatestDates, normalizeDateStr } from '../utils/dateUtils';
@@ -106,6 +107,7 @@ export default function Produto() {
   const [dataIni, setDataIni] = useState(get29DaysBeforeYesterdayStr());
   const [dataFim, setDataFim] = useState(getYesterdayStr());
   const [diasCobertura, setDiasCobertura] = useState(60);
+  const [filtroLocal, setFiltroLocal] = useState([]);
 
   const [sortConfig, setSortConfig] = useState({ key: 'reposicaoTotal', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,11 +129,26 @@ export default function Produto() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busca, dataIni, dataFim, diasCobertura, selectedCompany]);
+  }, [busca, dataIni, dataFim, diasCobertura, selectedCompany, filtroLocal]);
+
+  const locais = useMemo(() => {
+    const setLoc = new Set();
+    estoqueRows.forEach(r => {
+      const loc = r?.c?.[COL_ESTOQUE.LOCAL]?.v;
+      if (loc) setLoc.add(String(loc).trim().toUpperCase());
+    });
+    vendasRows.forEach(r => {
+      const loc = r?.c?.[COL_VENDAS.LOCAL]?.v;
+      if (loc) setLoc.add(String(loc).trim().toUpperCase());
+    });
+    return Array.from(setLoc).sort();
+  }, [estoqueRows, vendasRows]);
 
   const dadosProcessados = useMemo(() => {
     if (!busca.trim()) return null;
     if (!estoqueRows.length && !vendasRows.length) return null;
+
+    const selectedLocs = filtroLocal ? filtroLocal.map(option => option.value) : [];
 
     let diasPeriodo = 30;
     if (dataIni && dataFim) {
@@ -218,6 +235,7 @@ export default function Produto() {
       const custoUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (selectedLocs.length > 0 && !selectedLocs.includes(local)) return;
 
       desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
@@ -308,6 +326,7 @@ export default function Produto() {
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
+      if (selectedLocs.length > 0 && !selectedLocs.includes(local)) return;
 
       desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
@@ -489,7 +508,7 @@ export default function Produto() {
       dataEstoque,
       dataVendas
     };
-  }, [estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany, busca, sortConfig]);
+  }, [estoqueRows, vendasRows, badStockRows, data.caminho, dataIni, dataFim, diasCobertura, selectedCompany, busca, sortConfig, filtroLocal]);
 
   const addToCart = (skuObj, localObj, customRepo) => {
     if (carrinho.find(c => c.sku === skuObj.sku && c.local === localObj.local)) return alert("Já está no carrinho!");
@@ -564,6 +583,20 @@ export default function Produto() {
               onChange={e => setBuscaInput(e.target.value)} 
             />
           </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 200px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>LOCAL</label>
+          <Select
+            isMulti
+            options={locais.map(l => ({ value: l, label: toTitleCase(l) }))}
+            value={filtroLocal}
+            onChange={setFiltroLocal}
+            isSearchable={true}
+            placeholder="Todos os Locais"
+            classNamePrefix="react-select"
+            styles={{ control: (b) => ({ ...b, borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '42px' }) }}
+          />
         </div>
 
         <div style={{ flex: '1 1 250px' }}>
