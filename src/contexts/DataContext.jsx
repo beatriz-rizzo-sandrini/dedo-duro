@@ -543,13 +543,22 @@ export function DataProvider({ children }) {
 
       // Cria o lookup de mapeamento
       const mapLookup = {};
+      const globalSkuMap = {};
       mappings.forEach(m => {
         const platSku = String(m.sku_plataforma || "").trim().toUpperCase();
         const plat = String(m.plataforma || "").trim().toUpperCase();
+        const skuSenior = String(m.sku_senior || "").trim().toUpperCase();
+        const descOficial = String(m.descricao_oficial || "").trim();
         if (platSku && plat) {
           mapLookup[`${platSku}|${plat}`] = {
-            sku_senior: String(m.sku_senior || "").trim().toUpperCase(),
-            descricao_oficial: String(m.descricao_oficial || "").trim()
+            sku_senior: skuSenior,
+            descricao_oficial: descOficial
+          };
+        }
+        if (platSku && skuSenior) {
+          globalSkuMap[platSku] = {
+            sku_senior: skuSenior,
+            descricao_oficial: descOficial
           };
         }
       });
@@ -558,7 +567,7 @@ export function DataProvider({ children }) {
       const mappedVendas = vendas.map(r => {
         const rawSku = String(r.c[6]?.v || r.c[2]?.v || "").trim().toUpperCase();
         const rawLocal = String(r.c[1]?.v || "").trim().toUpperCase();
-        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`] || globalSkuMap[rawSku];
 
         let mappedSku = mapping?.sku_senior || r.c[2]?.v || "";
         let mappedDesc = mapping?.descricao_oficial || r.c[3]?.v || "";
@@ -583,7 +592,7 @@ export function DataProvider({ children }) {
       const mappedEstoque = estoque.map(r => {
         const rawSku = String(r.c[7]?.v || r.c[1]?.v || "").trim().toUpperCase();
         const rawLocal = String(r.c[3]?.v || "").trim().toUpperCase();
-        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`] || globalSkuMap[rawSku];
 
         let mappedSku = mapping?.sku_senior || r.c[1]?.v || "";
         let mappedDesc = mapping?.descricao_oficial || r.c[2]?.v || "";
@@ -611,7 +620,7 @@ export function DataProvider({ children }) {
 
         const rawSku = String(r.c[0]?.v || "").trim().toUpperCase();
         const rawLocal = String(r.c[2]?.v || "").trim().toUpperCase();
-        const mapping = mapLookup[`${rawSku}|${rawLocal}`];
+        const mapping = mapLookup[`${rawSku}|${rawLocal}`] || globalSkuMap[rawSku];
 
         const mappedSku = mapping?.sku_senior || rawSku;
         const mappedDesc = mapping?.descricao_oficial || r.c[1]?.v || "";
