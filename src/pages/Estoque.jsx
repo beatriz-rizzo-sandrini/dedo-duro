@@ -854,6 +854,43 @@ export default function Estoque() {
         </div>
       </div>
 
+      {/* Brand KPIs Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px' }}>
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Tags size={28} color="#64748b" />
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Marcas</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.totalMarcas} marcas</div>
+          </div>
+        </div>
+
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Package size={28} color="#3b82f6" />
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Peças</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderQtd.marca)}>
+              {toTitleCase(dadosProcessados.marcaLiderQtd.marca)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+              {dadosProcessados.marcaLiderQtd.totalQtd.toLocaleString('pt-BR')} pçs
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Banknote size={28} color="#10b981" />
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Custo</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderCusto.marca)}>
+              {toTitleCase(dadosProcessados.marcaLiderCusto.marca)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+              {dadosProcessados.marcaLiderCusto.totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main KPIs Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
 
@@ -897,43 +934,6 @@ export default function Estoque() {
           </div>
         </div>
 
-      </div>
-
-      {/* Brand KPIs Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '24px' }}>
-        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Tags size={28} color="#64748b" />
-          <div>
-            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Marcas</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.totalMarcas} marcas</div>
-          </div>
-        </div>
-
-        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Package size={28} color="#3b82f6" />
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Peças</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderQtd.marca)}>
-              {toTitleCase(dadosProcessados.marcaLiderQtd.marca)}
-            </div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-              {dadosProcessados.marcaLiderQtd.totalQtd.toLocaleString('pt-BR')} pçs
-            </div>
-          </div>
-        </div>
-
-        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Banknote size={28} color="#10b981" />
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder em Custo</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={toTitleCase(dadosProcessados.marcaLiderCusto.marca)}>
-              {toTitleCase(dadosProcessados.marcaLiderCusto.marca)}
-            </div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-              {dadosProcessados.marcaLiderCusto.totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Brand Charts Section */}
