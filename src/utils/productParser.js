@@ -181,7 +181,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
     cleanDesc = cleanDesc.replace(/[\s\-,;:/]+$/, '').trim();
 
-    let finalTitle = toTitleCase(cleanDesc);
+    let finalTitle = toTitleCase(cleanDesc)
+      .replace(/\bM\.c\b/gi, 'Manga Curta')
+      .replace(/\bM\.l\b/gi, 'Manga Longa');
+
     if ((skuUpper.startsWith('SA00184') || skuUpper.startsWith('KSA00184')) && normBrand === 'SANDRINI') {
       const isKit = skuUpper.startsWith('K') || skuUpper.startsWith('KSA') || finalTitle.toUpperCase().includes('KIT');
       finalTitle = isKit ? 'Kit Tenis Sandrini Aero Spark' : 'Tenis Sandrini Aero Spark';
@@ -672,9 +675,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
     // Se a descrição tiver 'LUPO' por conta de mapeamento incorreto na planilha, forçamos para ser Sandrini
     if (baseTitle.toUpperCase().includes('DRY') && baseTitle.toUpperCase().includes('LUPO')) {
-      baseTitle = 'Camiseta Dry Fit Sandrini M.c';
+      baseTitle = 'Camiseta Dry Fit Sandrini Manga Curta';
       if (skuUpper.includes('2351') || skuUpper.includes('2352') || skuUpper.includes('2353') || skuUpper.includes('ML')) {
-        baseTitle = 'Camiseta Dry Fit Sandrini M.l';
+        baseTitle = 'Camiseta Dry Fit Sandrini Manga Longa';
       }
     }
   } else {
@@ -775,6 +778,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
   // Remove termos de gênero para agrupar variações masculinas/femininas/infantis do mesmo modelo
   baseTitle = baseTitle.replace(/\b(masculino|masculina|feminino|feminina|unisex|unissex|infantil|juvenil)\b/gi, '');
+
+  // Traduzir abreviações de manga (M.c -> Manga Curta, M.l -> Manga Longa)
+  baseTitle = baseTitle
+    .replace(/\bM\.c\b/gi, 'Manga Curta')
+    .replace(/\bM\.l\b/gi, 'Manga Longa');
 
   baseTitle = baseTitle.replace(/\s+/g, ' ').trim();
 
