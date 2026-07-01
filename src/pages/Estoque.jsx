@@ -816,7 +816,6 @@ export default function Estoque() {
             </AnimatePresence>
           </div>
         </div>
-      </div>
 
       <div className="filters-container">
         <CompanySelector />
