@@ -213,8 +213,11 @@ export default function Estoque() {
 
         const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
-          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += Number(r[COL_ESTOQUE.QTDE_DISPONIVEL]) || 0;
-          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = Number(r[COL_ESTOQUE.CUSTO]) || 0;
+          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+        }
+
+        if (valorUnitario > 0) {
+          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = valorUnitario;
         }
 
         stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = lojaEstoque;
