@@ -567,10 +567,10 @@ export default function Produto() {
         </button>
       </div>
 
-      <div className="filters-container" style={{ marginBottom: '30px' }}>
+      <div className="filters-container" style={{ marginBottom: '30px', alignItems: 'flex-end' }}>
         <CompanySelector />
         
-        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 280px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>BUSCA (PRODUTO, LOCAL OU SKU)</label>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
@@ -599,17 +599,19 @@ export default function Produto() {
           />
         </div>
 
-        <div style={{ flex: '1 1 250px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PERÍODO VENDAS</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataIni} onChange={e => setDataIni(e.target.value)} />
-            <input type="date" className="input-padrao" style={{ flex: 1 }} value={dataFim} onChange={e => setDataFim(e.target.value)} />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 140px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DATA INICIAL</label>
+          <input type="date" className="input-padrao" value={dataIni} onChange={e => setDataIni(e.target.value)} />
         </div>
 
-        <div style={{ flex: '0 0 120px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 140px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DATA FINAL</label>
+          <input type="date" className="input-padrao" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '0 0 100px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DIAS ALVO</label>
-          <input type="number" className="input-padrao" style={{ width: '100%' }} value={diasCobertura} onChange={e => setDiasCobertura(Number(e.target.value))} />
+          <input type="number" className="input-padrao" value={diasCobertura} onChange={e => setDiasCobertura(Number(e.target.value))} />
         </div>
       </div>
 
