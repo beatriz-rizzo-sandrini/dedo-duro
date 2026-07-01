@@ -160,17 +160,18 @@ export default function Estoque() {
       const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
       const valorUnitario = Number(r?.c?.[COL_ESTOQUE.VALOR]?.v) || 0;
-      const marca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const rawMarca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").trim();
       const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
 
       if (sku) {
         if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
 
+        const parsed = parseProductDescription(rawDesc || skuToDesc[sku] || `SKU: ${sku}`, sku, local.includes("BUY CLOCK"), rawMarca);
+        const marca = parsed.brand;
+        const prodKey = `${parsed.baseTitle}|${marca}`;
+
         if (marca) setMarcas.add(marca);
         if (local) setLocais.add(local);
-
-        const parsed = parseProductDescription(rawDesc || skuToDesc[sku] || `SKU: ${sku}`, sku, local.includes("BUY CLOCK"), marca);
-        const prodKey = `${parsed.baseTitle}|${marca}`;
 
         if (!stats[prodKey]) {
           stats[prodKey] = {
@@ -293,7 +294,7 @@ export default function Estoque() {
         const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
         if (totalCD <= 0) return;
 
-        const brand = normalizeBrand('', sku, '');
+        const brand = normalizeBrand(info.brand || '', sku, info.desc || '');
         if (brand) setMarcas.add(brand);
 
         const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, false, brand);

@@ -17,7 +17,7 @@ function normalizeSku(sku) {
 }
 const { COL_ESTOQUE, COL_VENDAS, COL_CAMINHO } = SheetCols;
 import MobileTable from '../components/MobileTable';
-import { parseProductDescription } from '../utils/productParser';
+import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 
 const getYesterdayStr = () => {
   const d = new Date();
@@ -92,17 +92,23 @@ export default function Cobertura() {
     const setMarcas = new Set();
     vendasRows.forEach(r => {
       const m = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_VENDAS.SKU]?.v || "");
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-      if (m) setMarcas.add(m.trim().toUpperCase());
+      const normB = normalizeBrand(m, sku, desc);
+      if (normB) setMarcas.add(normB);
     });
     estoqueRows.forEach(r => {
       const m = r?.c?.[COL_ESTOQUE.MARCA]?.v || "";
+      const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
       const l = (r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-      if (m) setMarcas.add(m.trim().toUpperCase());
+      const normB = normalizeBrand(m, sku, desc);
+      if (normB) setMarcas.add(normB);
     });
     return Array.from(setMarcas).sort();
   }, [vendasRows, estoqueRows, selectedCompany]);
@@ -162,7 +168,7 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const brand = (r?.c?.[COL_VENDAS.MARCA]?.v || skuToBrand[sku] || "").trim().toUpperCase();
+      const brand = normalizeBrand(r?.c?.[COL_VENDAS.MARCA]?.v || skuToBrand[sku] || "", sku, desc);
       if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
 
       if (dataIni && dataRow < new Date(dataIni)) return;
@@ -220,7 +226,7 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const brand = (r?.c?.[COL_ESTOQUE.MARCA]?.v || skuToBrand[sku] || "").trim().toUpperCase();
+      const brand = normalizeBrand(r?.c?.[COL_ESTOQUE.MARCA]?.v || skuToBrand[sku] || "", sku, desc);
       if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
 
       const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
@@ -272,7 +278,7 @@ export default function Cobertura() {
 
       if (filtroLocal.length > 0 && !filtroLocal.includes(local)) return;
 
-      const brand = (skuToBrand[sku] || "").trim().toUpperCase();
+      const brand = normalizeBrand(skuToBrand[sku] || "", sku, desc);
       if (filtroMarca.length > 0 && !filtroMarca.includes(brand)) return;
 
       const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"));

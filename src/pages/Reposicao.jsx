@@ -8,7 +8,7 @@ import { toTitleCase } from '../utils/stringUtils';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_CAMINHO, COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
-import { parseProductDescription } from '../utils/productParser';
+import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 import MobileTable from '../components/MobileTable';
 
 export default function Reposicao() {
@@ -101,15 +101,12 @@ export default function Reposicao() {
     caminhoRows.forEach(r => {
       const sku = r?.c?.[COL_CAMINHO.SKU]?.v || "";
       const skuPlat = r?.c?.[8]?.v || "";
-      let brand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
-      if (!brand) {
-        let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
-        if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
-        const local = String(r?.c?.[COL_CAMINHO.LOCAL]?.v ?? "").toUpperCase().trim();
-        const parsedBrand = parseProductDescription(desc, sku, local.includes("BUY CLOCK"))?.brand || "";
-        brand = parsedBrand;
-      }
-      if (brand) setMarcas.add(brand.trim().toUpperCase());
+      const rawBrand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
+      let desc = r?.c?.[COL_CAMINHO.DESC]?.v || "";
+      if (!desc && skuToDesc[sku]) desc = skuToDesc[sku];
+      
+      const brand = normalizeBrand(rawBrand, sku, desc);
+      if (brand) setMarcas.add(brand);
     });
     return Array.from(setMarcas).sort();
   }, [caminhoRows, skuToBrand, skuToDesc]);
@@ -172,12 +169,8 @@ export default function Reposicao() {
         envio = String(r?.c?.[COL_CAMINHO.NF].v).toUpperCase().trim();
       }
 
-      let brand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
-      if (!brand) {
-        const parsedBrand = parseProductDescription(descricao, sku, local.includes("BUY CLOCK"))?.brand || "";
-        brand = parsedBrand;
-      }
-      brand = (brand || "Sem Marca").trim().toUpperCase();
+      const rawBrand = skuToBrand[sku] || skuToBrand[skuPlat] || "";
+      const brand = normalizeBrand(rawBrand, sku, descricao);
 
       if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
       if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === brand)) return;

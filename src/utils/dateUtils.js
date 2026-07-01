@@ -11,6 +11,12 @@ export const normalizeDateStr = (dStr) => {
       const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
       return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${year}`;
     }
+  } else if (clean.includes('-')) {
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      // "2026-05-27" -> "27/05/2026"
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
   }
   return clean;
 };

@@ -22,7 +22,7 @@ import { useCompany } from '../contexts/CompanyContext.jsx';
 import CompanySelector from '../components/CompanySelector';
 import { COL_ESTOQUE, COL_VENDAS } from '../utils/sheetColumns';
 import MobileTable from '../components/MobileTable';
-import { parseProductDescription } from '../utils/productParser';
+import { parseProductDescription, normalizeBrand } from '../utils/productParser';
 
 ChartJS.register(
   CategoryScale,
@@ -112,10 +112,13 @@ export default function Vendas() {
     const setMarcas = new Set();
     vendasRows.forEach(r => {
       const m = r?.c?.[COL_VENDAS.MARCA]?.v || "";
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const l = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
       const loja = l.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-      if (m) setMarcas.add(m.trim().toUpperCase());
+      const normB = normalizeBrand(m, sku, desc);
+      if (normB) setMarcas.add(normB);
     });
     return Array.from(setMarcas).sort();
   }, [vendasRows, selectedCompany]);
@@ -222,7 +225,7 @@ export default function Vendas() {
 
       // Agora aplica os filtros de busca e local para a visualização na tela
       if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
-      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === brand.toUpperCase().trim())) return;
+      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === parsed.brand.toUpperCase())) return;
 
       if (busca) {
         const termos = busca.toLowerCase().trim().split(/\s+/);

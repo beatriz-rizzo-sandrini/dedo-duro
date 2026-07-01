@@ -192,6 +192,7 @@ async function fetchEstoqueSupabase() {
           if (parts.length === 3) {
             possibleDbValues.push(`${parts[0]}/${parts[1]}`);
             possibleDbValues.push(targetNormalizedDate);
+            possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
           } else {
             possibleDbValues.push(targetNormalizedDate);
           }
@@ -348,11 +349,11 @@ async function fetchSandriniCasa() {
     const map = {};
     rows.forEach(r => {
       if (!r || !r.c) return;
-      const sku = String(r.c[3]?.v || '').trim().toUpperCase();
-      const qtd = Number(r.c[5]?.v) || 0;
-      const brand = String(r.c[2]?.v || 'SANDRINI').trim().toUpperCase();
-      const desc = r.c[4]?.v || '';
-      const cost = Number(String(r.c[7]?.v || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+      const sku = String(r.c[4]?.v || '').trim().toUpperCase();
+      const qtd = Number(r.c[6]?.v) || 0;
+      const brand = String(r.c[3]?.v || 'SANDRINI').trim().toUpperCase();
+      const desc = r.c[5]?.v || '';
+      const cost = Number(String(r.c[8]?.v || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
       if (sku) {
         if (!map[sku]) {
           map[sku] = { estoqueCasa: 0, expedicao: 0, brand, desc, cost };

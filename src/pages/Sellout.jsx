@@ -237,17 +237,18 @@ export default function Sellout() {
       const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_ESTOQUE.QTD]?.v) || 0;
-      const marca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const rawMarca = String(r?.c?.[COL_ESTOQUE.MARCA]?.v || "Sem Marca").trim();
       const rawDesc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
 
       if (sku) {
         if (selectedCompany !== 'TODAS' && lojaEstoque !== selectedCompany) return;
         
+        const parsed = parseProductDescription(rawDesc, sku, local.includes("BUY CLOCK"), rawMarca);
+        const marca = parsed.brand;
+        const prodKey = `${parsed.baseTitle}|${marca}`;
+
         if (marca) setMarcas.add(marca);
         if (local) setLocais.add(local);
-
-        const parsed = parseProductDescription(rawDesc, sku, local.includes("BUY CLOCK"), marca);
-        const prodKey = `${parsed.baseTitle}|${marca}`;
 
         if (!stats[prodKey]) {
           stats[prodKey] = {
@@ -326,20 +327,21 @@ export default function Sellout() {
       }
       const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
       const local = String(r?.c?.[COL_VENDAS.LOCAL]?.v || "Sem Local").toUpperCase().trim();
-      const marca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").toUpperCase().trim();
+      const rawMarca = String(r?.c?.[COL_VENDAS.MARCA]?.v || "Sem Marca").trim();
       const lojaVenda = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
 
       if (selectedCompany !== 'TODAS' && lojaVenda !== selectedCompany) return;
+
+      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), rawMarca);
+      const marca = parsed.brand;
+      const prodKey = `${parsed.baseTitle}|${marca}`;
 
       if (marca) setMarcas.add(marca);
       if (local) setLocais.add(local);
 
       // Filtra vendas de hoje em diante (fora do período encerrado)
       if (dataVendaTime > ontemTime) return;
-
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), marca);
-      const prodKey = `${parsed.baseTitle}|${marca}`;
 
       if (!stats[prodKey]) {
         stats[prodKey] = { 
@@ -490,7 +492,7 @@ export default function Sellout() {
         const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
         if (totalCD <= 0) return; // Só adiciona se tiver estoque no CD
 
-        const brand = normalizeBrand('', sku, '');
+        const brand = normalizeBrand(info.brand || '', sku, info.desc || '');
         if (brand) setMarcas.add(brand);
 
         const parsed = parseProductDescription(info.desc || skuToDesc[sku] || '', sku, false, brand);

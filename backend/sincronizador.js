@@ -231,11 +231,11 @@ async function syncEstoque() {
     // 2. Inserir estoque Sandrini
     for (const r of sandriniRows) {
       if (!r || !r.c) continue;
-      const sku = r.c[3]?.v || null;
-      const desc = r.c[4]?.v || null;
-      const brand = r.c[2]?.v || 'SANDRINI';
-      const qtd = r.c[5]?.v || null;
-      const cost = r.c[7]?.v || null;
+      const sku = r.c[4]?.v || null;
+      const desc = r.c[5]?.v || null;
+      const brand = r.c[3]?.v || 'SANDRINI';
+      const qtd = r.c[6]?.v || null;
+      const cost = r.c[8]?.v || null;
 
       if (sku) {
         await connection.query(`
