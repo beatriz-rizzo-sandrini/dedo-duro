@@ -359,10 +359,10 @@ async function fetchSandriniCasa() {
         
         const brand = String(cols[3] || 'SANDRINI').trim().toUpperCase();
         const desc = cols[5] || '';
-        const costStr = String(cols[8] || '');
-        const cost = Number(costStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
-        const totalCasaStr = String(cols[9] || '');
-        const totalCasaCostVal = Number(totalCasaStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+        const costStr = String(cols[8] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const cost = Number(costStr) || 0;
+        const totalCasaStr = String(cols[9] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const totalCasaCostVal = Number(totalCasaStr) || 0;
 
         if (sku && qtd > 0) {
           if (!map[sku]) {
@@ -392,8 +392,8 @@ async function fetchSandriniCasa() {
           const expedicaoStr = String(cols[finalExpIdx] || '').replace(/\./g, '').trim();
           const expedicaoVal = Number(expedicaoStr) || 0;
 
-          const totalExpStr = String(cols[8] || '');
-          const totalExpCostVal = Number(totalExpStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+          const totalExpStr = String(cols[8] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+          const totalExpCostVal = Number(totalExpStr) || 0;
 
           if (sku && expedicaoVal > 0) {
             if (!map[sku]) {
@@ -461,8 +461,8 @@ async function fetchBuyclockCasa() {
         const estoqueCasaVal = Number(estoqueCasaStr) || 0;
         const expedicaoStr = String(cols[finalExpedicaoIdx] || '').replace(/\./g, '').trim();
         const expedicaoVal = Number(expedicaoStr) || 0;
-        const costVal = cols[34];
-        const cost = Number(String(costVal || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+        const costValStr = String(cols[34] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const cost = Number(costValStr) || 0;
         if (sku) {
           if (!map[sku]) {
             map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '', cost: 0, totalCasaCost: 0, totalExpedicaoCost: 0 };
