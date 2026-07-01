@@ -341,26 +341,38 @@ async function fetchBadstockSupabase() {
 
 async function fetchSandriniCasa() {
   try {
-    console.log('[DataContext] Buscando estoque Sandrini Casa de planilha externa...');
-    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/gviz/tq?tqx=out:json&gid=1363555604`;
+    console.log('[DataContext] Buscando estoque Sandrini Casa de planilha externa (CSV)...');
+    const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/export?format=csv&gid=1363555604`;
     const res = await fetch(url);
     const text = await res.text();
-    const rows = parseGoogleJSON(text);
+    const lines = text.split(/\r?\n/);
     const map = {};
-    rows.forEach(r => {
-      if (!r || !r.c) return;
-      const sku = String(r.c[4]?.v || '').trim().toUpperCase();
-      const qtd = Number(r.c[6]?.v) || 0;
-      const brand = String(r.c[3]?.v || 'SANDRINI').trim().toUpperCase();
-      const desc = r.c[5]?.v || '';
-      const cost = Number(String(r.c[8]?.v || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
-      if (sku) {
-        if (!map[sku]) {
-          map[sku] = { estoqueCasa: 0, expedicao: 0, brand, desc, cost };
+    
+    if (lines.length > 1) {
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const cols = parseCSVLine(lines[i]);
+        
+        const sku = String(cols[4] || '').trim().toUpperCase();
+        const qtdStr = String(cols[6] || '').replace(/\./g, '').trim();
+        const qtd = Number(qtdStr) || 0;
+        
+        const brand = String(cols[3] || 'SANDRINI').trim().toUpperCase();
+        const desc = cols[5] || '';
+        const costStr = String(cols[8] || '');
+        const cost = Number(costStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+        const totalCasaStr = String(cols[9] || '');
+        const totalCasaCostVal = Number(totalCasaStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+
+        if (sku && qtd > 0) {
+          if (!map[sku]) {
+            map[sku] = { estoqueCasa: 0, expedicao: 0, brand, desc, cost, totalCasaCost: 0, totalExpedicaoCost: 0 };
+          }
+          map[sku].estoqueCasa += Math.round(qtd);
+          map[sku].totalCasaCost = (map[sku].totalCasaCost || 0) + totalCasaCostVal;
         }
-        map[sku].estoqueCasa += qtd;
       }
-    });
+    }
 
     try {
       console.log('[DataContext] Buscando expedição Sandrini da aba INVENTÁRIO_SANDRINI...');
@@ -377,12 +389,18 @@ async function fetchSandriniCasa() {
           if (!expLines[i].trim()) continue;
           const cols = parseCSVLine(expLines[i]);
           const sku = String(cols[0] || '').trim().toUpperCase();
-          const expedicaoVal = Number(cols[finalExpIdx]) || 0;
+          const expedicaoStr = String(cols[finalExpIdx] || '').replace(/\./g, '').trim();
+          const expedicaoVal = Number(expedicaoStr) || 0;
+
+          const totalExpStr = String(cols[8] || '');
+          const totalExpCostVal = Number(totalExpStr.replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
+
           if (sku && expedicaoVal > 0) {
             if (!map[sku]) {
-              map[sku] = { estoqueCasa: 0, expedicao: 0, brand: 'SANDRINI', desc: '', cost: 0 };
+              map[sku] = { estoqueCasa: 0, expedicao: 0, brand: 'SANDRINI', desc: '', cost: 0, totalCasaCost: 0, totalExpedicaoCost: 0 };
             }
-            map[sku].expedicao += expedicaoVal;
+            map[sku].expedicao += Math.round(expedicaoVal);
+            map[sku].totalExpedicaoCost = (map[sku].totalExpedicaoCost || 0) + totalExpCostVal;
           }
         }
       }
@@ -439,19 +457,25 @@ async function fetchBuyclockCasa() {
         const sku = String(cols[0] || '').trim().toUpperCase();
         const ean = String(cols[1] || '').trim();
         const brand = String(cols[2] || '').trim().toUpperCase();
-        const estoqueCasaVal = Number(cols[finalEstoqueIdx]) || 0;
-        const expedicaoVal = Number(cols[finalExpedicaoIdx]) || 0;
+        const estoqueCasaStr = String(cols[finalEstoqueIdx] || '').replace(/\./g, '').trim();
+        const estoqueCasaVal = Number(estoqueCasaStr) || 0;
+        const expedicaoStr = String(cols[finalExpedicaoIdx] || '').replace(/\./g, '').trim();
+        const expedicaoVal = Number(expedicaoStr) || 0;
         const costVal = cols[34];
         const cost = Number(String(costVal || '').replace(/[^0-9,\.-]/g, '').replace(',', '.')) || 0;
         if (sku) {
           if (!map[sku]) {
-            map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '', cost: 0 };
+            map[sku] = { estoqueCasa: 0, expedicao: 0, brand: '', ean: '', cost: 0, totalCasaCost: 0, totalExpedicaoCost: 0 };
           }
-          map[sku].estoqueCasa += estoqueCasaVal;
-          map[sku].expedicao += expedicaoVal;
-          map[sku].brand = brand || map[sku].brand;
-          map[sku].ean = ean || map[sku].ean;
-          map[sku].cost = cost || map[sku].cost;
+          const finalCasa = Math.round(estoqueCasaVal);
+          const finalExp = Math.round(expedicaoVal);
+          map[sku].estoqueCasa += finalCasa;
+          map[sku].expedicao += finalExp;
+          map[sku].totalCasaCost = (map[sku].totalCasaCost || 0) + (finalCasa * cost);
+          map[sku].totalExpedicaoCost = (map[sku].totalExpedicaoCost || 0) + (finalExp * cost);
+          if (brand && map[sku].brand === '') map[sku].brand = brand;
+          if (ean && map[sku].ean === '') map[sku].ean = ean;
+          if (cost > 0) map[sku].cost = cost;
         }
       }
     }

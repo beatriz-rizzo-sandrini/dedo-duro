@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, Package, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Building2, Cloud, Truck, DollarSign } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -213,17 +213,54 @@ export default function Estoque() {
 
         const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
-          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+          stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += Number(r[COL_ESTOQUE.QTDE_DISPONIVEL]) || 0;
+          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = Number(r[COL_ESTOQUE.CUSTO]) || 0;
         }
 
-        if (valorUnitario > 0) {
-          stats[prodKey].cores[corKey].variacoes[varKey].valorUnitario = valorUnitario;
-        }
         stats[prodKey].cores[corKey].variacoes[varKey].lojaEstoque = lojaEstoque;
       }
     });
 
     // 2. Processar itens das planilhas de casa para garantir que apareçam
+    if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
+      Object.entries(buyclockCasaMap).forEach(([sku, info]) => {
+        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
+        if (totalCD === 0) return;
+        const marca = info.brand || 'BUY CLOCK';
+        if (marca) setMarcas.add(marca);
+        if (filtroMarca && filtroMarca !== 'Todas' && marca !== filtroMarca) return;
+
+        const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
+        if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
+        if (!stats[prodKey].cores['PADRAO']) stats[prodKey].cores['PADRAO'] = { cor: 'PADRAO', variacoes: {} };
+        if (!stats[prodKey].cores['PADRAO'].variacoes[sku]) {
+          stats[prodKey].cores['PADRAO'].variacoes[sku] = {
+            tamanho: '', sku, skuPlat: '', estoquePlataforma: 0, valorUnitario: info.cost || 0, vendas: 0, lojaEstoque: 'BUY CLOCK'
+          };
+        }
+      });
+    }
+
+    if (selectedCompany === 'SANDRINI' || selectedCompany === 'TODAS') {
+      Object.entries(sandriniCasaMap).forEach(([sku, info]) => {
+        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
+        if (totalCD === 0) return;
+        const marca = info.brand || 'SANDRINI';
+        if (marca) setMarcas.add(marca);
+        if (filtroMarca && filtroMarca !== 'Todas' && marca !== filtroMarca) return;
+
+        const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
+        if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
+        if (!stats[prodKey].cores['PADRAO']) stats[prodKey].cores['PADRAO'] = { cor: 'PADRAO', variacoes: {} };
+        if (!stats[prodKey].cores['PADRAO'].variacoes[sku]) {
+          stats[prodKey].cores['PADRAO'].variacoes[sku] = {
+            tamanho: '', sku, skuPlat: '', estoquePlataforma: 0, valorUnitario: info.cost || 0, vendas: 0, lojaEstoque: 'SANDRINI'
+          };
+        }
+      });
+    }
+
+    // 3. Incorporar as vendas das planilhas de casa para garantir que apareçam
     if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
       Object.entries(buyclockCasaMap).forEach(([sku, info]) => {
         const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
@@ -354,7 +391,8 @@ export default function Estoque() {
       });
     }
 
-    // 3. Recalcular os estoques e custos casa usando os mapas das planilhas externas
+    // 4. Recalcular os estoques e custos casa usando os mapas das planilhas externas
+    const usedExternalSkus = new Set();
     Object.values(stats).forEach(prod => {
       let prodPlatEstoque = 0;
       let prodCasaEstoque = 0;
@@ -398,30 +436,38 @@ export default function Estoque() {
           const searchKey1 = translateInvertedSku(key1);
           const searchKey2 = translateInvertedSku(key2);
 
-          if (searchKey1 && mapToUse[searchKey1] !== undefined) {
-            qtyCasa = mapToUse[searchKey1].estoqueCasa || 0;
-            qtyExpedicao = mapToUse[searchKey1].expedicao || 0;
-            if (mapToUse[searchKey1].cost > 0) {
-              v.valorUnitario = mapToUse[searchKey1].cost;
+          let matchedKey = null;
+          if (searchKey1 && mapToUse[searchKey1] !== undefined) matchedKey = searchKey1;
+          else if (searchKey2 && mapToUse[searchKey2] !== undefined) matchedKey = searchKey2;
+
+          if (matchedKey) {
+            if (!usedExternalSkus.has(matchedKey)) {
+              qtyCasa = mapToUse[matchedKey].estoqueCasa || 0;
+              qtyExpedicao = mapToUse[matchedKey].expedicao || 0;
+              usedExternalSkus.add(matchedKey);
             }
-          } else if (searchKey2 && mapToUse[searchKey2] !== undefined) {
-            qtyCasa = mapToUse[searchKey2].estoqueCasa || 0;
-            qtyExpedicao = mapToUse[searchKey2].expedicao || 0;
-            if (mapToUse[searchKey2].cost > 0) {
-              v.valorUnitario = mapToUse[searchKey2].cost;
+            if (mapToUse[matchedKey].cost > 0) {
+              v.valorUnitario = mapToUse[matchedKey].cost;
             }
           }
 
           v.estoqueCasa = qtyCasa;
           v.expedicao = qtyExpedicao;
           v.total = v.estoquePlataforma + qtyCasa + qtyExpedicao;
-          v.custoTotal = v.total * v.valorUnitario;
+          
+          v.custoPlataforma = v.estoquePlataforma * v.valorUnitario;
+          v.custoCasa = qtyCasa * v.valorUnitario;
+          v.custoExpedicao = qtyExpedicao * v.valorUnitario;
+          v.custoTotal = v.custoPlataforma + v.custoCasa + v.custoExpedicao;
 
           corPlatEstoque += v.estoquePlataforma;
           corCasaEstoque += v.estoqueCasa;
           corExpedicao += v.expedicao;
           corTotalEstoque += v.total;
           corCustoTotal += v.custoTotal;
+          cor.custoPlataforma = (cor.custoPlataforma || 0) + v.custoPlataforma;
+          cor.custoCasa = (cor.custoCasa || 0) + v.custoCasa;
+          cor.custoExpedicao = (cor.custoExpedicao || 0) + v.custoExpedicao;
         });
 
         cor.estoquePlataforma = corPlatEstoque;
@@ -435,6 +481,9 @@ export default function Estoque() {
         prodExpedicao += corExpedicao;
         prodTotalEstoque += corTotalEstoque;
         prodCustoTotal += corCustoTotal;
+        prod.custoPlataforma = (prod.custoPlataforma || 0) + cor.custoPlataforma;
+        prod.custoCasa = (prod.custoCasa || 0) + cor.custoCasa;
+        prod.custoExpedicao = (prod.custoExpedicao || 0) + cor.custoExpedicao;
       });
 
       prod.estoquePlataforma = prodPlatEstoque;
@@ -605,15 +654,34 @@ export default function Estoque() {
 
     let finalTotalGeral = 0;
     let finalTotalCustoGeral = 0;
+    let finalCustoPlataforma = 0;
+    let finalCustoCasa = 0;
+    let finalCustoExpedicao = 0;
+    let finalQtdPlataforma = 0;
+    let finalQtdCasa = 0;
+    let finalQtdExpedicao = 0;
+
     linhas.forEach(l => {
       finalTotalGeral += l.total;
       finalTotalCustoGeral += l.custoTotal;
+      finalCustoPlataforma += l.custoPlataforma || 0;
+      finalCustoCasa += l.custoCasa || 0;
+      finalCustoExpedicao += l.custoExpedicao || 0;
+      finalQtdPlataforma += l.estoquePlataforma || 0;
+      finalQtdCasa += l.estoqueCasa || 0;
+      finalQtdExpedicao += l.expedicao || 0;
     });
 
     return {
       linhas,
       totalGeral: finalTotalGeral,
       totalCustoGeral: finalTotalCustoGeral,
+      custoPlataforma: finalCustoPlataforma,
+      custoCasa: finalCustoCasa,
+      custoExpedicao: finalCustoExpedicao,
+      qtdPlataforma: finalQtdPlataforma,
+      qtdCasa: finalQtdCasa,
+      qtdExpedicao: finalQtdExpedicao,
       dataEstoque,
       dataVendas,
       totalMarcas: marcasStatsArray.length,
@@ -641,7 +709,7 @@ export default function Estoque() {
           item.estoqueCasa,
           item.expedicao,
           item.total,
-          item.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+          type === 'xlsx' ? item.custoTotal : item.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
         ];
       });
       handleExport(type, "Estoque_Consolidado_Resumido", headers, exportData);
@@ -659,12 +727,12 @@ export default function Estoque() {
               v.sku,
               fullDesc,
               item.marca,
-              v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+              type === 'xlsx' ? v.valorUnitario : v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
               v.estoquePlataforma,
               v.estoqueCasa,
               v.expedicao,
               v.total,
-              v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              type === 'xlsx' ? v.custoTotal : v.custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             ]);
           });
         });
@@ -696,22 +764,33 @@ export default function Estoque() {
       <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Estoque Consolidado</h1>
-          <p>Visão geral dos produtos em armazém</p>
+          <p style={{ marginBottom: '8px' }}>Visão geral dos produtos em armazém</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '12px', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #f1f5f9', width: 'fit-content' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Building2 size={14}/> Casa: <span style={{color: '#334155'}}>{dadosProcessados.qtdCasa.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoCasa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Cloud size={14}/> Plat: <span style={{color: '#334155'}}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Truck size={14}/> Exp: <span style={{color: '#334155'}}>{dadosProcessados.qtdExpedicao.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoExpedicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+             </div>
+          </div>
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
-            <Package size={24} />
+          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
+            <Package size={28} />
             <div>
-              <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL EM ESTOQUE</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL EM ESTOQUE</div>
+              <div style={{ fontSize: '24px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
             </div>
           </div>
-          <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
-            <span style={{ fontSize: '24px' }}>💰</span>
+          <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
+            <DollarSign size={28} />
             <div>
-              <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>CUSTO TOTAL DO ESTOQUE</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.9 }}>CUSTO TOTAL DO ESTOQUE</div>
+              <div style={{ fontSize: '24px', fontWeight: 800 }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
             </div>
           </div>
           <div style={{ position: 'relative' }}>
