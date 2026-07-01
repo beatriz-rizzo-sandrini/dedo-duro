@@ -768,17 +768,7 @@ export default function Estoque() {
         <div>
           <h1>Estoque Consolidado</h1>
           <p style={{ marginBottom: '8px' }}>Visão geral dos produtos em armazém</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '12px', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #f1f5f9', width: 'fit-content' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Building2 size={14}/> Casa: <span style={{color: '#334155'}}>{dadosProcessados.qtdCasa.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoCasa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Cloud size={14}/> Plat: <span style={{color: '#334155'}}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Truck size={14}/> Exp: <span style={{color: '#334155'}}>{dadosProcessados.qtdExpedicao.toLocaleString('pt-BR')} un</span> <span style={{color: '#10b981'}}>{dadosProcessados.custoExpedicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-             </div>
-          </div>
+
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
           <div style={{ position: 'relative' }}>
@@ -865,21 +855,48 @@ export default function Estoque() {
       </div>
 
       {/* Main KPIs Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
-        <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '20px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
-          <Package size={36} style={{ opacity: 0.9 }} />
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, letterSpacing: '0.5px' }}>TOTAL EM ESTOQUE</div>
-            <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '2px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
+        
+        {/* Card 1 - Consolidado */}
+        <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.3)' }}>
+          <Package size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ESTOQUE CONSOLIDADO</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')} pçs</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#38bdf8' }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
           </div>
         </div>
-        <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: 'white', padding: '20px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
-          <DollarSign size={36} style={{ opacity: 0.9 }} />
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, letterSpacing: '0.5px' }}>CUSTO TOTAL DO ESTOQUE</div>
-            <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '2px' }}>{dadosProcessados.totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+
+        {/* Card 2 - Casa */}
+        <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}>
+          <Building2 size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>ARMAZÉM CASA</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdCasa.toLocaleString('pt-BR')} pçs</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#a7f3d0' }}>{dadosProcessados.custoCasa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
           </div>
         </div>
+
+        {/* Card 3 - Plataforma */}
+        <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
+          <Cloud size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>MERCADOS / PLAT</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdPlataforma.toLocaleString('pt-BR')} pçs</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#fde68a' }}>{dadosProcessados.custoPlataforma.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </div>
+        </div>
+
+        {/* Card 4 - Expedição */}
+        <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '16px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+          <Truck size={32} style={{ opacity: 0.9, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', opacity: 0.8, letterSpacing: '0.5px', marginBottom: '8px' }}>EXPEDIÇÃO</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{dadosProcessados.qtdExpedicao.toLocaleString('pt-BR')} pçs</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#ddd6fe' }}>{dadosProcessados.custoExpedicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </div>
+        </div>
+
       </div>
 
       {/* Brand KPIs Section */}
