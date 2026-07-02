@@ -312,3 +312,18 @@ body {
   cursor: not-allowed !important;
 }
 
+/* ─── DARK MODE (Inverted Aesthetics) ─── */
+html[data-theme="dark"] {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #f8fafc;
+}
+
+html[data-theme="dark"] img,
+html[data-theme="dark"] video,
+html[data-theme="dark"] iframe {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-theme="dark"] .sidebar {
+  filter: invert(1) hue-rotate(180deg);
+}

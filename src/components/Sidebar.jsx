@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet, Users, LogOut, Sun, Moon } from 'lucide-react';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './Sidebar.css';
@@ -10,6 +10,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // Fecha o menu mobile ao navegar
   useEffect(() => {
@@ -92,8 +102,28 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           </ul>
         </nav>
 
-        {/* Logout Action */}
+        {/* Theme and Logout Actions */}
         <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
+          <button 
+            onClick={toggleTheme}
+            className="nav-link" 
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer', 
+              width: '100%', 
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              padding: '10px 14px'
+            }}
+            title={isCollapsed ? "Alternar Tema" : ""}
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            <span className="nav-label">{theme === 'light' ? "Modo Escuro" : "Modo Claro"}</span>
+          </button>
+
           <button 
             onClick={logout}
             className="nav-link" 
@@ -103,7 +133,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
               cursor: 'pointer', 
               width: '100%', 
               textAlign: 'left',
-              color: '#f87171',
+              color: 'var(--sidebar-text)',
               display: 'flex',
               alignItems: 'center',
               gap: '14px',
