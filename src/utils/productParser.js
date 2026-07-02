@@ -818,7 +818,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   const baseTitleUpper = baseTitle.toUpperCase();
 
   if (skuUpper.startsWith('KSA08000002350')) {
-    if (skuUpper.includes('0292')) {
+    if (skuUpper.includes('0292') || skuUpper.includes('0293') || skuUpper.includes('0294') || skuUpper.includes('0295')) {
       baseTitle = 'Kit 4 Camisetas Dry Fit (2350) + 4 Shorts Tactel (77046)';
     } else {
       baseTitle = 'Kit 8 Camisetas Dry Sandrini Manga Curta';
