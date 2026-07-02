@@ -144,6 +144,8 @@ async function syncVendas() {
         qtd = r.c[4]?.v || null;
         marca = r.c[5]?.v || null;
       }
+      
+      if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
 
       if (dataSQL && sku && local) {
         const cleanLocal = String(local).toUpperCase().trim();
@@ -242,6 +244,8 @@ async function syncEstoque() {
     const qtd = r.c[5]?.v || null;
     const valor = r.c[6]?.v || null;
 
+    if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+
     if (sku && local) {
       insertData.push({
         data_atualizacao: dataStr,
@@ -296,6 +300,8 @@ async function syncReposicao() {
     const prev = r.c[6]?.f || r.c[6]?.v || null;
     const nf = r.c[7]?.f || r.c[7]?.v || null;
 
+    if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+
     if (sku && local && nf) {
       insertData.push({
         sku_produto: String(sku).trim(),
@@ -331,8 +337,12 @@ async function syncBadstock() {
 
   for (const r of rows) {
     if (!r || !r.c) continue;
+    let loja = String(r.c[2]?.v).trim();
+    let id_venda = String(r.c[0]?.v).trim();
     const sku = r.c[1]?.v || null;
     const local = r.c[2]?.v || null;
+
+    if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
 
     if (sku && local) {
       insertData.push({
@@ -693,6 +703,9 @@ async function syncMapeamento() {
       if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') {
         let finalSkuSen = skuSen ? String(skuSen).trim() : null;
         let finalDesc = desc ? String(desc).trim() : null;
+
+        if (finalSkuSen === 'SA0A6230063ABBYCN390409') finalSkuSen = 'SA0A6230063ABBYCN390408';
+        if (String(skuPlat).trim() === 'SA0A6230063ABBYCN390409') skuPlat = 'SA0A6230063ABBYCN390408';
 
         // CORREÇÃO DE SEGURANÇA: Evitar mapear produtos Dry Fit da Sandrini para SKU Sênior da Lupo
         const isSandriniDry = 
