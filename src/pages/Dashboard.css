@@ -3,73 +3,136 @@
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 80px);
+  padding: 40px;
+  background-color: #f8fafc; /* Fundo levemente cinza para destacar o branco */
 }
 
 .grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
   width: 100%;
+  max-width: 1400px;
 }
 
 .dashboard-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-direction: column;
-  color: white;
+  background: white; /* Estado Normal Branco */
+  color: #0f172a;
   cursor: pointer;
-  border: none;
+  border: 1px solid #e2e8f0;
   position: relative;
   overflow: hidden;
-  min-height: 240px;
-  border-radius: 24px;
+  min-height: 220px;
+  border-radius: 20px;
   width: 100%;
   font-family: 'Inter', sans-serif;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  text-align: left;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
   outline: none;
+  padding: 32px;
+  transition: all 0.4s ease;
 }
 
-.dashboard-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
-  z-index: 1;
+/* Textos no estado normal */
+.card-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+  color: #1e293b;
+  transition: color 0.4s ease;
+}
+
+.card-desc {
+  font-size: 15px;
+  margin-top: 8px;
+  color: #64748b;
+  font-weight: 500;
+  transition: color 0.4s ease;
 }
 
 .card-content {
   position: relative;
   z-index: 2;
+  width: 100%;
+}
+
+.icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  background: #f1f5f9; /* Bolha cinza no estado normal */
+  transition: all 0.4s ease;
 }
 
 .card-icon {
-  margin-bottom: 20px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  color: #475569; /* Ícone grafite no estado normal */
+  transition: all 0.4s ease;
 }
 
-.card-title {
-  font-size: 32px;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: -0.5px;
+/* ============================ */
+/*   EFEITO MÁGICO DO HOVER     */
+/* ============================ */
+.dashboard-card:hover {
+  transform: translateY(-8px);
+  background: #0f172a; /* Vira Azul Noturno Profundo/Preto */
+  border-color: #0f172a;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
-.card-desc {
-  font-size: 16px;
-  margin-top: 10px;
-  opacity: 0.9;
-  font-weight: 500;
+/* Textos viram brancos */
+.dashboard-card:hover .card-title {
+  color: #ffffff;
+}
+.dashboard-card:hover .card-desc {
+  color: #cbd5e1;
 }
 
-.card-vendas { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-.card-cobertura { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-.card-estoque { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-.card-produto { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-.card-reposicao { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
-.card-alertas { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
-.card-sellout { background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); }
-.card-planilha { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
-.card-usuarios { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+/* O ícone "Acende" como Neon com a cor de cada módulo */
+.card-vendas:hover .icon-wrapper { background: rgba(16, 185, 129, 0.2); transform: scale(1.1); }
+.card-vendas:hover .card-icon { color: #34d399; filter: drop-shadow(0 0 8px #10b981); }
 
+.card-cobertura:hover .icon-wrapper { background: rgba(245, 158, 11, 0.2); transform: scale(1.1); }
+.card-cobertura:hover .card-icon { color: #fbbf24; filter: drop-shadow(0 0 8px #f59e0b); }
+
+.card-estoque:hover .icon-wrapper { background: rgba(239, 68, 68, 0.2); transform: scale(1.1); }
+.card-estoque:hover .card-icon { color: #f87171; filter: drop-shadow(0 0 8px #ef4444); }
+
+.card-produto:hover .icon-wrapper { background: rgba(59, 130, 246, 0.2); transform: scale(1.1); }
+.card-produto:hover .card-icon { color: #60a5fa; filter: drop-shadow(0 0 8px #3b82f6); }
+
+.card-reposicao:hover .icon-wrapper { background: rgba(139, 92, 246, 0.2); transform: scale(1.1); }
+.card-reposicao:hover .card-icon { color: #a78bfa; filter: drop-shadow(0 0 8px #8b5cf6); }
+
+.card-alertas:hover .icon-wrapper { background: rgba(20, 184, 166, 0.2); transform: scale(1.1); }
+.card-alertas:hover .card-icon { color: #2dd4bf; filter: drop-shadow(0 0 8px #14b8a6); }
+
+.card-sellout:hover .icon-wrapper { background: rgba(236, 72, 153, 0.2); transform: scale(1.1); }
+.card-sellout:hover .card-icon { color: #f472b6; filter: drop-shadow(0 0 8px #ec4899); }
+
+.card-planilha:hover .icon-wrapper { background: rgba(2, 132, 199, 0.2); transform: scale(1.1); }
+.card-planilha:hover .card-icon { color: #38bdf8; filter: drop-shadow(0 0 8px #0284c7); }
+
+.card-usuarios:hover .icon-wrapper { background: rgba(99, 102, 241, 0.2); transform: scale(1.1); }
+.card-usuarios:hover .card-icon { color: #818cf8; filter: drop-shadow(0 0 8px #6366f1); }
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 20px;
+  }
+  .grid-layout {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-card {
+    min-height: 180px;
+    padding: 24px;
+  }
+}

@@ -67,7 +67,9 @@ export default function Dashboard() {
               onClick={() => navigate(card.path)}
             >
               <div className="card-content">
-                <Icon size={48} className="card-icon" />
+                <div className="icon-wrapper">
+                  <Icon size={32} className="card-icon" />
+                </div>
                 <h2 className="card-title">{card.title}</h2>
                 <p className="card-desc">{card.desc}</p>
               </div>
