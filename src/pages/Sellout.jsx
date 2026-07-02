@@ -818,7 +818,9 @@ export default function Sellout() {
           data: values,
           backgroundColor: colors,
           borderWidth: 0,
-          hoverOffset: 15
+          hoverOffset: 15,
+          borderRadius: 6,
+          borderSkipped: false
         }]
       };
     }
@@ -830,8 +832,10 @@ export default function Sellout() {
       datasets: [{
         label: 'Vendas',
         data: topProdLabels.map(p => vendasPorProduto[p]),
-        backgroundColor: isSingleMarca ? '#8b5cf6' : '#3b82f6',
+        backgroundColor: isSingleMarca ? 'rgba(139, 92, 246, 0.85)' : 'rgba(59, 130, 246, 0.85)',
+        hoverBackgroundColor: isSingleMarca ? '#8b5cf6' : '#3b82f6',
         borderRadius: 6,
+        borderSkipped: false
       }]
     };
 
@@ -1135,13 +1139,13 @@ export default function Sellout() {
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
 
   const KPICard = ({ title, value, sub, icon: Icon, color }) => (
-    <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</span>
         {Icon && <Icon size={16} color={color || '#94a3b8'} />}
       </div>
-      <div style={{ fontSize: '28px', fontWeight: 800, color: '#1e293b' }}>{value}</div>
-      {sub && <div style={{ fontSize: '12px', color: '#94a3b8' }}>{sub}</div>}
+      <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>{value}</div>
+      {sub && <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{sub}</div>}
     </div>
   );
 
@@ -1312,8 +1316,21 @@ export default function Sellout() {
                   data={dadosProcessados.chartMarcaData} 
                   options={{ 
                     maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
-                    scales: { x: { grid: { display: false } } }
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleFont: { size: 13, family: 'Inter' },
+                        bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false
+                      }
+                    },
+                    scales: { 
+                      x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                      y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                    }
                   }} 
                 />
               ) : (
@@ -1351,8 +1368,21 @@ export default function Sellout() {
                 options={{ 
                   maintainAspectRatio: false, 
                   indexAxis: 'y',
-                  plugins: { legend: { display: false } },
-                  scales: { x: { grid: { display: false } }, y: { ticks: { font: { size: 11 } } } }
+                  plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      titleFont: { size: 13, family: 'Inter' },
+                      bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                      padding: 12,
+                      cornerRadius: 8,
+                      displayColors: false
+                    }
+                  },
+                  scales: { 
+                    x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                    y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                  }
                 }} 
               />
             ) : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>Sem dados</div>}

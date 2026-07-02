@@ -9,9 +9,12 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  LineElement,
+  PointElement,
+  Filler
 } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import Select from 'react-select';
 import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter , Palette } from 'lucide-react';
 import { handleExport } from '../utils/exportUtils';
@@ -31,7 +34,10 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  LineElement,
+  PointElement,
+  Filler
 );
 
 const getYesterdayStr = () => {
@@ -321,8 +327,22 @@ export default function Vendas() {
         {
           label: 'Itens Vendidos',
           data: labels.map(k => vendasPorData[k]),
-          backgroundColor: 'rgba(59, 130, 246, 0.8)',
-          borderRadius: 4,
+          borderColor: '#3b82f6',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+            return gradient;
+          },
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3,
         }
       ]
     };
@@ -340,7 +360,8 @@ export default function Vendas() {
       datasets: [{
         data: locaisData,
         backgroundColor: bgColors.slice(0, locaisLabels.length).concat(Array(Math.max(0, locaisLabels.length - bgColors.length)).fill('#cbd5e1')),
-        borderWidth: 1,
+        borderWidth: 0,
+        hoverOffset: 6,
       }]
     } : null;
 
@@ -358,8 +379,11 @@ export default function Vendas() {
       datasets: [{
         label: 'Vendas',
         data: produtosData,
-        backgroundColor: '#10b981',
-        borderRadius: 4,
+        backgroundColor: 'rgba(139, 92, 246, 0.85)',
+        hoverBackgroundColor: '#8b5cf6',
+        borderRadius: 100,
+        borderSkipped: false,
+        barThickness: 16
       }]
     } : null;
 
@@ -557,39 +581,70 @@ export default function Vendas() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', flex: '1 1 300px', minWidth: 0 }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>Evolução de Vendas</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flex: '2 1 450px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Evolução de Vendas</h3>
           {dadosProcessados.chartData && (
-            <div style={{ height: '250px' }}>
-              <Bar 
+            <div style={{ flex: 1, minHeight: '250px' }}>
+              <Line 
                 data={dadosProcessados.chartData} 
                 options={{ 
                   maintainAspectRatio: false,
-                  plugins: { legend: { display: false } }
+                  interaction: {
+                    mode: 'index',
+                    intersect: false,
+                  },
+                  plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      titleFont: { size: 13, family: 'Inter' },
+                      bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                      padding: 12,
+                      cornerRadius: 8,
+                      displayColors: false
+                    }
+                  },
+                  scales: {
+                    x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', maxTicksLimit: 10 } },
+                    y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                  }
                 }} 
               />
             </div>
           )}
         </div>
-        <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', padding: '24px 30px', borderRadius: '12px', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: '1 1 200px' }}>
-          <span style={{ fontSize: '13px', opacity: 0.9, fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Vendido no Período</span>
-          <span style={{ fontSize: '42px', fontWeight: 800, lineHeight: 1.1 }}>{dadosProcessados.totalItens.toLocaleString('pt-BR')}</span>
-          <span style={{ fontSize: '14px', opacity: 0.8, marginTop: '4px' }}>peças</span>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flex: '1 1 250px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Vendido no Período</span>
+          <span style={{ fontSize: '48px', color: '#0f172a', fontWeight: 800, lineHeight: 1, letterSpacing: '-1px' }}>{dadosProcessados.totalItens.toLocaleString('pt-BR')}</span>
+          <span style={{ fontSize: '15px', color: '#3b82f6', fontWeight: 600, marginTop: '8px' }}>peças vendidas</span>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>Share de Vendas por Local</h3>
-          {dadosProcessados.chartLocalData ? (
-            <div style={{ height: '280px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <Doughnut 
-                data={dadosProcessados.chartLocalData} 
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flex: '2 1 450px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top 10 Produtos Mais Vendidos</h3>
+          {dadosProcessados.chartProdutosData ? (
+            <div style={{ height: '280px' }}>
+              <Bar 
+                data={dadosProcessados.chartProdutosData} 
                 options={{ 
                   maintainAspectRatio: false,
+                  indexAxis: 'y',
                   plugins: { 
-                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      titleFont: { size: 13, family: 'Inter' },
+                      bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                      padding: 12,
+                      cornerRadius: 8,
+                      displayColors: false
+                    }
+                  },
+                  scales: { 
+                    x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                    y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
                   }
                 }} 
               />
@@ -601,17 +656,25 @@ export default function Vendas() {
           )}
         </div>
 
-        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>Top 10 Produtos Mais Vendidos</h3>
-          {dadosProcessados.chartProdutosData ? (
-            <div style={{ height: '280px' }}>
-              <Bar 
-                data={dadosProcessados.chartProdutosData} 
+        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flex: '1 1 250px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Share de Vendas por Local</h3>
+          {dadosProcessados.chartLocalData ? (
+            <div style={{ height: '280px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Doughnut 
+                data={dadosProcessados.chartLocalData} 
                 options={{ 
                   maintainAspectRatio: false,
-                  indexAxis: 'y',
-                  plugins: { legend: { display: false } },
-                  scales: { x: { beginAtZero: true } }
+                  cutout: '75%',
+                  plugins: { 
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 20, font: { size: 12, family: 'Inter' }, usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: {
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      titleFont: { size: 13, family: 'Inter' },
+                      bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                      padding: 12,
+                      cornerRadius: 8
+                    }
+                  }
                 }} 
               />
             </div>

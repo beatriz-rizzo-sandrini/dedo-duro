@@ -585,8 +585,10 @@ export default function Estoque() {
           {
             label: 'Qtd em Estoque',
             data: topProdutosQtd.map(p => p.total),
-            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-            borderRadius: 4,
+            backgroundColor: 'rgba(59, 130, 246, 0.85)',
+            hoverBackgroundColor: '#3b82f6',
+            borderRadius: 6,
+            borderSkipped: false
           }
         ]
       } : null;
@@ -600,8 +602,10 @@ export default function Estoque() {
           {
             label: 'Custo Total',
             data: topProdutosCusto.map(p => p.custoTotal),
-            backgroundColor: '#10b981',
-            borderRadius: 4,
+            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+            hoverBackgroundColor: '#10b981',
+            borderRadius: 6,
+            borderSkipped: false
           }
         ]
       } : null;
@@ -620,8 +624,10 @@ export default function Estoque() {
           {
             label: 'Qtd em Estoque',
             data: topMarcasQtd.map(m => m.totalQtd),
-            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-            borderRadius: 4,
+            backgroundColor: 'rgba(59, 130, 246, 0.85)',
+            hoverBackgroundColor: '#3b82f6',
+            borderRadius: 6,
+            borderSkipped: false
           }
         ]
       } : null;
@@ -635,8 +641,10 @@ export default function Estoque() {
           {
             label: 'Custo Total',
             data: topMarcasCusto.map(m => m.totalCusto),
-            backgroundColor: '#10b981',
-            borderRadius: 4,
+            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+            hoverBackgroundColor: '#10b981',
+            borderRadius: 6,
+            borderSkipped: false
           }
         ]
       } : null;
@@ -890,14 +898,14 @@ export default function Estoque() {
           </div>
         </div>
 
-          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <LayoutGrid size={28} color="#f59e0b" />
-            <div>
-              <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Modelos</div>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.linhas.length}</div>
-            </div>
+        <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <LayoutGrid size={28} color="#f59e0b" />
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total de Modelos</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>{dadosProcessados.linhas.length}</div>
           </div>
         </div>
+      </div>
 
         {/* Main KPIs Section */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
@@ -954,7 +962,7 @@ export default function Estoque() {
 
         {/* Brand Charts Section */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {dadosProcessados.chartTitleQtd}
             </h3>
@@ -965,8 +973,21 @@ export default function Estoque() {
                   options={{
                     maintainAspectRatio: false,
                     indexAxis: 'y',
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true } }
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleFont: { size: 13, family: 'Inter' },
+                        bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false
+                      }
+                    },
+                    scales: { 
+                      x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                      y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                    }
                   }}
                 />
               </div>
@@ -977,7 +998,7 @@ export default function Estoque() {
             )}
           </div>
 
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {dadosProcessados.chartTitleCusto}
             </h3>
@@ -988,8 +1009,21 @@ export default function Estoque() {
                   options={{
                     maintainAspectRatio: false,
                     indexAxis: 'y',
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true } }
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleFont: { size: 13, family: 'Inter' },
+                        bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false
+                      }
+                    },
+                    scales: { 
+                      x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                      y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                    }
                   }}
                 />
               </div>

@@ -498,11 +498,13 @@ export default function Reposicao() {
             </button>
           </div>
 
-          <div style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-            <Truck size={24} />
+          <div style={{ background: 'white', color: '#0f172a', padding: '12px 20px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+            <div style={{ background: '#f5f3ff', padding: '8px', borderRadius: '8px' }}>
+              <Truck size={24} color="#8b5cf6" />
+            </div>
             <div>
-              <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL A CAMINHO</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')}</div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>TOTAL A CAMINHO</div>
+              <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px' }}>{dadosProcessados.totalGeral.toLocaleString('pt-BR')}</div>
             </div>
           </div>
 

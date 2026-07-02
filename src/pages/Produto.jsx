@@ -618,17 +618,17 @@ export default function Produto() {
       {busca.trim() && dadosProcessados ? (
         <>
           <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ESTOQUE FÍSICO</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{dadosProcessados.totalGeralEstoque.toLocaleString('pt-BR')} un</div>
+            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ESTOQUE FÍSICO</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>{dadosProcessados.totalGeralEstoque.toLocaleString('pt-BR')} un</div>
             </div>
-            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', textAlign: 'center' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>TOTAL SKUs</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6', marginTop: '4px' }}>{dadosProcessados.totalGeralSkus.toLocaleString('pt-BR')}</div>
+            <div style={{ flex: '1 1 150px', background: 'white', padding: '20px 24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>TOTAL SKUs</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6', letterSpacing: '-0.5px' }}>{dadosProcessados.totalGeralSkus.toLocaleString('pt-BR')}</div>
             </div>
-            <div style={{ flex: '1 1 200px', background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>VALOR TOTAL ESTOQUE</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>{dadosProcessados.totalGeralValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            <div style={{ flex: '1 1 200px', background: 'white', padding: '20px 24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'right' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>VALOR TOTAL ESTOQUE</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981', letterSpacing: '-0.5px' }}>{dadosProcessados.totalGeralValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
             </div>
           </div>
 

@@ -333,11 +333,13 @@ export default function Alertas() {
           <HeaderDates dataEstoque={dadosProcessados.dataEstoque} dataVendas={dadosProcessados.dataVendas} />
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}>
-            <AlertTriangle size={24} />
+          <div style={{ background: 'white', color: '#0f172a', padding: '12px 20px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+            <div style={{ background: '#fef2f2', padding: '8px', borderRadius: '8px' }}>
+              <AlertTriangle size={24} color="#ef4444" />
+            </div>
             <div>
-              <div style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.9 }}>TOTAL DE ALERTAS</div>
-              <div style={{ fontSize: '20px', fontWeight: 800 }}>{dadosProcessados.total.toLocaleString('pt-BR')}</div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>TOTAL DE ALERTAS</div>
+              <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px' }}>{dadosProcessados.total.toLocaleString('pt-BR')}</div>
             </div>
           </div>
           <div style={{ position: 'relative' }}>
