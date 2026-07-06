@@ -58,23 +58,19 @@ async function getSpreadsheetTabs(spreadsheetId) {
   }
 }
 
-// Envia dados em lotes para evitar limite de tamanho do Supabase
 async function upsertEmLotes(tabela, dados, onConflict, tamanhoLote = 500) {
   for (let i = 0; i < dados.length; i += tamanhoLote) {
     const lote = dados.slice(i, i + tamanhoLote);
     const { error } = await supabase.from(tabela).upsert(lote, { onConflict });
     if (error) {
-      console.error(`❌ Erro no lote ${i / tamanhoLote + 1} de ${tabela}:`, error.message);
+      console.error(`Erro no lote ${i / tamanhoLote + 1} de ${tabela}:`, error.message);
       throw error;
     }
-    console.log(`   📦 Lote ${i / tamanhoLote + 1}: ${lote.length} registros enviados para ${tabela}...`);
+    console.log(`- ${tabela}: lote ${i / tamanhoLote + 1} (${lote.length} registros) enviado.`);
   }
 }
 
-// Converte a data do Google Sheets para formato SQL (yyyy-mm-dd)
-// Aceita tanto "28/04/2026" quanto o objeto Date(year,month,day) do gviz API
 function parseDateToSQL(f, v) {
-  // Caso 1: campo formatado "28/04/2026"
   if (f && typeof f === 'string' && f.includes('/')) {
     const parts = f.split('/');
     if (parts.length === 3) {
@@ -82,12 +78,11 @@ function parseDateToSQL(f, v) {
       return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
   }
-  // Caso 2: valor bruto como string "Date(2026,3,28)" do Google gviz
   if (v && typeof v === 'string' && v.startsWith('Date(')) {
     const match = v.match(/Date\((\d+),(\d+),(\d+)\)/);
     if (match) {
       const year = match[1];
-      const month = String(parseInt(match[2]) + 1).padStart(2, '0'); // mês é 0-indexado no gviz
+      const month = String(parseInt(match[2]) + 1).padStart(2, '0');
       const day = String(match[3]).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
@@ -95,12 +90,8 @@ function parseDateToSQL(f, v) {
   return null;
 }
 
-// ==========================================
-// FUNÇÕES DE EXTRAÇÃO E LIMPEZA
-// ==========================================
-
 async function syncVendas() {
-  console.log('🔄 Sincronizando Vendas...');
+  console.log('Sincronizando vendas...');
   const isFullSync = process.argv.includes('--full');
   let url = SHEET_URLS.vendas;
   let query = '';
@@ -111,11 +102,11 @@ async function syncVendas() {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${day}`;
-    console.log(`   ⚡ Modo Otimizado Ativo: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
+    console.log(`Modo otimizado: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
     query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
     url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=VENDAS&tq=${query}`;
   } else {
-    console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
+    console.log('Modo completo: Sincronizando todo o histórico de vendas...');
   }
 
   const insertData = [];
@@ -128,7 +119,6 @@ async function syncVendas() {
       let dataSQL, local, sku, desc, qtd, marca;
 
       if (isMonthlyTab) {
-        // Monthly tab columns: DATA (0), SKU (1), DESCRIÇÃO (2), PLATAFORMA (3), MARCA (4), QUANTIDADE (5)
         dataSQL = parseDateToSQL(r.c[0]?.f, r.c[0]?.v);
         sku = r.c[1]?.v || null;
         desc = r.c[2]?.v || null;
@@ -136,7 +126,6 @@ async function syncVendas() {
         marca = r.c[4]?.v || null;
         qtd = r.c[5]?.v || null;
       } else {
-        // Standard VENDAS tab columns: DATA (0), LOCAL (1), SKU (2), DESCRIÇÃO (3), QTD (4), MARCA (5)
         dataSQL = parseDateToSQL(r.c[0]?.f, r.c[0]?.v);
         local = r.c[1]?.v || null;
         sku = r.c[2]?.v || null;
@@ -150,7 +139,6 @@ async function syncVendas() {
       if (dataSQL && sku && local) {
         const cleanLocal = String(local).toUpperCase().trim();
         if (integracaoMeliAtiva && (cleanLocal === 'MELI SP' || cleanLocal === 'MELI SP BUY CLOCK')) {
-          // Ignora vendas da planilha para MELI SP se a integração via API estiver ativa
           continue;
         }
         insertData.push({
@@ -166,22 +154,20 @@ async function syncVendas() {
   }
 
   try {
-    console.log('   Buscando aba principal "VENDAS"...');
+    console.log('Carregando aba principal "VENDAS"...');
     const mainRows = await fetchSheetData(url);
     if (mainRows && mainRows.length > 0) {
       processarLinhas(mainRows, false);
     }
   } catch (err) {
-    console.warn(`⚠️ Erro ao buscar aba principal VENDAS:`, err.message);
+    console.warn(`Aviso: Erro ao buscar aba principal VENDAS:`, err.message);
   }
 
-  // Tenta buscar também a aba mensal (ex: JUNHO) caso ela exista de fato na planilha no mês atual
   const MONTHS = [
     'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
     'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
   ];
   const currentMonthTab = MONTHS[new Date().getMonth()];
-  
   const activeTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
   
   if (currentMonthTab && currentMonthTab !== 'VENDAS' && activeTabs.includes(currentMonthTab)) {
@@ -191,20 +177,17 @@ async function syncVendas() {
     }
     
     try {
-      console.log(`   🗓️ Buscando aba mensal ativa diretamente: "${currentMonthTab}"...`);
+      console.log(`Carregando aba mensal ativa: "${currentMonthTab}"...`);
       const monthlyRows = await fetchSheetData(monthlyUrl);
       if (monthlyRows && monthlyRows.length > 0) {
-        console.log(`   📦 Encontradas ${monthlyRows.length} linhas na aba "${currentMonthTab}".`);
+        console.log(`Aba "${currentMonthTab}": ${monthlyRows.length} linhas encontradas.`);
         processarLinhas(monthlyRows, true);
       }
     } catch (err) {
-      console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não está ativa ou não pôde ser carregada:`, err.message);
+      console.log(`Aba mensal "${currentMonthTab}" inativa ou indisponível:`, err.message);
     }
-  } else {
-    console.log(`   ℹ️ Aba mensal "${currentMonthTab}" não existe ou está inativa na planilha.`);
   }
 
-  // Deduplica dentro do próprio lote
   const mapa = {};
   for (const item of insertData) {
     const chave = `${item.data_venda}|${item.local_venda}|${item.sku_produto}`;
@@ -216,20 +199,18 @@ async function syncVendas() {
   }
   const dadosUnicos = Object.values(mapa);
 
-  // Apaga APENAS as datas que estão no lote atual (preserva o histórico de datas anteriores!)
   const datasNoBanco = [...new Set(dadosUnicos.map(d => d.data_venda))];
-  console.log(`   🗓️ Atualizando ${datasNoBanco.length} datas: ${datasNoBanco.join(', ')}`);
+  console.log(`Limpando histórico local para as datas: ${datasNoBanco.join(', ')}`);
   for (const data of datasNoBanco) {
     await supabase.from('silver_vendas').delete().eq('data_venda', data);
   }
 
-  // Upsert em lotes
   await upsertEmLotes('silver_vendas', dadosUnicos, 'data_venda, local_venda, sku_produto');
-  console.log(`✅ Vendas Sincronizadas! (${dadosUnicos.length} registros únicos de ${insertData.length} linhas)`);
+  console.log(`Vendas sincronizadas com sucesso (${dadosUnicos.length} registros).`);
 }
 
 async function syncEstoque() {
-  console.log('🔄 Sincronizando Estoque...');
+  console.log('Sincronizando estoque...');
   const rows = await fetchSheetData(SHEET_URLS.estoque);
 
   const insertData = [];
@@ -259,7 +240,6 @@ async function syncEstoque() {
     }
   }
 
-  // Deduplica por data+sku+local (soma as quantidades para preservar o total correto)
   const mapaEstoque = {};
   for (const item of insertData) {
     const chave = `${item.data_atualizacao}|${item.sku_produto}|${item.local_estoque}`;
@@ -271,19 +251,18 @@ async function syncEstoque() {
   }
   const dadosUnicosEstoque = Object.values(mapaEstoque);
 
-  // Apaga APENAS as datas que estão no lote atual (preserva o histórico!)
   const datasNoBanco = [...new Set(dadosUnicosEstoque.map(d => d.data_atualizacao))];
-  console.log(`   🗓️ Atualizando ${datasNoBanco.length} datas de estoque: ${datasNoBanco.join(', ')}`);
+  console.log(`Limpando histórico local para as datas de estoque: ${datasNoBanco.join(', ')}`);
   for (const data of datasNoBanco) {
     await supabase.from('silver_estoque').delete().eq('data_atualizacao', data);
   }
 
   await upsertEmLotes('silver_estoque', dadosUnicosEstoque, 'data_atualizacao, sku_produto, local_estoque');
-  console.log(`✅ Estoque Sincronizado! (${dadosUnicosEstoque.length} registros únicos)`);
+  console.log(`Estoque sincronizado com sucesso (${dadosUnicosEstoque.length} registros).`);
 }
 
 async function syncReposicao() {
-  console.log('🔄 Sincronizando Reposições (Caminho)...');
+  console.log('Sincronizando reposições...');
   const rows = await fetchSheetData(SHEET_URLS.caminho);
 
   await supabase.from('silver_reposicao').delete().neq('id', 0);
@@ -315,7 +294,6 @@ async function syncReposicao() {
     }
   }
 
-  // Deduplica por sku+nf+local
   const mapaReposicao = {};
   for (const item of insertData) {
     const chave = `${item.sku_produto}|${item.numero_nota_fiscal}|${item.local_destino}`;
@@ -324,11 +302,11 @@ async function syncReposicao() {
   const dadosUnicosReposicao = Object.values(mapaReposicao);
 
   await upsertEmLotes('silver_reposicao', dadosUnicosReposicao, 'sku_produto, numero_nota_fiscal, local_destino');
-  console.log(`✅ Reposições Sincronizadas! (${dadosUnicosReposicao.length} registros únicos)`);
+  console.log(`Reposições sincronizadas com sucesso (${dadosUnicosReposicao.length} registros).`);
 }
 
 async function syncBadstock() {
-  console.log('🔄 Sincronizando Badstock...');
+  console.log('Sincronizando badstock...');
   const rows = await fetchSheetData(SHEET_URLS.badstock);
 
   await supabase.from('silver_badstock').delete().neq('id', 0);
@@ -337,8 +315,6 @@ async function syncBadstock() {
 
   for (const r of rows) {
     if (!r || !r.c) continue;
-    let loja = String(r.c[2]?.v).trim();
-    let id_venda = String(r.c[0]?.v).trim();
     const sku = r.c[1]?.v || null;
     const local = r.c[2]?.v || null;
 
@@ -352,7 +328,6 @@ async function syncBadstock() {
     }
   }
 
-  // Deduplica por sku+local
   const mapaBadstock = {};
   for (const item of insertData) {
     const chave = `${item.sku_produto}|${item.local_badstock}`;
@@ -361,7 +336,7 @@ async function syncBadstock() {
   const dadosUnicosBadstock = Object.values(mapaBadstock);
 
   await upsertEmLotes('silver_badstock', dadosUnicosBadstock, 'sku_produto, local_badstock');
-  console.log(`✅ Badstock Sincronizado! (${dadosUnicosBadstock.length} registros únicos)`);
+  console.log(`Badstock sincronizado com sucesso (${dadosUnicosBadstock.length} registros).`);
 }
 
 function parseGoogleJSONFull(text) {
@@ -373,7 +348,7 @@ function parseGoogleJSONFull(text) {
       rows: data.table.rows || []
     };
   } catch (error) {
-    console.error("Erro ao fazer parse do JSON completo do Google Sheets", error);
+    console.error("Erro ao processar JSON completo do Google Sheets", error);
     return { cols: [], rows: [] };
   }
 }
@@ -669,22 +644,22 @@ function obterMarcaPorSkuEDesc(sku, desc) {
 }
 
 async function syncMapeamento() {
-  console.log('🔄 Sincronizando Mapeamento de SKUs (via CSV)...');
+  console.log('Sincronizando mapeamento de SKUs...');
   try {
     const response = await axios.get(SHEET_URLS.mapeamento);
     const csvText = response.data;
     const rawLines = csvText.split(/\r?\n/);
 
     if (rawLines.length === 0) {
-      console.log('   Nenhum dado encontrado no CSV. Pulando...');
+      console.log('Nenhum dado encontrado no CSV. Pulando...');
       return;
     }
 
     const headers = parseCSVLine(rawLines[0]);
     if (!validarColunasMapeamento(headers)) {
-      console.warn('⚠️  [AVISO] A aba MAPEAMENTO não existe ou está com cabeçalhos inválidos!');
-      console.warn('   Os cabeçalhos esperados na primeira linha são: [SKU Sênior, Descrição Oficial (ou Nome Sênior), Plataforma, SKU Plataforma]');
-      console.warn('   ⚠️ Sincronização do de-para ABORTADA por segurança para não corromper os dados!');
+      console.warn('Aviso: A aba MAPEAMENTO não existe ou está com cabeçalhos inválidos!');
+      console.warn('Os cabeçalhos esperados são: [SKU Sênior, Descrição Oficial, Plataforma, SKU Plataforma]');
+      console.warn('Sincronização abortada por segurança para evitar inconsistência de dados.');
       return;
     }
 
@@ -698,7 +673,7 @@ async function syncMapeamento() {
       const skuSen = cols[0] || null;
       const desc = cols[1] || null;
       const plat = cols[2] || null;
-      const skuPlat = cols[3] || null;
+      let skuPlat = cols[3] || null;
 
       if (skuPlat && plat && String(skuPlat).trim() !== 'SKU Plataforma' && String(skuPlat).trim() !== 'SKU Plataf') {
         let finalSkuSen = skuSen ? String(skuSen).trim() : null;
@@ -707,7 +682,7 @@ async function syncMapeamento() {
         if (finalSkuSen === 'SA0A6230063ABBYCN390409') finalSkuSen = 'SA0A6230063ABBYCN390408';
         if (String(skuPlat).trim() === 'SA0A6230063ABBYCN390409') skuPlat = 'SA0A6230063ABBYCN390408';
 
-        // CORREÇÃO DE SEGURANÇA: Evitar mapear produtos Dry Fit da Sandrini para SKU Sênior da Lupo
+        // Evitar mapear produtos Dry Fit da Sandrini para SKU Sênior da Lupo
         const isSandriniDry = 
           (skuPlat.toUpperCase().includes('DRY') || skuPlat.toUpperCase().includes('2350') || skuPlat.toUpperCase().includes('2351') || skuPlat.toUpperCase().includes('2352') || skuPlat.toUpperCase().includes('2353') || skuPlat.toUpperCase().includes('2355')) && 
           !skuPlat.toUpperCase().startsWith('LP') && 
@@ -742,7 +717,7 @@ async function syncMapeamento() {
             finalSkuSen = officialSku;
             finalDesc = officialDesc;
           } else if (isMappedToLupo) {
-            finalSkuSen = skuPlatUpper; // Sênior = Plataforma para não misturar com Lupo
+            finalSkuSen = skuPlatUpper;
 
             if (skuPlatUpper.startsWith('K4') || skuPlatUpper.startsWith('KIT4')) {
               finalDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
@@ -757,7 +732,6 @@ async function syncMapeamento() {
             } else if (skuPlatUpper.startsWith('K') || skuPlatUpper.includes('KIT')) {
               finalDesc = 'Kit Camisetas Dry Sandrini Manga Curta';
             } else {
-              // Individual
               if (skuPlatUpper.includes('2351') || skuPlatUpper.includes('2352') || skuPlatUpper.includes('2353') || skuPlatUpper.includes('ML')) {
                 finalDesc = 'Camiseta Dry Fit Sandrini M.l';
               } else {
@@ -780,9 +754,7 @@ async function syncMapeamento() {
       }
     }
 
-    // Adiciona mapeamentos para Fila Duality 2 que estão faltando
     const missingFilaMappings = [
-      // Feminino GRF/PTO/CBR 6851
       { skuPlat: 'F02R00172CGRPTCBRT35', skuSen: 'FL000012871BPAACS350258', desc: 'Tênis Fila Duality 2 Feminino' },
       { skuPlat: 'F02R00172CGRPTCBRT36', skuSen: 'FL000012871BPAACS360257', desc: 'Tênis Fila Duality 2 Feminino' },
       { skuPlat: 'F02R00172CGRPTCBRT37', skuSen: 'FL000012871BPAACS370256', desc: 'Tênis Fila Duality 2 Feminino' },
@@ -790,7 +762,6 @@ async function syncMapeamento() {
       { skuPlat: 'F02R00172CGRPTCBRT39', skuSen: 'FL000012871BPAACS390261', desc: 'Tênis Fila Duality 2 Feminino' },
       { skuPlat: 'F02R00172CGRPTCBRT40', skuSen: 'FL000012871BPAACS400260', desc: 'Tênis Fila Duality 2 Feminino' },
       
-      // Masculino CBRPTLR
       { skuPlat: 'F01R00165CBRPTLRT38', skuSen: 'FL000012871ABAAAV380268', desc: 'Tênis Fila Duality 2 Masculino' },
       { skuPlat: 'F01R00165CBRPTLRT39', skuSen: 'FL000012871ABAAAV390273', desc: 'Tênis Fila Duality 2 Masculino' },
       { skuPlat: 'F01R00165CBRPTLRT40', skuSen: 'FL000012871ABAAAV400272', desc: 'Tênis Fila Duality 2 Masculino' },
@@ -812,7 +783,6 @@ async function syncMapeamento() {
       }
     }
 
-    // Adiciona mapeamentos automáticos para unificar os SKUs do Kit 4 Camisetas Dry Sandrini Sortido
     const drySortidoVariations = [
       { size: 'P', skuSen: 'KSA04000002350CM0P0147', skuPlats: ['K4CAMISETADRY2350CSORT1TP', 'K4CAMISETAS2350CSTOTP', 'K4CAMISETADRY2350CSORTTP'] },
       { size: 'M', skuSen: 'KSA04000002350CM0M0146', skuPlats: ['K4CAMISETADRY2350CSORT1TM', 'K4CAMISETAS2350CSTOTM', 'K4CAMISETADRY2350CSORTTM'] },
@@ -834,7 +804,6 @@ async function syncMapeamento() {
       }
     }
 
-    // Deduplica por sku_plataforma + plataforma
     const mapa = {};
     for (const item of insertData) {
       const chave = `${item.sku_plataforma}|${item.plataforma}`;
@@ -843,35 +812,32 @@ async function syncMapeamento() {
     const dadosUnicos = Object.values(mapa);
 
     if (dadosUnicos.length > 0) {
-      console.log('   🧹 Limpando mapeamentos antigos da base de dados...');
+      console.log('Limpando mapeamentos antigos...');
       await supabase.from('silver_mapeamento_sku').delete().neq('plataforma', 'FOR_DELETE_ALL');
 
       await upsertEmLotes('silver_mapeamento_sku', dadosUnicos, 'sku_plataforma, plataforma');
-      console.log(`✅ Mapeamento Sincronizado! (${dadosUnicos.length} registros únicos obtidos de ${insertData.length} linhas do CSV)`);
+      console.log(`Mapeamento sincronizado com sucesso (${dadosUnicos.length} registros).`);
     } else {
-      console.log(`   Nenhum registro válido extraído da aba MAPEAMENTO.`);
+      console.log('Nenhum registro válido extraído da aba MAPEAMENTO.');
     }
   } catch (error) {
-    console.error('❌ Erro na sincronização do mapeamento via CSV:', error.message);
+    console.error('Erro na sincronização do mapeamento:', error.message);
   }
 }
 
-
-
-// Sincronização Principal
 async function rodarSincronizacao() {
-  console.log(`\n🚀 [${new Date().toLocaleString()}] Iniciando Robô Sincronizador...`);
+  console.log(`[${new Date().toLocaleString()}] Iniciando processo de sincronização...`);
   try {
     await syncVendas();
     await syncEstoque();
     await syncReposicao();
     await syncBadstock();
     await syncMapeamento();
-    console.log(`🎉 [${new Date().toLocaleString()}] Todas as bases sincronizadas com sucesso!`);
-    console.log('💤 Aguardando próxima execução (de hora em hora)...');
+    console.log(`[${new Date().toLocaleString()}] Sincronização concluída com sucesso.`);
+    console.log('Aguardando próxima execução...');
     return true;
   } catch (error) {
-    console.error('💥 Falha geral na sincronização:', error);
+    console.error('Falha na execução do processo de sincronização:', error);
     return false;
   }
 }
@@ -879,25 +845,22 @@ async function rodarSincronizacao() {
 const runOnce = process.argv.includes('--once');
 
 if (runOnce) {
-  console.log('⚡ Executando sincronização única (--once)...');
+  console.log('Executando sincronização de única execução (--once)...');
   rodarSincronizacao().then((success) => {
     if (success) {
-      console.log('✅ Sincronização concluída.');
+      console.log('Sincronização executada com sucesso.');
       process.exit(0);
     } else {
-      console.error('❌ Sincronização concluída com erros.');
+      console.error('Processo de sincronização finalizado com erros.');
       process.exit(1);
     }
   });
 } else {
-  // 1. Executa imediatamente ao iniciar
   rodarSincronizacao();
 
-  // 2. Agenda para rodar de 1 em 1 hora (todo minuto 0)
-  // Formato: (minuto hora dia mes dia-da-semana)
   cron.schedule('0 * * * *', () => {
     rodarSincronizacao();
   });
 
-  console.log('🕒 Agendador configurado: O script rodará automaticamente a cada 1 hora.');
+  console.log('Agendador configurado para execução de hora em hora.');
 }

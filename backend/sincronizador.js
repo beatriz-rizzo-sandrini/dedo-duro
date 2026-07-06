@@ -25,7 +25,7 @@ function parseGoogleJSON(text) {
     const data = JSON.parse(jsonStr);
     return data.table.rows;
   } catch (error) {
-    console.error("Erro ao fazer parse do JSON do Google Sheets", error);
+    console.error("Erro ao analisar JSON do Google Sheets:", error);
     return [];
   }
 }
@@ -61,12 +61,8 @@ async function fetchSheetData(url) {
   return parseGoogleJSON(response.data);
 }
 
-// ==========================================
-// FUNÇÕES DE EXTRAÇÃO E LIMPEZA (Bronze -> Silver)
-// ==========================================
-
 async function syncVendas() {
-  console.log('🔄 Sincronizando Vendas...');
+  console.log('Sincronizando vendas...');
   const isFullSync = process.argv.includes('--full');
   let url = SHEET_URLS.vendas;
   if (!isFullSync) {
@@ -76,15 +72,14 @@ async function syncVendas() {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${day}`;
-    console.log(`   ⚡ Modo Otimizado Ativo: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
+    console.log(`Modo otimizado: Buscando vendas desde ${dateStr} (últimos 3 dias)...`);
     const query = encodeURIComponent(`SELECT * WHERE A >= date '${dateStr}'`);
     url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=vendas&tq=${query}`;
   } else {
-    console.log(`   🐘 Modo Completo Ativo: Sincronizando todo o histórico da planilha...`);
+    console.log('Modo completo: Sincronizando todo o histórico de vendas...');
   }
   const rows = await fetchSheetData(url);
   
-  // Truncate Bronze for fresh copy
   await pool.query('TRUNCATE TABLE bronze_vendas');
   
   const connection = await pool.getConnection();
@@ -99,13 +94,11 @@ async function syncVendas() {
       const desc = r.c[3]?.v || null;
       const qtd = r.c[4]?.v || null;
 
-      // Inserir Bronze
       await connection.query(`
         INSERT INTO bronze_vendas (coluna_data, coluna_local, coluna_sku, coluna_descricao, coluna_quantidade) 
         VALUES (?, ?, ?, ?, ?)
       `, [dataStr, local, sku, desc, qtd]);
 
-      // Tratar dados para Silver
       if (dataStr && dataStr.includes('/') && sku && local) {
         const [d, m, y] = dataStr.split('/');
         const dataSQL = `${y}-${m}-${d}`;
@@ -121,17 +114,17 @@ async function syncVendas() {
     }
     
     await connection.commit();
-    console.log('✅ Vendas Sincronizadas!');
+    console.log('Vendas sincronizadas com sucesso.');
   } catch (err) {
     await connection.rollback();
-    console.error('❌ Erro em syncVendas:', err);
+    console.error('Erro ao sincronizar vendas:', err.message);
   } finally {
     connection.release();
   }
 }
 
 async function syncEstoque() {
-  console.log('🔄 Sincronizando Estoque...');
+  console.log('Sincronizando estoque...');
   const rows = await fetchSheetData(SHEET_URLS.estoque);
   
   let commonStockDate = null;
@@ -145,20 +138,20 @@ async function syncEstoque() {
     const today = new Date();
     commonStockDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
   }
-  console.log(`   🗓️ Rótulo de data a ser usado para Estoque Casa: "${commonStockDate}"`);
+  console.log(`Data base do estoque: "${commonStockDate}"`);
 
   let sandriniRows = [];
   try {
-    console.log('   📥 Buscando estoque CD SJN da Sandrini...');
+    console.log('Buscando estoque Sandrini CD SJN...');
     sandriniRows = await fetchSheetData(EXTRA_ESTOQUE_URLS.sandrini);
-    console.log(`   ✅ Encontradas ${sandriniRows.length} linhas para Sandrini CD SJN.`);
+    console.log(`Estoque Sandrini: ${sandriniRows.length} registros obtidos.`);
   } catch (err) {
-    console.error('   ⚠️ Falha ao buscar estoque da Sandrini:', err.message);
+    console.error('Falha ao buscar estoque da Sandrini:', err.message);
   }
 
   let buyclockRows = [];
   try {
-    console.log('   📥 Buscando estoque INVENTÁRIO_BUY da Buyclock...');
+    console.log('Buscando estoque Buyclock...');
     const response = await axios.get(EXTRA_ESTOQUE_URLS.buyclock);
     const csvText = response.data;
     const lines = csvText.split(/\r?\n/);
@@ -185,13 +178,13 @@ async function syncEstoque() {
             });
           }
         }
-        console.log(`   ✅ Encontrados ${buyclockRows.length} itens para Buyclock.`);
+        console.log(`Estoque Buyclock: ${buyclockRows.length} registros obtidos.`);
       } else {
-        console.warn('   ⚠️ Coluna "ESTOQUE CASA" não encontrada na planilha da Buyclock!');
+        console.warn('Coluna "ESTOQUE CASA" não encontrada na planilha da Buyclock.');
       }
     }
   } catch (err) {
-    console.error('   ⚠️ Falha ao buscar estoque da Buyclock:', err.message);
+    console.error('Falha ao buscar estoque da Buyclock:', err.message);
   }
 
   await pool.query('TRUNCATE TABLE bronze_estoque');
@@ -201,7 +194,6 @@ async function syncEstoque() {
   try {
     await connection.beginTransaction();
     
-    // 1. Inserir estoque principal
     for (const r of rows) {
       if (!r || !r.c) continue;
       const dataStr = r.c[0]?.f || r.c[0]?.v || null;
@@ -228,7 +220,6 @@ async function syncEstoque() {
       }
     }
 
-    // 2. Inserir estoque Sandrini
     for (const r of sandriniRows) {
       if (!r || !r.c) continue;
       const sku = r.c[4]?.v || null;
@@ -254,7 +245,6 @@ async function syncEstoque() {
       }
     }
 
-    // 3. Inserir estoque Buyclock
     for (const item of buyclockRows) {
       if (item.sku) {
         await connection.query(`
@@ -274,17 +264,17 @@ async function syncEstoque() {
     }
     
     await connection.commit();
-    console.log('✅ Estoque Sincronizado!');
+    console.log('Estoque sincronizado com sucesso.');
   } catch (err) {
     await connection.rollback();
-    console.error('❌ Erro em syncEstoque:', err);
+    console.error('Erro ao sincronizar estoque:', err.message);
   } finally {
     connection.release();
   }
 }
 
 async function syncReposicao() {
-  console.log('🔄 Sincronizando Reposições (Caminho)...');
+  console.log('Sincronizando reposições...');
   const rows = await fetchSheetData(SHEET_URLS.caminho);
   
   await pool.query('TRUNCATE TABLE bronze_caminho');
@@ -322,17 +312,17 @@ async function syncReposicao() {
     }
     
     await connection.commit();
-    console.log('✅ Reposições Sincronizadas!');
+    console.log('Reposições sincronizadas com sucesso.');
   } catch (err) {
     await connection.rollback();
-    console.error('❌ Erro em syncReposicao:', err);
+    console.error('Erro ao sincronizar reposições:', err.message);
   } finally {
     connection.release();
   }
 }
 
 async function syncBadstock() {
-  console.log('🔄 Sincronizando Badstock...');
+  console.log('Sincronizando badstock...');
   const rows = await fetchSheetData(SHEET_URLS.badstock);
   
   await pool.query('TRUNCATE TABLE bronze_badstock');
@@ -362,31 +352,26 @@ async function syncBadstock() {
     }
     
     await connection.commit();
-    console.log('✅ Badstock Sincronizado!');
+    console.log('Badstock sincronizado com sucesso.');
   } catch (err) {
     await connection.rollback();
-    console.error('❌ Erro em syncBadstock:', err);
+    console.error('Erro ao sincronizar badstock:', err.message);
   } finally {
     connection.release();
   }
 }
 
-// Sincronização Principal
 async function rodarSincronizacao() {
-  console.log('🚀 Iniciando Robô Sincronizador...');
+  console.log('Iniciando processo de sincronização...');
   try {
     await syncVendas();
     await syncEstoque();
     await syncReposicao();
     await syncBadstock();
-    console.log('🎉 Todas as bases sincronizadas com sucesso!');
+    console.log('Sincronização concluída com sucesso.');
   } catch (error) {
-    console.error('💥 Falha geral na sincronização:', error);
+    console.error('Falha geral no processo de sincronização:', error.message);
   }
 }
 
-// Agendar para rodar a cada 1 hora (0 * * * *)
-// cron.schedule('0 * * * *', rodarSincronizacao);
-
-// Executa imediatamente para testar
 rodarSincronizacao();
