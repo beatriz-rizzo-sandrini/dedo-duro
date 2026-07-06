@@ -144,62 +144,116 @@ async function fetchVendasSupabase() {
 
 // ── Estoque do Supabase (tabela silver_estoque mapeada via view) ─────────────
 
-async function fetchEstoqueSupabase() {
+async function fetchAvailableStockDates() {
+  try {
+    const promises = [];
+    for (let i = 0; i < 20; i++) {
+      promises.push(
+        supabase
+          .from('silver_estoque')
+          .select('data_atualizacao')
+          .order('id', { ascending: false })
+          .range(i * 1000, (i + 1) * 1000 - 1)
+      );
+    }
+    const results = await Promise.all(promises);
+    const allDates = results.flatMap(r => r.data || []).map(r => r.data_atualizacao);
+    const uniqueNormalized = [...new Set(allDates.filter(Boolean).map(normalizeDateStr))];
+    uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
+    return uniqueNormalized;
+  } catch (err) {
+    console.error('[DataContext] Erro ao buscar datas de estoque disponíveis:', err);
+    return [];
+  }
+}
+
+async function fetchResumoEstoqueDiario() {
+  try {
+    console.log('[DataContext] Buscando resumo de estoque diário...');
+    const { data, error } = await supabase
+      .from('v_resumo_estoque_diario')
+      .select('data_atualizacao, marca, local_estoque, total_quantidade, total_valor');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Erro ao buscar resumo de estoque diário:', err?.message);
+    return [];
+  }
+}
+
+async function fetchEstoqueSupabase(targetDate = null) {
   const PAGE_SIZE = 1000;
   
   try {
     let possibleDbValues = null;
-    try {
-      const { data: dateRows, error: dateError } = await supabase
-        .from('silver_estoque')
-        .select('data_atualizacao')
-        .order('id', { ascending: false })
-        .limit(2000);
-      
-      if (!dateError && dateRows && dateRows.length > 0) {
-        const dateCounts = {};
-        dateRows.forEach(r => {
-          const dStr = r.data_atualizacao;
-          if (dStr) {
-            const norm = normalizeDateStr(dStr);
-            dateCounts[norm] = (dateCounts[norm] || 0) + 1;
-          }
-        });
+    let targetNormalizedDate = "";
 
-        let maxTimestamp = 0;
-        let latestCompleteDate = "";
-        let maxCount = 0;
-        let fallbackDate = "";
+    if (targetDate) {
+      targetNormalizedDate = normalizeDateStr(targetDate);
+      possibleDbValues = [];
+      const parts = targetNormalizedDate.split('/');
+      if (parts.length === 3) {
+        possibleDbValues.push(`${parts[0]}/${parts[1]}`);
+        possibleDbValues.push(targetNormalizedDate);
+        possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
+      } else {
+        possibleDbValues.push(targetNormalizedDate);
+      }
+    } else {
+      try {
+        const { data: dateRows, error: dateError } = await supabase
+          .from('silver_estoque')
+          .select('data_atualizacao')
+          .order('id', { ascending: false })
+          .limit(2000);
+        
+        if (!dateError && dateRows && dateRows.length > 0) {
+          const dateCounts = {};
+          dateRows.forEach(r => {
+            const dStr = r.data_atualizacao;
+            if (dStr) {
+              const norm = normalizeDateStr(dStr);
+              dateCounts[norm] = (dateCounts[norm] || 0) + 1;
+            }
+          });
 
-        Object.entries(dateCounts).forEach(([normDate, count]) => {
-          if (count > maxCount) {
-            maxCount = count;
-            fallbackDate = normDate;
+          let maxTimestamp = 0;
+          let maxCount = 0;
+          let fallbackDate = "";
+
+          Object.entries(dateCounts).forEach(([normDate, count]) => {
+            if (count > maxCount) {
+              maxCount = count;
+              fallbackDate = normDate;
+            }
+            if (count >= 200) {
+              const ts = parseToTimestamp(normDate);
+              if (ts > maxTimestamp) {
+                maxTimestamp = ts;
+                targetNormalizedDate = normDate;
+              }
+            }
+          });
+
+          if (!targetNormalizedDate) {
+            targetNormalizedDate = fallbackDate;
           }
-          if (count >= 200) {
-            const ts = parseToTimestamp(normDate);
-            if (ts > maxTimestamp) {
-              maxTimestamp = ts;
-              latestCompleteDate = normDate;
+
+          if (targetNormalizedDate) {
+            possibleDbValues = [];
+            const parts = targetNormalizedDate.split('/');
+            if (parts.length === 3) {
+              possibleDbValues.push(`${parts[0]}/${parts[1]}`);
+              possibleDbValues.push(targetNormalizedDate);
+              possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
+            } else {
+              possibleDbValues.push(targetNormalizedDate);
             }
           }
-        });
-
-        const targetNormalizedDate = latestCompleteDate || fallbackDate;
-        if (targetNormalizedDate) {
-          possibleDbValues = [];
-          const parts = targetNormalizedDate.split('/');
-          if (parts.length === 3) {
-            possibleDbValues.push(`${parts[0]}/${parts[1]}`);
-            possibleDbValues.push(targetNormalizedDate);
-            possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
-          } else {
-            possibleDbValues.push(targetNormalizedDate);
-          }
         }
+      } catch (dateErr) {
+        console.warn('[DataContext] Falha ao obter datas de estoque do Supabase, buscando tudo como fallback:', dateErr);
       }
-    } catch (dateErr) {
-      console.warn('[DataContext] Falha ao obter datas de estoque do Supabase, buscando tudo como fallback:', dateErr);
     }
 
     // 1. Obtém o total de registros (head request rápido)
@@ -215,7 +269,7 @@ async function fetchEstoqueSupabase() {
     const totalPages = Math.ceil(totalRows / PAGE_SIZE);
     console.log(`[DataContext] Carregando estoque: ${totalRows} registros (${totalPages} páginas em paralelo)`);
 
-    if (totalPages === 0) return [];
+    if (totalPages === 0) return { rows: [], detectedDate: targetNormalizedDate };
 
     // 2. Dispara consultas em paralelo
     const promises = [];
@@ -224,7 +278,7 @@ async function fetchEstoqueSupabase() {
       const to = from + PAGE_SIZE - 1;
       let pageQuery = supabase
         .from('vw_estoque_consolidado')
-        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
         .order('id', { ascending: false })
         .range(from, to);
 
@@ -246,7 +300,7 @@ async function fetchEstoqueSupabase() {
       allData = allData.concat(res);
     });
 
-    return allData.map(r => ({
+    const rows = allData.map(r => ({
       c: [
         { v: r.data_atualizacao, f: r.data_atualizacao },
         { v: r.sku_produto },
@@ -254,9 +308,11 @@ async function fetchEstoqueSupabase() {
         { v: r.local_estoque },
         { v: r.marca },
         { v: Number(r.quantidade_disponivel) || 0 },
-        { v: Number(r.valor_unitario) || 0 }
+        { v: Number(r.valor_unitario) || 0 },
+        { v: r.sku_original_plataforma || r.sku_produto } // index 7: original platform SKU
       ]
     }));
+    return { rows, detectedDate: targetNormalizedDate };
   } catch (err) {
     console.warn('[DataContext] Falha no fetch paralelo de estoque, usando fallback sequencial:', err?.message);
     
@@ -268,7 +324,7 @@ async function fetchEstoqueSupabase() {
     while (hasMore) {
       const { data, error } = await supabase
         .from('vw_estoque_consolidado')
-        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario')
+        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
         .order('id', { ascending: false })
         .range(from, from + PAGE_SIZE - 1);
 
@@ -283,7 +339,7 @@ async function fetchEstoqueSupabase() {
       from += PAGE_SIZE;
     }
 
-    return allData.map(r => ({
+    const rows = allData.map(r => ({
       c: [
         { v: r.data_atualizacao, f: r.data_atualizacao },
         { v: r.sku_produto },
@@ -291,9 +347,11 @@ async function fetchEstoqueSupabase() {
         { v: r.local_estoque },
         { v: r.marca },
         { v: Number(r.quantidade_disponivel) || 0 },
-        { v: Number(r.valor_unitario) || 0 }
+        { v: Number(r.valor_unitario) || 0 },
+        { v: r.sku_original_plataforma || r.sku_produto } // index 7: original platform SKU
       ]
     }));
+    return { rows, detectedDate: targetDate || "" };
   }
 }
 
@@ -531,6 +589,83 @@ export function DataProvider({ children }) {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [selectedStockDate, setSelectedStockDate] = useState(null);
+  const [requestedStockDate, setRequestedStockDate] = useState(null);
+
+  const mapLookupRef = React.useRef({});
+  const globalSkuMapRef = React.useRef({});
+
+  const changeStockDate = async (targetDate) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let resolvedDate = targetDate;
+      if (targetDate && availableDates.length > 0) {
+        const normTarget = normalizeDateStr(targetDate);
+        if (!availableDates.includes(normTarget)) {
+          const targetTs = parseToTimestamp(normTarget);
+          let closestDate = null;
+          let minDiff = Infinity;
+          
+          availableDates.forEach(d => {
+            const dTs = parseToTimestamp(d);
+            if (dTs <= targetTs) {
+              const diff = targetTs - dTs;
+              if (diff < minDiff) {
+                minDiff = diff;
+                closestDate = d;
+              }
+            }
+          });
+          
+          if (!closestDate) {
+            closestDate = availableDates[availableDates.length - 1]; // oldest fallback
+          }
+          resolvedDate = closestDate;
+        }
+      }
+
+      const estoqueResult = await fetchEstoqueSupabase(resolvedDate);
+      const rawEstoque = estoqueResult.rows;
+      const mappedEstoque = rawEstoque.map(r => {
+        const rawSku = String(r.c[7]?.v || r.c[1]?.v || "").trim().toUpperCase();
+        const rawLocal = String(r.c[3]?.v || "").trim().toUpperCase();
+        const mapping = mapLookupRef.current[`${rawSku}|${rawLocal}`] || globalSkuMapRef.current[rawSku];
+
+        let mappedSku = mapping?.sku_senior || r.c[1]?.v || "";
+        let mappedDesc = mapping?.descricao_oficial || r.c[2]?.v || "";
+
+        // Auto-resolução de SKUs brutos do Mercado Livre (MLB...) baseados na descrição
+        mappedSku = autoResolveMeliSku(mappedSku, mappedDesc);
+
+        return {
+          c: [
+            r.c[0], // data
+            { v: mappedSku }, // sku mapped
+            { v: mappedDesc }, // desc mapped
+            r.c[3], // local
+            { v: normalizeBrand(r.c[4]?.v || "", mappedSku, mappedDesc) }, // brand normalized
+            r.c[5], // qtd
+            r.c[6], // valor
+            { v: rawSku } // index 7: original platform SKU
+          ]
+        };
+      });
+
+      setData(prev => ({
+        ...prev,
+        estoque: mappedEstoque
+      }));
+      setSelectedStockDate(estoqueResult.detectedDate || resolvedDate);
+      setRequestedStockDate(targetDate);
+    } catch (err) {
+      console.error("[DataContext] Erro ao alterar data do estoque:", err);
+      setError("Erro ao carregar dados do estoque para a data selecionada.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAll = async (force = false) => {
     const isDev = import.meta.env.DEV;
@@ -543,6 +678,19 @@ export function DataProvider({ children }) {
             setData(sheets);
             setLastFetch(new Date(ts));
             setLoading(false);
+            
+            // Restaura as refs de mapeamento do cache
+            mapLookupRef.current = sheets.mapLookup || {};
+            globalSkuMapRef.current = sheets.globalSkuMap || {};
+            
+            // Tenta restaurar as datas disponíveis/selecionada a partir do cache
+            if (sheets.estoque && sheets.estoque.length > 0) {
+              const uniqueNormalized = [...new Set(sheets.estoque.map(r => r.c[0]?.v).filter(Boolean).map(normalizeDateStr))];
+              uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
+              setAvailableDates(uniqueNormalized);
+              setSelectedStockDate(uniqueNormalized[0] || null);
+              setRequestedStockDate(uniqueNormalized[0] || null);
+            }
             return;
           }
         }
@@ -553,8 +701,8 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      // Busca em paralelo: Google Sheets (se houver) + Supabase (vendas, estoque, caminho, badstock, mapeamento) + Planilhas Externas
-      const [gsResults, vendas, estoque, caminho, badstock, mappings, sandriniCasaMap, buyclockCasaMap] = await Promise.all([
+      // Busca em paralelo: Google Sheets (se houver) + Supabase (vendas, estoque, caminho, badstock, mapeamento) + Planilhas Externas + Datas + Resumo
+      const [gsResults, vendas, estoqueResult, caminho, badstock, mappings, sandriniCasaMap, buyclockCasaMap, datesList, resumoEstoque] = await Promise.all([
         Promise.all(SHEETS_FROM_GS.map(async name => ({ name, rows: await fetchSheet(name) }))),
         fetchVendasSupabase(),
         fetchEstoqueSupabase(),
@@ -562,8 +710,17 @@ export function DataProvider({ children }) {
         fetchBadstockSupabase(),
         fetchMapeamentosSupabase(),
         fetchSandriniCasa(),
-        fetchBuyclockCasa()
+        fetchBuyclockCasa(),
+        fetchAvailableStockDates(),
+        fetchResumoEstoqueDiario()
       ]);
+
+      const estoque = estoqueResult.rows;
+      const detectedDate = estoqueResult.detectedDate;
+
+      setAvailableDates(datesList);
+      setSelectedStockDate(detectedDate);
+      setRequestedStockDate(detectedDate);
 
       // Cria o lookup de mapeamento
       const mapLookup = {};
@@ -586,6 +743,9 @@ export function DataProvider({ children }) {
           };
         }
       });
+
+      mapLookupRef.current = mapLookup;
+      globalSkuMapRef.current = globalSkuMap;
 
       // 1. Traduz Vendas
       const mappedVendas = vendas.map(r => {
@@ -690,7 +850,10 @@ export function DataProvider({ children }) {
         caminho: mappedCaminho, 
         badstock: mappedBadstock,
         sandriniCasaMap,
-        buyclockCasaMap
+        buyclockCasaMap,
+        mapLookup,
+        globalSkuMap,
+        resumoEstoque
       };
       gsResults.forEach(({ name, rows }) => { combined[name] = rows; });
 
@@ -718,7 +881,17 @@ export function DataProvider({ children }) {
   }, [user]);
 
   return (
-    <DataContext.Provider value={{ data, loading, error, lastFetch, refetch: () => fetchAll(true) }}>
+    <DataContext.Provider value={{ 
+      data, 
+      loading, 
+      error, 
+      lastFetch, 
+      refetch: () => fetchAll(true),
+      availableDates,
+      selectedStockDate,
+      requestedStockDate,
+      changeStockDate
+    }}>
       {children}
     </DataContext.Provider>
   );

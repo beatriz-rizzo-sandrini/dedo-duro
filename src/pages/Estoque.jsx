@@ -38,8 +38,29 @@ ChartJS.register(
   Legend
 );
 
+function convertBRDateToISO(brDate) {
+  if (!brDate) return '';
+  const parts = brDate.split('/');
+  if (parts.length === 3) {
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  return '';
+}
+
+function convertISODateToBR(isoDate) {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return '';
+}
+
 export default function Estoque() {
-  const { data, loading, error } = useData();
+  const { data, loading, error, availableDates, selectedStockDate, requestedStockDate, changeStockDate } = useData();
   const { selectedCompany } = useCompany();
   const estoqueRows = data.estoque || [];
   const vendasRows = data.vendas || [];
@@ -48,6 +69,8 @@ export default function Estoque() {
   const [filtroMarca, setFiltroMarca] = useState([]);
   const [buscaInput, setBuscaInput] = useState('');
   const [busca, setBusca] = useState('');
+  const [brandMetric, setBrandMetric] = useState('qtd'); // 'qtd' | 'custo'
+  const [evolutionMetric, setEvolutionMetric] = useState('qtd'); // 'qtd' | 'custo'
 
   React.useEffect(() => {
     const handler = setTimeout(() => {
@@ -93,8 +116,7 @@ export default function Estoque() {
   const marcas = useMemo(() => {
     if (!estoqueRows) return [];
     const setMarcas = new Set();
-    const { dataEstoque } = getLatestDates(estoqueRows, vendasRows);
-    const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
+    const normDataEstoque = selectedStockDate ? normalizeDateStr(selectedStockDate) : "";
 
     estoqueRows.forEach(r => {
       const dataStr = r?.c?.[COL_ESTOQUE.DATA]?.f || String(r?.c?.[COL_ESTOQUE.DATA]?.v || "");
@@ -108,7 +130,7 @@ export default function Estoque() {
       if (m) setMarcas.add(m.trim().toUpperCase());
     });
     return Array.from(setMarcas).sort();
-  }, [estoqueRows, vendasRows, selectedCompany]);
+  }, [estoqueRows, selectedStockDate, selectedCompany]);
 
   const dadosProcessados = useMemo(() => {
     if (!estoqueRows) return { linhas: [], totalGeral: 0, totalCustoGeral: 0, dataEstoque: "", dataVendas: "" };
@@ -116,8 +138,21 @@ export default function Estoque() {
     const sandriniCasaMap = data.sandriniCasaMap || {};
     const buyclockCasaMap = data.buyclockCasaMap || {};
 
-    const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+    const dataEstoque = selectedStockDate || "";
     const normDataEstoque = dataEstoque ? normalizeDateStr(dataEstoque) : "";
+    const { dataVendas } = getLatestDates([], vendasRows);
+
+    const marcasSelecionadas = filtroMarca.map(f => f.value.toUpperCase());
+    const matchesBrand = (brand) => {
+      if (marcasSelecionadas.length === 0) return true;
+      return marcasSelecionadas.includes(String(brand).trim().toUpperCase());
+    };
+
+    const matchesCompany = (local, isBuyClockFallback = false) => {
+      if (selectedCompany === 'TODAS') return true;
+      const isBC = isBuyClockFallback || String(local).toUpperCase().includes('BUY CLOCK');
+      return selectedCompany === 'BUY CLOCK' ? isBC : !isBC;
+    };
 
     const skuToDesc = {};
     estoqueRows.forEach(r => {
@@ -231,7 +266,7 @@ export default function Estoque() {
         if (totalCD === 0) return;
         const marca = info.brand || 'BUY CLOCK';
         if (marca) setMarcas.add(marca);
-        if (filtroMarca && filtroMarca !== 'Todas' && marca !== filtroMarca) return;
+        if (!matchesBrand(marca)) return;
 
         const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
         if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
@@ -250,7 +285,8 @@ export default function Estoque() {
         if (totalCD === 0) return;
         const marca = info.brand || 'SANDRINI';
         if (marca) setMarcas.add(marca);
-        if (filtroMarca && filtroMarca !== 'Todas' && marca !== filtroMarca) return;
+        if (!matchesBrand(marca)) return;
+        if (!matchesCompany('SANDRINI', false)) return;
 
         const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
         if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
@@ -672,6 +708,8 @@ export default function Estoque() {
     let finalQtdCasa = 0;
     let finalQtdExpedicao = 0;
 
+
+
     linhas.forEach(l => {
       finalTotalGeral += l.total;
       finalTotalCustoGeral += l.custoTotal;
@@ -682,6 +720,117 @@ export default function Estoque() {
       finalQtdCasa += l.estoqueCasa || 0;
       finalQtdExpedicao += l.expedicao || 0;
     });
+
+    // --- CÁLCULO DO GRÁFICO HISTÓRICO DE EVOLUÇÃO ---
+    const resumoEstoqueRaw = data.resumoEstoque || [];
+    const resumoPorData = {};
+    resumoEstoqueRaw.forEach(item => {
+      const brand = item.marca || 'Sem Marca';
+      const local = item.local_estoque || '';
+      
+      if (matchesBrand(brand) && matchesCompany(local)) {
+        const normDate = normalizeDateStr(item.data_atualizacao);
+        if (normDate) {
+          if (!resumoPorData[normDate]) {
+            resumoPorData[normDate] = { qty: 0, cost: 0 };
+          }
+          resumoPorData[normDate].qty += Number(item.total_quantidade) || 0;
+          resumoPorData[normDate].cost += Number(item.total_valor) || 0;
+        }
+      }
+    });
+
+    let totalCasaQty = 0;
+    let totalCasaCost = 0;
+    if (selectedCompany === 'SANDRINI' || selectedCompany === 'TODAS') {
+      Object.values(sandriniCasaMap).forEach(info => {
+        const brand = info.brand || 'SANDRINI';
+        if (matchesBrand(brand)) {
+          totalCasaQty += info.estoqueCasa || 0;
+          totalCasaCost += info.totalCasaCost || 0;
+        }
+      });
+    }
+    if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
+      Object.values(buyclockCasaMap).forEach(info => {
+        const brand = info.brand || 'BUY CLOCK';
+        if (matchesBrand(brand)) {
+          totalCasaQty += info.estoqueCasa || 0;
+          totalCasaCost += info.totalCasaCost || 0;
+        }
+      });
+    }
+
+    let totalExpedicaoQty = 0;
+    let totalExpedicaoCost = 0;
+    if (selectedCompany === 'SANDRINI' || selectedCompany === 'TODAS') {
+      Object.values(sandriniCasaMap).forEach(info => {
+        const brand = info.brand || 'SANDRINI';
+        if (matchesBrand(brand)) {
+          totalExpedicaoQty += info.expedicao || 0;
+          totalExpedicaoCost += info.totalExpedicaoCost || 0;
+        }
+      });
+    }
+    if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
+      Object.values(buyclockCasaMap).forEach(info => {
+        const brand = info.brand || 'BUY CLOCK';
+        if (matchesBrand(brand)) {
+          totalExpedicaoQty += info.expedicao || 0;
+          totalExpedicaoCost += info.totalExpedicaoCost || 0;
+        }
+      });
+    }
+
+    const datesChronological = [...availableDates].reverse();
+
+    const chartEvolutionQtdData = {
+      labels: datesChronological.map(d => d.split('/2026')[0]),
+      datasets: [
+        {
+          label: 'Estoque Casa',
+          data: datesChronological.map(() => totalCasaQty),
+          backgroundColor: '#10b981', // Emerald
+          borderRadius: 4
+        },
+        {
+          label: 'Plataformas',
+          data: datesChronological.map(d => resumoPorData[d]?.qty || 0),
+          backgroundColor: '#3b82f6', // Blue
+          borderRadius: 4
+        },
+        {
+          label: 'Expedição',
+          data: datesChronological.map(() => totalExpedicaoQty),
+          backgroundColor: '#8b5cf6', // Purple
+          borderRadius: 4
+        }
+      ]
+    };
+
+    const chartEvolutionCustoData = {
+      labels: datesChronological.map(d => d.split('/2026')[0]),
+      datasets: [
+        {
+          label: 'Estoque Casa',
+          data: datesChronological.map(() => totalCasaCost),
+          backgroundColor: '#10b981', // Emerald
+          borderRadius: 4
+        },
+        {
+          label: 'Plataformas',
+          data: datesChronological.map(d => resumoPorData[d]?.cost || 0),
+          backgroundColor: '#3b82f6', // Blue
+          borderRadius: 4
+        },
+        {
+          label: 'Expedição',
+          data: datesChronological.map(() => totalExpedicaoCost),
+          backgroundColor: '#8b5cf6', // Purple
+          borderRadius: 4
+        }
+      ]
+    };
 
     return {
       linhas,
@@ -701,9 +850,11 @@ export default function Estoque() {
       chartBrandQtdData,
       chartBrandCustoData,
       chartTitleQtd,
-      chartTitleCusto
+      chartTitleCusto,
+      chartEvolutionQtdData,
+      chartEvolutionCustoData
     };
-  }, [estoqueRows, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany, data.sandriniCasaMap, data.buyclockCasaMap]);
+  }, [estoqueRows, selectedStockDate, vendasRows, filtroLocal, filtroMarca, busca, sortConfig, selectedCompany, data.sandriniCasaMap, data.buyclockCasaMap, data.resumoEstoque]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
@@ -817,6 +968,47 @@ export default function Estoque() {
 
       <div className="filters-container">
         <CompanySelector />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DATA DO ESTOQUE</label>
+          <input
+            type="date"
+            className="input-padrao"
+            style={{ 
+              minHeight: '42px', 
+              borderRadius: '10px', 
+              border: '1px solid #e2e8f0', 
+              cursor: 'pointer', 
+              background: 'white', 
+              fontWeight: 600, 
+              color: '#334155',
+              padding: '8px 12px'
+            }}
+            value={convertBRDateToISO(requestedStockDate) || convertBRDateToISO(selectedStockDate) || ''}
+            onChange={e => {
+              const selectedISO = e.target.value;
+              if (selectedISO) {
+                const brDate = convertISODateToBR(selectedISO);
+                changeStockDate(brDate);
+              }
+            }}
+          />
+          {requestedStockDate && selectedStockDate && normalizeDateStr(requestedStockDate) !== normalizeDateStr(selectedStockDate) && (
+            <span style={{ 
+              fontSize: '10px', 
+              fontWeight: '600', 
+              color: '#0369a1', 
+              background: '#e0f2fe', 
+              padding: '4px 8px', 
+              borderRadius: '6px', 
+              marginTop: '4px',
+              display: 'inline-block',
+              textAlign: 'center'
+            }}>
+              Estoque de {selectedStockDate} (mais próximo)
+            </span>
+          )}
+        </div>
 
         <div style={{ flex: 1, minWidth: '150px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>PESQUISAR (SKU OU DESCRIÇÃO)</label>
@@ -960,16 +1152,57 @@ export default function Estoque() {
 
         </div>
 
-        {/* Brand Charts Section */}
+        {/* Brand Charts & Stock Evolution Section */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+          {/* Card 1: Participação de Marcas / Produtos */}
           <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {dadosProcessados.chartTitleQtd}
-            </h3>
-            {dadosProcessados.chartBrandQtdData ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {brandMetric === 'qtd' ? dadosProcessados.chartTitleQtd : dadosProcessados.chartTitleCusto}
+              </h3>
+              
+              <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                <button
+                  onClick={() => setBrandMetric('qtd')}
+                  style={{
+                    border: 'none',
+                    background: brandMetric === 'qtd' ? 'white' : 'transparent',
+                    boxShadow: brandMetric === 'qtd' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    color: brandMetric === 'qtd' ? '#0f172a' : '#64748b',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Qtd (Pçs)
+                </button>
+                <button
+                  onClick={() => setBrandMetric('custo')}
+                  style={{
+                    border: 'none',
+                    background: brandMetric === 'custo' ? 'white' : 'transparent',
+                    boxShadow: brandMetric === 'custo' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    color: brandMetric === 'custo' ? '#0f172a' : '#64748b',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Custo (R$)
+                </button>
+              </div>
+            </div>
+
+            {(brandMetric === 'qtd' ? dadosProcessados.chartBrandQtdData : dadosProcessados.chartBrandCustoData) ? (
               <div style={{ height: '280px' }}>
                 <Bar
-                  data={dadosProcessados.chartBrandQtdData}
+                  data={brandMetric === 'qtd' ? dadosProcessados.chartBrandQtdData : dadosProcessados.chartBrandCustoData}
                   options={{
                     maintainAspectRatio: false,
                     indexAxis: 'y',
@@ -981,11 +1214,38 @@ export default function Estoque() {
                         bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
                         padding: 12,
                         cornerRadius: 8,
-                        displayColors: false
+                        displayColors: false,
+                        callbacks: {
+                          label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.x !== null) {
+                              if (brandMetric === 'custo') {
+                                label += context.parsed.x.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                              } else {
+                                label += context.parsed.x.toLocaleString('pt-BR') + ' pçs';
+                              }
+                            }
+                            return label;
+                          }
+                        }
                       }
                     },
                     scales: { 
-                      x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
+                      x: { 
+                        grid: { color: '#f1f5f9' }, 
+                        border: { display: false }, 
+                        ticks: { 
+                          font: { family: 'Inter', size: 11 }, 
+                          color: '#64748b',
+                          callback: function(value) {
+                            if (brandMetric === 'custo') {
+                              return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+                            }
+                            return value.toLocaleString('pt-BR');
+                          }
+                        } 
+                      },
                       y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
                     }
                   }}
@@ -998,31 +1258,107 @@ export default function Estoque() {
             )}
           </div>
 
+          {/* Card 2: Evolução de Estoque (Histórico) */}
           <div style={{ background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {dadosProcessados.chartTitleCusto}
-            </h3>
-            {dadosProcessados.chartBrandCustoData ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, color: '#64748b', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Evolução do Estoque (Histórico)
+              </h3>
+              
+              <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                <button
+                  onClick={() => setEvolutionMetric('qtd')}
+                  style={{
+                    border: 'none',
+                    background: evolutionMetric === 'qtd' ? 'white' : 'transparent',
+                    boxShadow: evolutionMetric === 'qtd' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    color: evolutionMetric === 'qtd' ? '#0f172a' : '#64748b',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Peças
+                </button>
+                <button
+                  onClick={() => setEvolutionMetric('custo')}
+                  style={{
+                    border: 'none',
+                    background: evolutionMetric === 'custo' ? 'white' : 'transparent',
+                    boxShadow: evolutionMetric === 'custo' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    color: evolutionMetric === 'custo' ? '#0f172a' : '#64748b',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Custo (R$)
+                </button>
+              </div>
+            </div>
+
+            {(evolutionMetric === 'qtd' ? dadosProcessados.chartEvolutionQtdData : dadosProcessados.chartEvolutionCustoData) ? (
               <div style={{ height: '280px' }}>
                 <Bar
-                  data={dadosProcessados.chartBrandCustoData}
+                  data={evolutionMetric === 'qtd' ? dadosProcessados.chartEvolutionQtdData : dadosProcessados.chartEvolutionCustoData}
                   options={{
                     maintainAspectRatio: false,
-                    indexAxis: 'y',
                     plugins: { 
-                      legend: { display: false },
+                      legend: { 
+                        display: true,
+                        position: 'bottom',
+                        labels: { font: { family: 'Inter', size: 10, weight: 'bold' }, color: '#64748b', boxWidth: 12, padding: 15 }
+                      },
                       tooltip: {
                         backgroundColor: 'rgba(15, 23, 42, 0.9)',
                         titleFont: { size: 13, family: 'Inter' },
                         bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
                         padding: 12,
                         cornerRadius: 8,
-                        displayColors: false
+                        callbacks: {
+                          label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                              if (evolutionMetric === 'custo') {
+                                label += context.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                              } else {
+                                label += context.parsed.y.toLocaleString('pt-BR') + ' pçs';
+                              }
+                            }
+                            return label;
+                          }
+                        }
                       }
                     },
                     scales: { 
-                      x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } },
-                      y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } }
+                      x: { 
+                        stacked: true,
+                        grid: { display: false }, 
+                        border: { display: false }, 
+                        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' } 
+                      },
+                      y: { 
+                        stacked: true,
+                        grid: { color: '#f1f5f9' }, 
+                        border: { display: false }, 
+                        ticks: { 
+                          font: { family: 'Inter', size: 11 }, 
+                          color: '#64748b',
+                          callback: function(value) {
+                            if (evolutionMetric === 'custo') {
+                              return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+                            }
+                            return value.toLocaleString('pt-BR') + ' un';
+                          }
+                        } 
+                      }
                     }
                   }}
                 />

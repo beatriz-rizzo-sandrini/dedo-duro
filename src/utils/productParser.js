@@ -111,7 +111,7 @@ const COLOR_ABBR_MAP = {
 function isValidSize(val) {
   if (!val) return false;
   const valUpper = val.toUpperCase().trim();
-  if (['G1', 'G2', 'G3', 'G4', 'GG', 'XG', 'G', 'P', 'M', 'U', 'ÚNICO', 'UNICO', 'UNISSEX', 'UNISEX'].includes(valUpper)) {
+  if (['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'GG', 'XG', 'EG', 'EGG', 'XXG', 'XGG', 'XP', 'XM', 'G', 'P', 'M', 'U', 'ÚNICO', 'UNICO', 'UNISSEX', 'UNISEX'].includes(valUpper)) {
     return true;
   }
   if (/^\d{2}\/\d{2}$/.test(valUpper)) {
@@ -274,12 +274,12 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   let color = '';
 
   // 0. Extração precoce do tamanho a partir da descrição original
-  const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|[GPM]|G\d|\d+(?:\/\d+)?)/i;
+  const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|EGG|EG|XXG|XGG|XP|XM|G\d|[GPM]|\d+(?:\/\d+)?)/i;
   const originalSizeMatch = desc.match(sizeRegex);
   if (originalSizeMatch) {
     size = originalSizeMatch[1].toUpperCase();
   } else {
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+    const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
     const originalEndSizeMatch = desc.match(endSizeRegex);
     if (originalEndSizeMatch) {
       const val = originalEndSizeMatch[1].toUpperCase();
@@ -836,11 +836,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   } else if ((skuUpper.startsWith('SA00184') || skuUpper.startsWith('KSA00184')) && normBrand === 'SANDRINI') {
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     baseTitle = isKit ? 'Kit Tenis Sandrini Aero Spark' : 'Tenis Sandrini Aero Spark';
-  } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046')) {
+  } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046') || skuUpper.startsWith('KSA04000003522') || skuUpper.includes('3522CO')) {
     const kitQtyMatch = skuUpper.match(/^K(?:SA)?(\d{2})/i) || skuUpper.match(/^K(\d+)\b/i) || baseTitleUpper.match(/KIT\s*(?:COM)?\s*(\d+)/i);
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     if (isKit) {
-      const qty = kitQtyMatch ? parseInt(kitQtyMatch[1]) : 2;
+      const qty = kitQtyMatch ? parseInt(kitQtyMatch[1]) : 4;
       baseTitle = `Kit ${qty} Shorts Sandrini Tactel Elástico (77046)`;
     } else {
       baseTitle = 'Shorts Sandrini Tactel Elástico (77046)';
