@@ -93,10 +93,10 @@ async function run() {
       let more = true;
       let countAdded = 0;
       while (more) {
-        const { data, error } = await supabase.from(table).select('sku').range(f, f + limit - 1);
+        const { data, error } = await supabase.from(table).select('sku_produto').range(f, f + limit - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data) {
-          const s = String(r.sku || '').trim().toUpperCase();
+          const s = String(r.sku_produto || '').trim().toUpperCase();
           // Aqui forçamos a busca para qualquer SKU do estoque/venda
           if (s) {
             if (!skusParaAtualizar.has(s)) {
