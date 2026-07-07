@@ -238,6 +238,7 @@ export default function Estoque() {
             skuPlat,
             size: parsed.size,
             estoquePlataforma: 0,
+            estoquePorLocal: {},
             estoqueCasa: 0,
             expedicao: 0,
             total: 0,
@@ -249,6 +250,11 @@ export default function Estoque() {
         const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+        }
+        // Track stock per specific local for accurate per-platform filtering
+        if (local) {
+          stats[prodKey].cores[corKey].variacoes[varKey].estoquePorLocal[local] = 
+            (stats[prodKey].cores[corKey].variacoes[varKey].estoquePorLocal[local] || 0) + qtd;
         }
 
         if (valorUnitario > 0) {
@@ -310,6 +316,7 @@ export default function Estoque() {
             skuPlat: '',
             size: parsed.size,
             estoquePlataforma: 0,
+            estoquePorLocal: {},
             estoqueCasa: 0,
             expedicao: 0,
             total: 0,
@@ -375,6 +382,7 @@ export default function Estoque() {
             skuPlat: '',
             size: parsed.size,
             estoquePlataforma: 0,
+            estoquePorLocal: {},
             estoqueCasa: 0,
             expedicao: 0,
             total: 0,
@@ -509,6 +517,81 @@ export default function Estoque() {
     }
 
     if (filtroLocal.length > 0) {
+      // Identify specific platform locals selected (excluding CASA/EXPEDIÇÃO types)
+      const selectedPlatLocals = filtroLocal
+        .filter(f => {
+          const val = f.value.toUpperCase();
+          return !val.includes('CASA') && !val.includes('EXPEDI') && !val.includes('OUT') && !val.includes('TRANS');
+        })
+        .map(f => f.value.toUpperCase());
+
+      // If specific platform locals were selected, recalculate estoquePlataforma
+      // to only include stock from those exact locals (e.g. only MELI FULL)
+      if (selectedPlatLocals.length > 0) {
+        linhas.forEach(prod => {
+          let prodPlat = 0, prodCustoPlat = 0;
+          let prodCasa = 0, prodCustoCasa = 0;
+          let prodExp = 0, prodCustoExp = 0;
+          let prodTotal = 0, prodCusto = 0;
+
+          Object.values(prod.cores).forEach(cor => {
+            let corPlat = 0, corCustoPlat = 0;
+            let corCasa = 0, corCustoCasa = 0;
+            let corExp = 0, corCustoExp = 0;
+            let corTotal = 0, corCusto = 0;
+
+            Object.values(cor.variacoes).forEach(v => {
+              const porLocal = v.estoquePorLocal || {};
+              let filteredPlat = 0;
+              selectedPlatLocals.forEach(loc => {
+                filteredPlat += porLocal[loc] || 0;
+              });
+              v.estoquePlataforma = filteredPlat;
+              v.custoPlataforma = filteredPlat * v.valorUnitario;
+              v.total = v.estoquePlataforma + v.estoqueCasa + v.expedicao;
+              v.custoTotal = v.custoPlataforma + (v.custoCasa || 0) + (v.custoExpedicao || 0);
+
+              corPlat += v.estoquePlataforma;
+              corCustoPlat += v.custoPlataforma;
+              corCasa += v.estoqueCasa;
+              corCustoCasa += (v.custoCasa || 0);
+              corExp += v.expedicao;
+              corCustoExp += (v.custoExpedicao || 0);
+              corTotal += v.total;
+              corCusto += v.custoTotal;
+            });
+
+            cor.estoquePlataforma = corPlat;
+            cor.custoPlataforma = corCustoPlat;
+            cor.estoqueCasa = corCasa;
+            cor.custoCasa = corCustoCasa;
+            cor.expedicao = corExp;
+            cor.custoExpedicao = corCustoExp;
+            cor.total = corTotal;
+            cor.custoTotal = corCusto;
+
+            prodPlat += corPlat;
+            prodCustoPlat += corCustoPlat;
+            prodCasa += corCasa;
+            prodCustoCasa += corCustoCasa;
+            prodExp += corExp;
+            prodCustoExp += corCustoExp;
+            prodTotal += corTotal;
+            prodCusto += corCusto;
+          });
+
+          prod.estoquePlataforma = prodPlat;
+          prod.custoPlataforma = prodCustoPlat;
+          prod.estoqueCasa = prodCasa;
+          prod.custoCasa = prodCustoCasa;
+          prod.expedicao = prodExp;
+          prod.custoExpedicao = prodCustoExp;
+          prod.total = prodTotal;
+          prod.custoTotal = prodCusto;
+        });
+      }
+
+      // Filter products that have stock in any of the selected local types
       linhas = linhas.filter(l => {
         return filtroLocal.some(f => {
           const val = f.value.toUpperCase();
