@@ -32,6 +32,7 @@ const DEFAULT_COLOR_SYNONYMS = {
   'FLAMINGO SCARLET': 'VERMELHO',
   'FLAMENGOSCARLET': 'VERMELHO',
   'SCARLET': 'VERMELHO',
+  'SCARLAT': 'VERMELHO',
   'PÊSSEGO': 'AMARELO',
   'PESSEGO': 'AMARELO',
   'PEACH': 'AMARELO',
@@ -208,6 +209,18 @@ export default function Cadastro() {
         const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
         if (validAbbrs.includes(u)) {
           return u;
+        }
+
+        // 4. Try word-by-word matching if it's a multi-word typed color
+        const words = u.split(/\s+/);
+        for (const w of words) {
+          let wordTarget = synonyms[w] || w;
+          if (DEFAULT_STANDARD_COLORS[wordTarget]) {
+            return DEFAULT_STANDARD_COLORS[wordTarget];
+          }
+          if (validAbbrs.includes(w)) {
+            return w;
+          }
         }
         
         return u;
