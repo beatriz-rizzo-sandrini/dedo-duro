@@ -55,88 +55,88 @@ const DEFAULT_COLOR_SYNONYMS = {
 
 // Color codes used to form the SKU
 const SKU_COLOR_CODES = [
-  { code: 'AA', seq: '1', color: 'Preto' },
-  { code: 'AB', seq: '2', color: 'Branco' },
-  { code: 'AC', seq: '3', color: 'Azul' },
-  { code: 'AD', seq: '4', color: 'Marinho' },
-  { code: 'AE', seq: '5', color: 'Cinza' },
-  { code: 'AF', seq: '6', color: 'Vermelho' },
-  { code: 'AG', seq: '7', color: 'Bege' },
-  { code: 'AH', seq: '8', color: 'Marrom' },
-  { code: 'AI', seq: '9', color: 'Verde Militar' },
-  { code: 'AJ', seq: '10', color: 'Verde' },
-  { code: 'AK', seq: '11', color: 'Bordô' },
-  { code: 'AL', seq: '12', color: 'Azul Escuro' },
-  { code: 'AM', seq: '13', color: 'Verde Limão' },
-  { code: 'AN', seq: '14', color: 'Vinho' },
-  { code: 'AO', seq: '15', color: 'Azul Claro' },
-  { code: 'AP', seq: '16', color: 'Azul Royal' },
-  { code: 'AQ', seq: '17', color: 'Azul Navy' },
-  { code: 'AR', seq: '18', color: 'Rosa' },
-  { code: 'AS', seq: '19', color: 'Rosa Claro' },
-  { code: 'AT', seq: '20', color: 'Amarelo' },
-  { code: 'AU', seq: '21', color: 'Amarelo Fluorescente' },
-  { code: 'AV', seq: '22', color: 'Laranja' },
-  { code: 'AW', seq: '23', color: 'Verde Claro' },
-  { code: 'AX', seq: '24', color: 'Chocolate' },
-  { code: 'AY', seq: '25', color: 'Caramelo' },
-  { code: 'AZ', seq: '26', color: 'Cinza Claro' },
-  { code: 'BA', seq: '27', color: 'Mescla' },
-  { code: 'BB', seq: '28', color: 'Marrom Claro' },
-  { code: 'BC', seq: '29', color: 'Salmão' },
-  { code: 'BD', style: {}, seq: '30', color: 'Coral' },
-  { code: 'BE', seq: '31', color: 'Vermelho Escuro' },
-  { code: 'BF', seq: '32', color: 'Mostarda' },
-  { code: 'BG', seq: '33', color: 'Cáqui' },
-  { code: 'BH', seq: '34', color: 'Nude' },
-  { code: 'BI', seq: '35', color: 'Champanhe' },
-  { code: 'BJ', seq: '36', color: 'Lavanda' },
-  { code: 'BK', seq: '37', color: 'Verde Escuro' },
-  { code: 'BL', seq: '38', color: 'Verde Água' },
-  { code: 'BM', seq: '39', color: 'Amarelo Limão' },
-  { code: 'BN', seq: '40', color: 'Azul Turquesa' },
-  { code: 'BO', seq: '41', color: 'Verde Musgo' },
-  { code: 'BP', seq: '42', color: 'Grafite' },
-  { code: 'BQ', seq: '43', color: 'Rosa Neon' },
-  { code: 'BR', seq: '44', color: 'Jeans' },
-  { code: 'BS', seq: '45', color: 'Marsala' },
-  { code: 'BT', seq: '46', color: 'Ouro Velho' },
-  { code: 'BU', seq: '47', color: 'Azul Petróleo' },
-  { code: 'BV', seq: '48', color: 'Lilás' },
-  { code: 'BW', seq: '49', color: 'Pink' },
-  { code: 'BX', seq: '50', color: 'Vermelho Claro' },
-  { code: 'BY', seq: '51', color: 'Off White' },
-  { code: 'BZ', seq: '52', color: 'Rosa Bebê' },
-  { code: 'CA', seq: '53', color: 'Palha' },
-  { code: 'CB', seq: '54', color: 'Dourado' },
-  { code: 'CC', seq: '55', color: 'Roxo' },
-  { code: 'CD', seq: '56', color: 'Amêndoa' },
-  { code: 'CE', seq: '57', color: 'Areia' },
-  { code: 'CF', seq: '58', color: 'Verde Oliva' },
-  { code: 'CG', seq: '59', color: 'Rosa Escuro' },
-  { code: 'CH', seq: '60', color: 'Tabaco' },
-  { code: 'CI', seq: '61', color: 'Marfim' },
-  { code: 'CJ', seq: '62', color: 'Rosê' },
-  { code: 'CK', seq: '63', color: 'Rubi' },
-  { code: 'CL', seq: '64', color: 'Prata' },
-  { code: 'CM', seq: '65', color: 'Sortido' },
-  { code: 'CN', seq: '66', color: 'Sem cor' },
-  { code: 'CO', seq: '67', color: 'Multicolor' },
-  { code: 'CP', seq: '68', color: 'Chumbo' },
-  { code: 'CQ', seq: '69', color: 'Azul Bebe' },
-  { code: 'CR', seq: '70', color: 'Lotus' },
-  { code: 'CS', seq: '71', color: 'Cobre' },
-  { code: 'CT', seq: '72', color: 'Creme' },
-  { code: 'CU', seq: '73', color: 'Lima' },
-  { code: 'CV', seq: '74', color: 'Transparente' },
-  { code: 'CW', seq: '75', color: 'Marrom Escuro' },
-  { code: 'CX', seq: '', color: 'Café' },
-  { code: 'CY', seq: '', color: 'Natural' },
-  { code: 'CZ', seq: '', color: 'Mascavo' },
-  { code: 'DA', seq: '', color: 'Goiaba' },
-  { code: 'DB', seq: '', color: 'Telha' },
-  { code: 'DC', seq: '', color: 'Nectarine' },
-  { code: 'DD', seq: '', color: 'Látex' }
+  { code: 'AA', color: 'Preto', abbr: 'PTO' },
+  { code: 'AB', color: 'Branco', abbr: 'BCO' },
+  { code: 'AC', color: 'Azul', abbr: 'AZ' },
+  { code: 'AD', color: 'Marinho', abbr: 'MAR' },
+  { code: 'AE', color: 'Cinza', abbr: 'CZ' },
+  { code: 'AF', color: 'Vermelho', abbr: 'VM' },
+  { code: 'AG', color: 'Bege', abbr: 'BGE' },
+  { code: 'AH', color: 'Marrom', abbr: 'MRM' },
+  { code: 'AI', color: 'Verde Militar', abbr: 'VDM' },
+  { code: 'AJ', color: 'Verde', abbr: 'VD' },
+  { code: 'AK', color: 'Bordô', abbr: 'BRD' },
+  { code: 'AL', color: 'Azul Escuro', abbr: 'AZE' },
+  { code: 'AM', color: 'Verde Limão', abbr: 'VDL' },
+  { code: 'AN', color: 'Vinho', abbr: 'VNH' },
+  { code: 'AO', color: 'Azul Claro', abbr: 'AZC' },
+  { code: 'AP', color: 'Azul Royal', abbr: 'AZR' },
+  { code: 'AQ', color: 'Azul Navy', abbr: 'AZN' },
+  { code: 'AR', color: 'Rosa', abbr: 'RS' },
+  { code: 'AS', color: 'Rosa Claro', abbr: 'RSC' },
+  { code: 'AT', color: 'Amarelo', abbr: 'AM' },
+  { code: 'AU', color: 'Amarelo Fluorescente', abbr: 'AMF' },
+  { code: 'AV', color: 'Laranja', abbr: 'LRJ' },
+  { code: 'AW', color: 'Verde Claro', abbr: 'VDC' },
+  { code: 'AX', color: 'Chocolate', abbr: 'CHO' },
+  { code: 'AY', color: 'Caramelo', abbr: 'CRM' },
+  { code: 'AZ', color: 'Cinza Claro', abbr: 'CZC' },
+  { code: 'BA', color: 'Mescla', abbr: 'MES' },
+  { code: 'BB', color: 'Marrom Claro', abbr: 'MRC' },
+  { code: 'BC', color: 'Salmão', abbr: 'SLM' },
+  { code: 'BD', color: 'Coral', abbr: 'CRL' },
+  { code: 'BE', color: 'Vermelho Escuro', abbr: 'VME' },
+  { code: 'BF', color: 'Mostarda', abbr: 'MST' },
+  { code: 'BG', color: 'Cáqui', abbr: 'CAQ' },
+  { code: 'BH', color: 'Nude', abbr: 'BGE' },
+  { code: 'BI', color: 'Champanhe', abbr: 'CHM' },
+  { code: 'BJ', color: 'Lavanda', abbr: 'LVD' },
+  { code: 'BK', color: 'Verde Escuro', abbr: 'VDE' },
+  { code: 'BL', color: 'Verde Água', abbr: 'VDA' },
+  { code: 'BM', color: 'Amarelo Limão', abbr: 'AML' },
+  { code: 'BN', color: 'Azul Turquesa', abbr: 'AZT' },
+  { code: 'BO', color: 'Verde Musgo', abbr: 'VDG' },
+  { code: 'BP', color: 'Grafite', abbr: 'GRF' },
+  { code: 'BQ', color: 'Rosa Neon', abbr: 'RSN' },
+  { code: 'BR', color: 'Jeans', abbr: 'JNS' },
+  { code: 'BS', color: 'Marsala', abbr: 'MSL' },
+  { code: 'BT', color: 'Ouro Velho', abbr: 'ORV' },
+  { code: 'BU', color: 'Azul Petróleo', abbr: 'AZP' },
+  { code: 'BV', color: 'Lilás', abbr: 'LLS' },
+  { code: 'BW', color: 'Pink', abbr: 'PNK' },
+  { code: 'BX', color: 'Vermelho Claro', abbr: 'VMC' },
+  { code: 'BY', color: 'Off White', abbr: 'OFW' },
+  { code: 'BZ', color: 'Rosa Bebê', abbr: 'RSB' },
+  { code: 'CA', color: 'Palha', abbr: 'PLH' },
+  { code: 'CB', color: 'Dourado', abbr: 'DORD' },
+  { code: 'CC', color: 'Roxo', abbr: 'RX' },
+  { code: 'CD', color: 'Amêndoa', abbr: 'AMD' },
+  { code: 'CE', color: 'Areia', abbr: 'ARA' },
+  { code: 'CF', color: 'Verde Oliva', abbr: 'VDO' },
+  { code: 'CG', color: 'Rosa Escuro', abbr: 'RSE' },
+  { code: 'CH', color: 'Tabaco', abbr: 'TBC' },
+  { code: 'CI', color: 'Marfim', abbr: 'MRF' },
+  { code: 'CJ', color: 'Rosê', abbr: 'RSE' },
+  { code: 'CK', color: 'Rubi', abbr: 'RBI' },
+  { code: 'CL', color: 'Prata', abbr: 'PRT' },
+  { code: 'CM', color: 'Sortido', abbr: 'SORT' },
+  { code: 'CN', color: 'Sem cor', abbr: 'SC' },
+  { code: 'CO', color: 'Multicolor', abbr: 'MULT' },
+  { code: 'CP', color: 'Chumbo', abbr: 'CHB' },
+  { code: 'CQ', color: 'Azul Bebe', abbr: 'AZB' },
+  { code: 'CR', color: 'Lotus', abbr: 'LTS' },
+  { code: 'CS', color: 'Cobre', abbr: 'COB' },
+  { code: 'CT', color: 'Creme', abbr: 'CRM' },
+  { code: 'CU', color: 'Lima', abbr: 'LIM' },
+  { code: 'CV', color: 'Transparente', abbr: 'TRP' },
+  { code: 'CW', color: 'Marrom Escuro', abbr: 'MRE' },
+  { code: 'CX', color: 'Café', abbr: 'CFE' },
+  { code: 'CY', color: 'Natural', abbr: 'NAT' },
+  { code: 'CZ', color: 'Mascavo', abbr: 'MSC' },
+  { code: 'DA', color: 'Goiaba', abbr: 'GIB' },
+  { code: 'DB', color: 'Telha', abbr: 'TLH' },
+  { code: 'DC', color: 'Nectarine', abbr: 'NCT' },
+  { code: 'DD', color: 'Látex', abbr: 'LTX' }
 ];
 
 export default function Cadastro() {
@@ -268,7 +268,7 @@ export default function Cadastro() {
   // Filtered SKU color codes
   const filteredSkuColors = SKU_COLOR_CODES.filter(item => {
     const term = skuColorSearch.toLowerCase();
-    return item.code.toLowerCase().includes(term) || item.color.toLowerCase().includes(term) || item.seq.includes(term);
+    return item.code.toLowerCase().includes(term) || item.color.toLowerCase().includes(term) || item.abbr.toLowerCase().includes(term);
   });
 
   return (
@@ -550,25 +550,25 @@ export default function Cadastro() {
             </div>
             
             <div style={{ overflowX: 'auto', maxHeight: '400px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Cor no Fornecedor</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>Cor Padronizada</th>
-                    <th style={{ padding: '10px', textAlign: 'center', fontWeight: 'bold', width: '80px' }}>Ação</th>
+                  <tr>
+                    <th style={{ width: '45%' }}>Cor no Fornecedor</th>
+                    <th style={{ width: '40%' }}>Cor Padronizada</th>
+                    <th style={{ width: '15%', textAlign: 'center' }}>Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSynonyms.length > 0 ? (
                     filteredSynonyms.map(([k, v]) => (
-                      <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 600 }}>{k}</td>
-                        <td style={{ padding: '10px' }}>
+                      <tr key={k}>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{k}</td>
+                        <td>
                           <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #a7f3d0' }}>
                             {v} ({DEFAULT_STANDARD_COLORS[v] || v})
                           </span>
                         </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                        <td style={{ textAlign: 'center' }}>
                           <button 
                             onClick={() => removeSynonym(k)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
@@ -616,26 +616,26 @@ export default function Cadastro() {
           </div>
 
           <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 'bold', width: '150px' }}>CÓDIGO (SKU)</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 'bold', width: '150px' }}>Sequência</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 'bold' }}>Cor</th>
+                <tr>
+                  <th style={{ width: '30%' }}>CÓDIGO (SKU)</th>
+                  <th style={{ width: '40%' }}>Cor</th>
+                  <th style={{ width: '30%' }}>Abreviação</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSkuColors.length > 0 ? (
                   filteredSkuColors.map((item, idx) => (
-                    <tr key={item.code + idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'transparent' : '#fcfcfc' }}>
-                      <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 'bold', color: '#3b82f6', fontSize: '14px' }}>
+                    <tr key={item.code + idx}>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#3b82f6', fontSize: '14px' }}>
                         {item.code}
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#64748b' }}>
-                        {item.seq || '-'}
-                      </td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>
+                      <td style={{ fontWeight: 600 }}>
                         {item.color}
+                      </td>
+                      <td style={{ fontWeight: 'bold', color: '#10b981' }}>
+                        {item.abbr || '-'}
                       </td>
                     </tr>
                   ))
