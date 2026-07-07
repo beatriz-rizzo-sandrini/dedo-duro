@@ -324,7 +324,7 @@ export default function Cobertura() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
-        const skusArray = l.skusArr.map(s => s.toLowerCase());
+        const skusArray = (l.skusArr || []).map(s => s.toLowerCase());
         
         return termos.every(termo => 
           descLower.includes(termo) || 

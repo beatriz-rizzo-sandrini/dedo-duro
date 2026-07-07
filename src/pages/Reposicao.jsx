@@ -318,9 +318,9 @@ export default function Reposicao() {
       });
 
       produtos = produtos.filter(p => {
-        const descLower = p.descricao.toLowerCase();
-        const localLower = p.local.toLowerCase();
-        const skusLower = p.skusArr.map(s => s.toLowerCase());
+        const descLower = (p.descricao || "").toLowerCase();
+        const localLower = (p.local || "").toLowerCase();
+        const skusLower = (p.skusArr || []).map(s => s.toLowerCase());
 
         return termos.every(termo =>
           descLower.includes(termo) ||

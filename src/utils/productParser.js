@@ -105,7 +105,9 @@ const COLOR_ABBR_MAP = {
   'VERMELHA': 'VM', 'VERMELHAS': 'VM',
   'AMARELA': 'AM', 'AMARELAS': 'AM',
   'COLORIDA': 'MULT', 'COLORIDAS': 'MULT', 'COLORIDO': 'MULT', 'COLORIDOS': 'MULT',
-  'MESCLADO': 'MES', 'MESCLADA': 'MES', 'MESCLADOS': 'MES', 'MESCLADAS': 'MES'
+  'MESCLADO': 'MES', 'MESCLADA': 'MES', 'MESCLADOS': 'MES', 'MESCLADAS': 'MES',
+  'CRU': 'CRU', 'TERRACOTA': 'TC', 'TERRACOT': 'TC', 'CAQUI': 'CAQ', 'OCRE': 'OC',
+  'VERDE CLARO': 'VDC', 'VDC': 'VDC'
 };
 
 function isValidSize(val) {
@@ -446,7 +448,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   // Pre-replace multi-word color names with their single-word abbreviations to handle slashes correctly
   const multiWordColors = [
     'AZUL CLARO', 'AZUL ESCURO', 'AZUL ROYAL', 'AZUL NAVY', 'AZUL BEBÊ',
-    'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA',
+    'VERDE MILITAR', 'VERDE LIMÃO', 'VERDE OLIVA', 'VERDE CLARO',
     'ROSA CLARO', 'ROSA ESCURO',
     'MARROM CLARO', 'MARROM ESCURO',
     'OFF WHITE', 'OFF-WHITE',
@@ -642,10 +644,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     }
 
 
-    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|[GPM]|G\d|\d+(?:\/\d+)?)/i;
+    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|EGG|EG|XXG|XGG|XP|XM|G\d|[GPM]|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
 
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+    const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
     const endSizeMatch = baseTitle.match(endSizeRegex);
     if (endSizeMatch && isValidSize(endSizeMatch[1])) {
       baseTitle = baseTitle.replace(endSizeRegex, '');
@@ -666,10 +668,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   } else if (isSandriniSKU) {
     // Already extracted color and size from SKU!
     // Clean up baseTitle
-    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|[GPM]|G\d|\d+(?:\/\d+)?)/i;
+    const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|EGG|EG|XXG|XGG|XP|XM|G\d|[GPM]|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
 
-    const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+    const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
     const endSizeMatch = baseTitle.match(endSizeRegex);
     if (endSizeMatch && isValidSize(endSizeMatch[1])) {
       baseTitle = baseTitle.replace(endSizeRegex, '');
@@ -690,7 +692,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
         size = sizeMatch[1].toUpperCase();
         baseTitle = baseTitle.replace(sizeRegex, '').trim();
       } else {
-        const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+        const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
         const endSizeMatch = baseTitle.match(endSizeRegex);
         if (endSizeMatch && isValidSize(endSizeMatch[1])) {
           size = endSizeMatch[1].toUpperCase();
@@ -700,7 +702,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     } else {
       // Remove any size suffix from baseTitle if we already have it pre-extracted
       baseTitle = baseTitle.replace(sizeRegex, '').trim();
-      const endSizeRegex = /\b(G\d|GG|XG|[GPM]|\d{2}(?:\/\d{2})?)$/i;
+      const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
       const endSizeMatch = baseTitle.match(endSizeRegex);
       if (endSizeMatch && isValidSize(endSizeMatch[1])) {
         baseTitle = baseTitle.replace(endSizeRegex, '').trim();
@@ -844,6 +846,23 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       baseTitle = `Kit ${qty} Shorts Sandrini Tactel Elástico (77046)`;
     } else {
       baseTitle = 'Shorts Sandrini Tactel Elástico (77046)';
+    }
+  }
+
+  // Se o título não tiver o número do modelo, mas o SKU contiver o modelo (ex: 2032, 2230, 2170, 2171), nós injetamos no título
+  if (isSandrini) {
+    if (/shorts?/i.test(baseTitle) && /linho/i.test(baseTitle)) {
+      baseTitle = 'Short Sandrini Linho';
+    } else {
+      const models = ['2032', '2230', '2170', '2171'];
+      for (const m of models) {
+        if (skuUpper.includes(m) && !baseTitle.includes(m)) {
+          baseTitle = `${baseTitle} ${m}`;
+          break;
+        }
+      }
+      // Normalizar códigos de modelo Sandrini com sufixos de cores agregadas (ex: 2032VD, 2032PT, 2032CR -> 2032)
+      baseTitle = baseTitle.replace(/\b(\d{4})(VD|MA|PT|TC|ML|CQ|CR|OC|AZ|CRU|VDA)\b/gi, '$1');
     }
   }
 

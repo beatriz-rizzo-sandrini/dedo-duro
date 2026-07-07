@@ -259,47 +259,7 @@ export default function Estoque() {
       }
     });
 
-    // 2. Processar itens das planilhas de casa para garantir que apareçam
-    if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
-      Object.entries(buyclockCasaMap).forEach(([sku, info]) => {
-        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
-        if (totalCD === 0) return;
-        const marca = info.brand || 'BUY CLOCK';
-        if (marca) setMarcas.add(marca);
-        if (!matchesBrand(marca)) return;
-
-        const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
-        if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
-        if (!stats[prodKey].cores['PADRAO']) stats[prodKey].cores['PADRAO'] = { cor: 'PADRAO', variacoes: {} };
-        if (!stats[prodKey].cores['PADRAO'].variacoes[sku]) {
-          stats[prodKey].cores['PADRAO'].variacoes[sku] = {
-            tamanho: '', sku, skuPlat: '', estoquePlataforma: 0, valorUnitario: info.cost || 0, vendas: 0, lojaEstoque: 'BUY CLOCK'
-          };
-        }
-      });
-    }
-
-    if (selectedCompany === 'SANDRINI' || selectedCompany === 'TODAS') {
-      Object.entries(sandriniCasaMap).forEach(([sku, info]) => {
-        const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
-        if (totalCD === 0) return;
-        const marca = info.brand || 'SANDRINI';
-        if (marca) setMarcas.add(marca);
-        if (!matchesBrand(marca)) return;
-        if (!matchesCompany('SANDRINI', false)) return;
-
-        const prodKey = `${info.desc || 'Produto S/ Cadastro'}|${marca}`;
-        if (!stats[prodKey]) stats[prodKey] = { descricao: info.desc || 'Produto S/ Cadastro', marca, cores: {} };
-        if (!stats[prodKey].cores['PADRAO']) stats[prodKey].cores['PADRAO'] = { cor: 'PADRAO', variacoes: {} };
-        if (!stats[prodKey].cores['PADRAO'].variacoes[sku]) {
-          stats[prodKey].cores['PADRAO'].variacoes[sku] = {
-            tamanho: '', sku, skuPlat: '', estoquePlataforma: 0, valorUnitario: info.cost || 0, vendas: 0, lojaEstoque: 'SANDRINI'
-          };
-        }
-      });
-    }
-
-    // 3. Incorporar as vendas das planilhas de casa para garantir que apareçam
+    // 2. Incorporar as vendas das planilhas de casa para garantir que apareçam
     if (selectedCompany === 'BUY CLOCK' || selectedCompany === 'TODAS') {
       Object.entries(buyclockCasaMap).forEach(([sku, info]) => {
         const totalCD = (info.estoqueCasa || 0) + (info.expedicao || 0);
@@ -539,7 +499,7 @@ export default function Estoque() {
       const termos = busca.toLowerCase().trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
-        const skusArray = l.skusArr.map(s => s.toLowerCase());
+        const skusArray = (l.skusArr || []).map(s => s.toLowerCase());
 
         return termos.every(termo =>
           descLower.includes(termo) ||

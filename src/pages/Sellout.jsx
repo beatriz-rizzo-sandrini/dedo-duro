@@ -656,7 +656,7 @@ export default function Sellout() {
       if (!busca) return r.vendasFiltradas > 0 || r.totalEstoque > 0;
 
       const termos = busca.toLowerCase().trim().split(/\s+/);
-      const skusArray = r.skusArr.map(s => s.toLowerCase());
+      const skusArray = (r.skusArr || []).map(s => s.toLowerCase());
       const descLower = (r.descricao || "").toLowerCase();
 
       const matchesSearch = termos.every(termo => 
