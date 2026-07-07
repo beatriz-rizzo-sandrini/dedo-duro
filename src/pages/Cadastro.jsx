@@ -2,121 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileEdit, ClipboardCopy, CheckCircle, FileText, Settings, Plus, Trash2, Search, HelpCircle } from 'lucide-react';
 
-const DEFAULT_STANDARD_COLORS = {
-  'PRETO': 'PTO',
-  'BRANCO': 'BCO',
-  'AZUL': 'AZ',
-  'MARINHO': 'MAR',
-  'AZUL MARINHO': 'MAR',
-  'CINZA': 'CZ',
-  'VERMELHO': 'VM',
-  'BEGE': 'BGE',
-  'MARROM': 'MRM',
-  'VERDE MILITAR': 'VDM',
-  'VERDE': 'VD',
-  'BORDÔ': 'BRD',
-  'BORDO': 'BRD',
-  'AZUL ESCURO': 'AZE',
-  'VERDE LIMÃO': 'VDL',
-  'VERDE LIMAO': 'VDL',
-  'VINHO': 'VNH',
-  'AZUL CLARO': 'AZC',
-  'AZUL ROYAL': 'AZR',
-  'AZUL NAVY': 'AZN',
-  'ROSA': 'RS',
-  'ROSA CLARO': 'RSC',
-  'AMARELO': 'AM',
-  'AMARELO FLUORESCENTE': 'AMF',
-  'LARANJA': 'LRJ',
-  'VERDE CLARO': 'VDC',
-  'CHOCOLATE': 'CHO',
-  'CARAMELO': 'CRM',
-  'CINZA CLARO': 'CZC',
-  'MESCLA': 'MES',
-  'MARROM CLARO': 'MRC',
-  'SALMÃO': 'SLM',
-  'SALMAO': 'SLM',
-  'CORAL': 'CRL',
-  'VERMELHO ESCURO': 'VME',
-  'MOSTARDA': 'MST',
-  'CÁQUI': 'CAQ',
-  'CAQUI': 'CAQ',
-  'NUDE': 'BGE',
-  'CHAMPANHE': 'CHM',
-  'LAVANDA': 'LVD',
-  'VERDE ESCURO': 'VDE',
-  'VERDE ÁGUA': 'VDA',
-  'VERDE AGUA': 'VDA',
-  'AMARELO LIMÃO': 'AML',
-  'AMARELO LIMAO': 'AML',
-  'AZUL TURQUESA': 'AZT',
-  'VERDE MUSGO': 'VDG',
-  'GRAFITE': 'GRF',
-  'ROSA NEON': 'RSN',
-  'JEANS': 'JNS',
-  'MARSALA': 'MSL',
-  'OURO VELHO': 'ORV',
-  'AZUL PETRÓLEO': 'AZP',
-  'AZUL PETROLEO': 'AZP',
-  'LILÁS': 'LLS',
-  'LILAS': 'LLS',
-  'PINK': 'PNK',
-  'VERMELHO CLARO': 'VMC',
-  'OFF WHITE': 'OFW',
-  'OFF-WHITE': 'OFW',
-  'OFFWHITE': 'OFW',
-  'ROSA BEBÊ': 'RSB',
-  'ROSA BEBE': 'RSB',
-  'PALHA': 'PLH',
-  'DOURADO': 'DORD',
-  'ROXO': 'RX',
-  'AMÊNDOA': 'AMD',
-  'AMENDOA': 'AMD',
-  'AREIA': 'ARA',
-  'VERDE OLIVA': 'VDO',
-  'ROSA ESCURO': 'RSE',
-  'TABACO': 'TBC',
-  'MARFIM': 'MRF',
-  'ROSÊ': 'RSE',
-  'ROSE': 'RSE',
-  'RUBI': 'RBI',
-  'PRATA': 'PRT',
-  'SORTIDO': 'SORT',
-  'SEM COR': 'SC',
-  'MULTICOLOR': 'MULT',
-  'CHUMBO': 'CHB',
-  'AZUL BEBE': 'AZB',
-  'AZUL BEBÊ': 'AZB',
-  'LOTUS': 'LTS',
-  'COBRE': 'COB',
-  'CREME': 'CRM',
-  'LIMA': 'LIM',
-  'TRANSPARENTE': 'TRP',
-  'MARROM ESCURO': 'MRE',
-  'CAFÉ': 'CFE',
-  'CAFE': 'CFE',
-  'NATURAL': 'NAT',
-  'MASCAVO': 'MSC',
-  'GOIABA': 'GIB',
-  'TELHA': 'TLH',
-  'NECTARINE': 'NCT',
-  'LÁTEX': 'LTX',
-  'LATEX': 'LTX'
-};
-
-const STANDARD_COLOR_OPTIONS = Object.entries(
-  Object.entries(DEFAULT_STANDARD_COLORS).reduce((acc, [colorName, abbr]) => {
-    const existing = acc[abbr];
-    const hasAccent = /[ÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÄËÏÖÜ]/.test(colorName);
-    if (!existing || hasAccent) {
-      acc[abbr] = colorName;
-    }
-    return acc;
-  }, {})
-)
-  .map(([abbr, color]) => ({ color, abbr }))
-  .sort((a, b) => a.color.localeCompare(b.color));
-
 const DEFAULT_COLOR_SYNONYMS = {
   'FLAMINGO SCARLET': 'VERMELHO',
   'FLAMENGOSCARLET': 'VERMELHO',
@@ -269,13 +154,51 @@ export default function Cadastro() {
 
   const [newSynKey, setNewSynKey] = useState('');
   const [newSynVal, setNewSynVal] = useState('PRETO');
+  const [editingSynKey, setEditingSynKey] = useState(null);
   const [isSelectOpen, setIsSelectOpen] = useState(false);
+
+  const [skuColorsList, setSkuColorsList] = useState(() => {
+    const saved = localStorage.getItem('__dedo_duro_sku_color_codes__');
+    return saved ? JSON.parse(saved) : SKU_COLOR_CODES;
+  });
+
+  const [skuCode, setSkuCode] = useState('');
+  const [skuColorName, setSkuColorName] = useState('');
+  const [skuAbbr, setSkuAbbr] = useState('');
+  const [editingSkuCode, setEditingSkuCode] = useState(null);
 
   const [copiedDesc, setCopiedDesc] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('__dedo_duro_color_synonyms__', JSON.stringify(synonyms));
   }, [synonyms]);
+
+  useEffect(() => {
+    localStorage.setItem('__dedo_duro_sku_color_codes__', JSON.stringify(skuColorsList));
+  }, [skuColorsList]);
+
+  const activeStandardColors = {};
+  skuColorsList.forEach(item => {
+    const nameUpper = item.color.toUpperCase();
+    activeStandardColors[nameUpper] = item.abbr.toUpperCase();
+    const unaccented = nameUpper.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (unaccented !== nameUpper) {
+      activeStandardColors[unaccented] = item.abbr.toUpperCase();
+    }
+  });
+
+  const uniqueStandardColors = Object.entries(activeStandardColors).reduce((acc, [colorName, abbr]) => {
+    const existing = acc[abbr];
+    const hasAccent = /[ÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÄËÏÖÜ]/.test(colorName);
+    if (!existing || hasAccent) {
+      acc[abbr] = colorName;
+    }
+    return acc;
+  }, {});
+
+  const standardColorOptions = Object.entries(uniqueStandardColors)
+    .map(([abbr, color]) => ({ color, abbr }))
+    .sort((a, b) => a.color.localeCompare(b.color));
 
   const capitalizeWords = (str) => {
     if (!str) return '';
@@ -298,15 +221,15 @@ export default function Cadastro() {
 
     const blocks = cores.split(/[\/,;]| - /);
     const parsedColors = [];
-    const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
+    const validAbbrs = Object.values(activeStandardColors);
 
     for (const block of blocks) {
       const cleanBlock = block.replace(/-/g, ' ').trim().replace(/\s+/g, ' ').toUpperCase();
       if (!cleanBlock) continue;
 
       let target = synonyms[cleanBlock] || cleanBlock;
-      if (DEFAULT_STANDARD_COLORS[target]) {
-        parsedColors.push(DEFAULT_STANDARD_COLORS[target]);
+      if (activeStandardColors[target]) {
+        parsedColors.push(activeStandardColors[target]);
         continue;
       }
       if (validAbbrs.includes(cleanBlock)) {
@@ -318,10 +241,10 @@ export default function Cadastro() {
       let i = 0;
       while (i < words.length) {
         if (i + 1 < words.length) {
-          const twoWords = `${words[i]} ${words[i+1]}`;
+          const twoWords = `${words[i]} ${words[i + 1]}`;
           let targetTwo = synonyms[twoWords] || twoWords;
-          if (DEFAULT_STANDARD_COLORS[targetTwo]) {
-            parsedColors.push(DEFAULT_STANDARD_COLORS[targetTwo]);
+          if (activeStandardColors[targetTwo]) {
+            parsedColors.push(activeStandardColors[targetTwo]);
             i += 2;
             continue;
           }
@@ -334,8 +257,8 @@ export default function Cadastro() {
 
         const oneWord = words[i];
         let targetOne = synonyms[oneWord] || oneWord;
-        if (DEFAULT_STANDARD_COLORS[targetOne]) {
-          parsedColors.push(DEFAULT_STANDARD_COLORS[targetOne]);
+        if (activeStandardColors[targetOne]) {
+          parsedColors.push(activeStandardColors[targetOne]);
         } else if (validAbbrs.includes(oneWord)) {
           parsedColors.push(oneWord);
         } else {
@@ -365,11 +288,21 @@ export default function Cadastro() {
 
   const addSynonym = () => {
     if (!newSynKey) return;
-    setSynonyms(prev => ({
-      ...prev,
-      [newSynKey.trim().toUpperCase()]: newSynVal.toUpperCase()
-    }));
+    const cleanKey = newSynKey.trim().toUpperCase();
+    const cleanVal = newSynVal.toUpperCase();
+
+    setSynonyms(prev => {
+      const copy = { ...prev };
+      if (editingSynKey && editingSynKey !== cleanKey) {
+        delete copy[editingSynKey];
+      }
+      copy[cleanKey] = cleanVal;
+      return copy;
+    });
+
     setNewSynKey('');
+    setNewSynVal('PRETO');
+    setEditingSynKey(null);
   };
 
   const removeSynonym = (key) => {
@@ -378,6 +311,71 @@ export default function Cadastro() {
       delete copy[key];
       return copy;
     });
+    if (editingSynKey === key) {
+      setNewSynKey('');
+      setNewSynVal('PRETO');
+      setEditingSynKey(null);
+    }
+  };
+
+  const handleEditSynonym = (key, val) => {
+    setNewSynKey(key);
+    setNewSynVal(val);
+    setEditingSynKey(key);
+  };
+
+  const handleCancelSynEdit = () => {
+    setNewSynKey('');
+    setNewSynVal('PRETO');
+    setEditingSynKey(null);
+  };
+
+  const handleSaveSkuColor = () => {
+    if (!skuCode || !skuColorName || !skuAbbr) return;
+    const codeUpper = skuCode.trim().toUpperCase();
+    const nameCap = capitalizeWords(skuColorName);
+    const abbrUpper = skuAbbr.trim().toUpperCase();
+
+    setSkuColorsList(prev => {
+      let updated = [...prev];
+      if (editingSkuCode) {
+        updated = updated.map(item =>
+          item.code === editingSkuCode ? { code: codeUpper, color: nameCap, abbr: abbrUpper } : item
+        );
+      } else {
+        const exists = updated.some(item => item.code === codeUpper);
+        if (exists) {
+          alert('Já existe um cadastro com este código SKU!');
+          return prev;
+        }
+        updated.push({ code: codeUpper, color: nameCap, abbr: abbrUpper });
+      }
+      return updated;
+    });
+
+    setSkuCode('');
+    setSkuColorName('');
+    setSkuAbbr('');
+    setEditingSkuCode(null);
+  };
+
+  const handleEditSkuColor = (item) => {
+    setSkuCode(item.code);
+    setSkuColorName(item.color);
+    setSkuAbbr(item.abbr);
+    setEditingSkuCode(item.code);
+  };
+
+  const handleDeleteSkuColor = (code) => {
+    if (window.confirm('Deseja realmente remover esta cor do SKU?')) {
+      setSkuColorsList(prev => prev.filter(item => item.code !== code));
+      if (editingSkuCode === code) {
+        setSkuCode('');
+        setSkuColorName('');
+        setSkuAbbr('');
+        setEditingSkuCode(null);
+      }
+    }
   };
 
   const filteredSynonyms = Object.entries(synonyms).filter(([k, v]) => {
@@ -385,7 +383,7 @@ export default function Cadastro() {
     return k.toLowerCase().includes(term) || v.toLowerCase().includes(term);
   });
 
-  const filteredSkuColors = SKU_COLOR_CODES.filter(item => {
+  const filteredSkuColors = skuColorsList.filter(item => {
     const term = skuColorSearch.toLowerCase();
     return item.code.toLowerCase().includes(term) || item.color.toLowerCase().includes(term) || item.abbr.toLowerCase().includes(term);
   });
@@ -593,7 +591,7 @@ export default function Cadastro() {
 
           <h3 style={{ color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginTop: '30px' }}>3. Regras de Ouro</h3>
           <ul style={{ paddingLeft: '20px', lineHeight: '2', color: '#475569', fontSize: '13.5px' }}>
-            <li><strong>Ordem das Palavras:</strong> Sempre inicie com o Tipo do produto, seguido pela Marca e depois o Modelo (ex: <code>Tenis Fila Ride 2</code>, nunca <code>Fila Tenis...</code>).</li>
+            <li><strong>Ordem das Palavras:</strong> Sempre inicie com o tipo do produto, seguido pela Marca e depois o Modelo (ex: <code>Tenis Fila Ride 2</code>, nunca <code>Fila Tenis...</code>).</li>
             <li><strong>Código de Referência:</strong> Deve ser colocado após o modelo em parênteses (ex: <code>Tenis Fila Ride 2 (F02TR00072)</code>).</li>
             <li><strong>Cores Limites:</strong> No máximo 3 cores, separadas por barra literal (ex: <code>PTO/BCO/VM</code>). Evite usar conjunções como "e".</li>
             <li><strong>Tamanho:</strong> Deve estar obrigatoriamente no final da string precedido por "Tam " (ex: <code>Tam 42</code> ou <code>Tam GG</code>).</li>
@@ -606,15 +604,17 @@ export default function Cadastro() {
       {activeTab === 'mapeador' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
           <div style={{ flex: '1 1 300px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', height: 'fit-content' }}>
-            <h3 style={{ marginTop: 0, color: '#1e293b' }}>Cadastrar Equivalência</h3>
+            <h3 style={{ marginTop: 0, color: '#1e293b' }}>
+              {editingSynKey ? 'Editar Equivalência' : 'Cadastrar Equivalência'}
+            </h3>
             <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '20px' }}>Adicione mapeamentos de cores fornecidas pela nota fiscal que devem se tornar cores padrão no sistema.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cor no Fornecedor</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
+                <input
+                  type="text"
+                  className="input-padrao"
                   placeholder="Ex: FLAMINGO SCARLET"
                   value={newSynKey}
                   onChange={(e) => setNewSynKey(e.target.value)}
@@ -623,7 +623,7 @@ export default function Cadastro() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cor Padronizada</label>
-                
+
                 <button
                   type="button"
                   onClick={() => setIsSelectOpen(!isSelectOpen)}
@@ -639,14 +639,14 @@ export default function Cadastro() {
                   }}
                 >
                   <span>
-                    {newSynVal} ({DEFAULT_STANDARD_COLORS[newSynVal] || STANDARD_COLOR_OPTIONS.find(o => o.color === newSynVal)?.abbr || ''})
+                    {newSynVal} ({activeStandardColors[newSynVal] || standardColorOptions.find(o => o.color === newSynVal)?.abbr || ''})
                   </span>
                   <span style={{ fontSize: '10px', color: '#64748b' }}>▼</span>
                 </button>
 
                 {isSelectOpen && (
                   <>
-                    <div 
+                    <div
                       style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
                       onClick={() => setIsSelectOpen(false)}
                     />
@@ -667,7 +667,7 @@ export default function Cadastro() {
                         padding: '6px'
                       }}
                     >
-                      {STANDARD_COLOR_OPTIONS.map(opt => (
+                      {standardColorOptions.map(opt => (
                         <div
                           key={opt.abbr}
                           onClick={() => {
@@ -709,9 +709,24 @@ export default function Cadastro() {
                 )}
               </div>
 
-              <button className="btn-padrao" onClick={addSynonym} style={{ width: '100%', justifyContent: 'center', gap: '8px', marginTop: '10px' }}>
-                <Plus size={16} /> Adicionar Regra
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button
+                  className="btn-padrao"
+                  onClick={addSynonym}
+                  style={{ flex: 1, justifyContent: 'center', gap: '8px' }}
+                >
+                  {editingSynKey ? 'Salvar Regra' : <><Plus size={16} /> Adicionar Regra</>}
+                </button>
+                {editingSynKey && (
+                  <button
+                    className="btn-padrao"
+                    onClick={handleCancelSynEdit}
+                    style={{ background: '#ef4444', borderColor: '#ef4444', color: 'white', flex: 1, justifyContent: 'center' }}
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -736,9 +751,9 @@ export default function Cadastro() {
               <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '45%' }}>Cor no Fornecedor</th>
+                    <th style={{ width: '40%' }}>Cor no Fornecedor</th>
                     <th style={{ width: '40%' }}>Cor Padronizada</th>
-                    <th style={{ width: '15%', textAlign: 'center' }}>Ação</th>
+                    <th style={{ width: '20%', textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -748,16 +763,26 @@ export default function Cadastro() {
                         <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{k}</td>
                         <td>
                           <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #a7f3d0' }}>
-                            {v} ({DEFAULT_STANDARD_COLORS[v] || v})
+                            {v} ({activeStandardColors[v] || v})
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button
-                            onClick={() => removeSynonym(k)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => handleEditSynonym(k, v)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}
+                              title="Editar"
+                            >
+                              <FileEdit size={16} />
+                            </button>
+                            <button
+                              onClick={() => removeSynonym(k)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -777,59 +802,147 @@ export default function Cadastro() {
       )}
 
       {activeTab === 'tabelasku' && (
-        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-            <div>
-              <h3 style={{ margin: 0, color: '#1e293b' }}>Códigos de Cores para Formação de SKU</h3>
-              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>Use esta tabela de consulta para encontrar o código de 2 letras que deve ser inserido no SKU da Sênior.</p>
-            </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+          <div style={{ flex: '1 1 300px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', height: 'fit-content' }}>
+            <h3 style={{ marginTop: 0, color: '#1e293b' }}>
+              {editingSkuCode ? 'Editar Cor SKU' : 'Cadastrar Cor SKU'}
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '20px' }}>Adicione ou edite códigos SKU, cores oficiais e abreviações para o assistente.</p>
 
-            <div style={{ position: 'relative', width: '250px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-              <input
-                type="text"
-                placeholder="Buscar por cor ou código..."
-                className="input-padrao"
-                style={{ paddingLeft: '38px', height: '38px', fontSize: '13px', width: '100%' }}
-                value={skuColorSearch}
-                onChange={(e) => setSkuColorSearch(e.target.value)}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Código SKU (2 letras)</label>
+                <input
+                  type="text"
+                  className="input-padrao"
+                  placeholder="Ex: DA"
+                  value={skuCode}
+                  maxLength={2}
+                  onChange={(e) => setSkuCode(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Nome da Cor</label>
+                <input
+                  type="text"
+                  className="input-padrao"
+                  placeholder="Ex: Goiaba"
+                  value={skuColorName}
+                  onChange={(e) => setSkuColorName(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Abreviação</label>
+                <input
+                  type="text"
+                  className="input-padrao"
+                  placeholder="Ex: GIB"
+                  value={skuAbbr}
+                  onChange={(e) => setSkuAbbr(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button
+                  className="btn-padrao"
+                  onClick={handleSaveSkuColor}
+                  style={{ flex: 1, justifyContent: 'center', gap: '8px' }}
+                >
+                  {editingSkuCode ? 'Salvar Cor' : <><Plus size={16} /> Adicionar Cor</>}
+                </button>
+                {editingSkuCode && (
+                  <button
+                    className="btn-padrao"
+                    onClick={() => {
+                      setSkuCode('');
+                      setSkuColorName('');
+                      setSkuAbbr('');
+                      setEditingSkuCode(null);
+                    }}
+                    style={{ background: '#ef4444', borderColor: '#ef4444', color: 'white', flex: 1, justifyContent: 'center' }}
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
-            <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '30%' }}>CÓDIGO (SKU)</th>
-                  <th style={{ width: '40%' }}>Cor</th>
-                  <th style={{ width: '30%' }}>Abreviação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSkuColors.length > 0 ? (
-                  filteredSkuColors.map((item, idx) => (
-                    <tr key={item.code + idx}>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#3b82f6', fontSize: '14px' }}>
-                        {item.code}
-                      </td>
-                      <td style={{ fontWeight: 600 }}>
-                        {item.color}
-                      </td>
-                      <td style={{ fontWeight: 'bold', color: '#10b981' }}>
-                        {item.abbr || '-'}
+          <div style={{ flex: '1 1 500px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#1e293b' }}>Códigos de Cores para Formação de SKU</h3>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>Tabela de consulta e cadastro de siglas SKU da Sênior.</p>
+              </div>
+
+              <div style={{ position: 'relative', width: '200px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  className="input-padrao"
+                  style={{ paddingLeft: '38px', height: '38px', fontSize: '13px', width: '100%' }}
+                  value={skuColorSearch}
+                  onChange={(e) => setSkuColorSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
+              <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '25%' }}>CÓDIGO (SKU)</th>
+                    <th style={{ width: '35%' }}>Cor</th>
+                    <th style={{ width: '25%' }}>Abreviação</th>
+                    <th style={{ width: '15%', textAlign: 'center' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSkuColors.length > 0 ? (
+                    filteredSkuColors.map((item, idx) => (
+                      <tr key={item.code + idx}>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#3b82f6', fontSize: '14px' }}>
+                          {item.code}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>
+                          {item.color}
+                        </td>
+                        <td style={{ fontWeight: 'bold', color: '#10b981' }}>
+                          {item.abbr || '-'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => handleEditSkuColor(item)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}
+                              title="Editar"
+                            >
+                              <FileEdit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSkuColor(item.code)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                        Nenhuma cor ou código encontrado para a busca realizada.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                      Nenhuma cor ou código encontrado para a busca realizada.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
