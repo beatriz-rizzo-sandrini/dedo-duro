@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileEdit, ClipboardCopy, CheckCircle, FileText, Settings, Plus, Trash2, Search, HelpCircle } from 'lucide-react';
 
-// Standard color list from the official guidelines
 const DEFAULT_STANDARD_COLORS = {
   'PRETO': 'PTO',
   'BRANCO': 'BCO',
@@ -27,7 +26,6 @@ const DEFAULT_STANDARD_COLORS = {
   'VERDE MILITAR': 'VDM'
 };
 
-// Initial synonym mapping for specific supplier colors
 const DEFAULT_COLOR_SYNONYMS = {
   'FLAMINGO SCARLET': 'VERMELHO',
   'FLAMENGOSCARLET': 'VERMELHO',
@@ -53,7 +51,6 @@ const DEFAULT_COLOR_SYNONYMS = {
   'ROXO': 'AZUL'
 };
 
-// Color codes used to form the SKU
 const SKU_COLOR_CODES = [
   { code: 'AA', color: 'Preto', abbr: 'PTO' },
   { code: 'AB', color: 'Branco', abbr: 'BCO' },
@@ -141,8 +138,7 @@ const SKU_COLOR_CODES = [
 
 export default function Cadastro() {
   const [activeTab, setActiveTab] = useState('assistente');
-  
-  // Fields for manual input
+
   const [tipo, setTipo] = useState('');
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
@@ -150,11 +146,9 @@ export default function Cadastro() {
   const [cores, setCores] = useState('');
   const [tamanho, setTamanho] = useState('');
 
-  // Searches
   const [synonymSearch, setSynonymSearch] = useState('');
   const [skuColorSearch, setSkuColorSearch] = useState('');
 
-  // Color synonyms state
   const [synonyms, setSynonyms] = useState(() => {
     const saved = localStorage.getItem('__dedo_duro_color_synonyms__');
     return saved ? JSON.parse(saved) : DEFAULT_COLOR_SYNONYMS;
@@ -169,7 +163,6 @@ export default function Cadastro() {
     localStorage.setItem('__dedo_duro_color_synonyms__', JSON.stringify(synonyms));
   }, [synonyms]);
 
-  // Helper to capitalize each word cleanly
   const capitalizeWords = (str) => {
     if (!str) return '';
     return str
@@ -183,35 +176,29 @@ export default function Cadastro() {
       .join(' ');
   };
 
-  // Output Standardized Text
   const formatStandardDescription = () => {
     const cleanTipo = capitalizeWords(tipo);
     const cleanMarca = capitalizeWords(marca);
     const cleanModelo = capitalizeWords(modelo);
     const cleanSize = tamanho.trim().toUpperCase();
-    
-    // Process core colors to their abbreviations
+
     const cleanCores = cores
       .split(/[\/,;]| - /)
       .map(c => {
         const u = c.trim().replace(/\s+/g, ' ').toUpperCase();
         if (!u) return '';
-        
-        // 1. Check custom synonyms first
+
         let targetColor = synonyms[u] || u;
-        
-        // 2. Check standard colors map
+
         if (DEFAULT_STANDARD_COLORS[targetColor]) {
           return DEFAULT_STANDARD_COLORS[targetColor];
         }
-        
-        // 3. If it's already a valid abbreviation, keep it
+
         const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
         if (validAbbrs.includes(u)) {
           return u;
         }
 
-        // 4. Try word-by-word matching if it's a multi-word typed color
         const words = u.split(/\s+/);
         for (const w of words) {
           let wordTarget = synonyms[w] || w;
@@ -222,17 +209,17 @@ export default function Cadastro() {
             return w;
           }
         }
-        
+
         return u;
       })
       .filter(Boolean)
       .slice(0, 3)
       .join('/');
-    
+
     const refPart = referencia ? ` (${referencia.trim().toUpperCase()})` : '';
     const colorPart = cleanCores ? ` ${cleanCores}` : '';
     const sizePart = cleanSize ? ` Tam ${cleanSize}` : '';
-    
+
     return `${cleanTipo} ${cleanMarca} ${cleanModelo}${refPart}${colorPart}${sizePart}`.replace(/\s+/g, ' ').trim();
   };
 
@@ -259,13 +246,11 @@ export default function Cadastro() {
     });
   };
 
-  // Filtered color synonyms
   const filteredSynonyms = Object.entries(synonyms).filter(([k, v]) => {
     const term = synonymSearch.toLowerCase();
     return k.toLowerCase().includes(term) || v.toLowerCase().includes(term);
   });
 
-  // Filtered SKU color codes
   const filteredSkuColors = SKU_COLOR_CODES.filter(item => {
     const term = skuColorSearch.toLowerCase();
     return item.code.toLowerCase().includes(term) || item.color.toLowerCase().includes(term) || item.abbr.toLowerCase().includes(term);
@@ -280,9 +265,8 @@ export default function Cadastro() {
         </div>
       </div>
 
-      {/* Tabs Menu */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #e2e8f0', marginBottom: '24px', paddingBottom: '1px' }}>
-        <button 
+        <button
           onClick={() => setActiveTab('assistente')}
           style={{
             padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
@@ -292,7 +276,7 @@ export default function Cadastro() {
         >
           <FileEdit size={16} style={{ marginRight: '6px', display: 'inline' }} /> Assistente de Cadastro
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('guia')}
           style={{
             padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
@@ -302,7 +286,7 @@ export default function Cadastro() {
         >
           <FileText size={16} style={{ marginRight: '6px', display: 'inline' }} /> Guia de Regras
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('mapeador')}
           style={{
             padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
@@ -312,7 +296,7 @@ export default function Cadastro() {
         >
           <Settings size={16} style={{ marginRight: '6px', display: 'inline' }} /> Mapeador de Cores
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('tabelasku')}
           style={{
             padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
@@ -324,92 +308,88 @@ export default function Cadastro() {
         </button>
       </div>
 
-      {/* Tab: Assistente */}
       {activeTab === 'assistente' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-          
-          {/* Manual Input Form */}
           <div style={{ flex: '1 1 500px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b' }}>
               Preencher Campos do Produto
             </h3>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TIPO (EX: TENIS, CAMISETA)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={tipo} 
-                  onChange={(e) => setTipo(e.target.value)} 
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={tipo}
+                  onChange={(e) => setTipo(e.target.value)}
                   placeholder="Tenis, Camiseta, Shorts..."
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MARCA (EX: FILA, SANDRINI)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={marca} 
-                  onChange={(e) => setMarca(e.target.value)} 
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={marca}
+                  onChange={(e) => setMarca(e.target.value)}
                   placeholder="Fila, Adidas, Sandrini..."
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MODELO (EX: RIDE 2, LINHO)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={modelo} 
-                  onChange={(e) => setModelo(e.target.value)} 
-                  placeholder="Ride 2, Linho 2032..."
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MODELO (EX: AERO SPARK, LINHO)</label>
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={modelo}
+                  onChange={(e) => setModelo(e.target.value)}
+                  placeholder="Ride 2, Aero Spark..."
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>REFERÊNCIA (OPCIONAL)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={referencia} 
-                  onChange={(e) => setReferencia(e.target.value)} 
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={referencia}
+                  onChange={(e) => setReferencia(e.target.value)}
                   placeholder="F02TR00072..."
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SIGLAS DAS CORES (MAX 3 - SEP. POR BARRA)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={cores} 
-                  onChange={(e) => setCores(e.target.value)} 
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={cores}
+                  onChange={(e) => setCores(e.target.value)}
                   placeholder="Ex: PTO/BCO/VM"
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TAMANHO</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
-                  value={tamanho} 
-                  onChange={(e) => setTamanho(e.target.value)} 
+                <input
+                  type="text"
+                  className="input-padrao"
+                  value={tamanho}
+                  onChange={(e) => setTamanho(e.target.value)}
                   placeholder="Ex: 37, M, GG"
                 />
               </div>
             </div>
           </div>
 
-          {/* Standard Title Card Output */}
           <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <h3 style={{ margin: 0, color: '#1e293b' }}>Descrição Padronizada</h3>
-              
+
               <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontWeight: 600, fontSize: '16px', color: '#1e293b', lineHeight: '1.4' }}>
                 {formatStandardDescription() || 'Preencha os campos para visualizar a descrição padronizada...'}
               </div>
 
-              <button 
-                className="btn-padrao" 
-                onClick={handleCopyDescription} 
+              <button
+                className="btn-padrao"
+                onClick={handleCopyDescription}
                 disabled={!tipo && !marca && !modelo}
                 style={{ width: '100%', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '14px' }}
               >
@@ -422,11 +402,10 @@ export default function Cadastro() {
         </div>
       )}
 
-      {/* Tab: Guia de Regras */}
       {activeTab === 'guia' && (
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
           <h2 style={{ marginTop: 0, color: '#1e293b', borderBottom: '2px solid #ef4444', paddingBottom: '10px' }}>Guia Oficial de Cadastro: Sandrini</h2>
-          
+
           <div style={{ background: '#f8fafc', borderLeft: '4px solid #ef4444', padding: '16px', borderRadius: '0 8px 8px 0', margin: '20px 0', fontSize: '14px', color: '#475569' }}>
             <strong>Por que padronizar?</strong> Nossas descrições vão para a Nota Fiscal (NF-e), E-commerce e Dashboards internos. Um padrão limpo melhora a busca dos clientes, evita problemas de logística e organiza os relatórios.
           </div>
@@ -490,11 +469,8 @@ export default function Cadastro() {
         </div>
       )}
 
-      {/* Tab: Mapeador de Cores */}
       {activeTab === 'mapeador' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-          
-          {/* Add Synonym Form */}
           <div style={{ flex: '1 1 300px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', height: 'fit-content' }}>
             <h3 style={{ marginTop: 0, color: '#1e293b' }}>Cadastrar Equivalência</h3>
             <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '20px' }}>Adicione mapeamentos de cores fornecidas pela nota fiscal que devem se tornar cores padrão no sistema.</p>
@@ -502,9 +478,9 @@ export default function Cadastro() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>COR DO FORNECEDOR (EX: FLAMINGO SCARLET)</label>
-                <input 
-                  type="text" 
-                  className="input-padrao" 
+                <input
+                  type="text"
+                  className="input-padrao"
                   placeholder="Ex: FLAMINGO SCARLET"
                   value={newSynKey}
                   onChange={(e) => setNewSynKey(e.target.value)}
@@ -513,7 +489,7 @@ export default function Cadastro() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>COR PADRÃO DESEJADA</label>
-                <select 
+                <select
                   className="input-padrao"
                   value={newSynVal}
                   onChange={(e) => setNewSynVal(e.target.value)}
@@ -531,14 +507,13 @@ export default function Cadastro() {
             </div>
           </div>
 
-          {/* List of Custom Synonyms with Search */}
           <div style={{ flex: '1 1 500px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, color: '#1e293b' }}>Tabela de Equivalência Ativa</h3>
-              
+
               <div style={{ position: 'relative', width: '200px' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }} />
-                <input 
+                <input
                   type="text"
                   placeholder="Buscar cor..."
                   className="input-padrao"
@@ -548,7 +523,7 @@ export default function Cadastro() {
                 />
               </div>
             </div>
-            
+
             <div style={{ overflowX: 'auto', maxHeight: '400px' }}>
               <table className="data-table" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
@@ -569,7 +544,7 @@ export default function Cadastro() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button 
+                          <button
                             onClick={() => removeSynonym(k)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
                           >
@@ -593,7 +568,6 @@ export default function Cadastro() {
         </div>
       )}
 
-      {/* Tab: Tabela de Cores (SKU) */}
       {activeTab === 'tabelasku' && (
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
@@ -601,10 +575,10 @@ export default function Cadastro() {
               <h3 style={{ margin: 0, color: '#1e293b' }}>Códigos de Cores para Formação de SKU</h3>
               <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>Use esta tabela de consulta para encontrar o código de 2 letras que deve ser inserido no SKU da Sênior.</p>
             </div>
-            
+
             <div style={{ position: 'relative', width: '250px' }}>
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-              <input 
+              <input
                 type="text"
                 placeholder="Buscar por cor ou código..."
                 className="input-padrao"
