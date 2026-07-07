@@ -189,8 +189,35 @@ export default function Cadastro() {
     const cleanModelo = capitalizeWords(modelo);
     const cleanSize = tamanho.trim().toUpperCase();
     
+    // Process core colors to their abbreviations
+    const cleanCores = cores
+      .split(/[\/,;]| - /)
+      .map(c => {
+        const u = c.trim().replace(/\s+/g, ' ').toUpperCase();
+        if (!u) return '';
+        
+        // 1. Check custom synonyms first
+        let targetColor = synonyms[u] || u;
+        
+        // 2. Check standard colors map
+        if (DEFAULT_STANDARD_COLORS[targetColor]) {
+          return DEFAULT_STANDARD_COLORS[targetColor];
+        }
+        
+        // 3. If it's already a valid abbreviation, keep it
+        const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
+        if (validAbbrs.includes(u)) {
+          return u;
+        }
+        
+        return u;
+      })
+      .filter(Boolean)
+      .slice(0, 3)
+      .join('/');
+    
     const refPart = referencia ? ` (${referencia.trim().toUpperCase()})` : '';
-    const colorPart = cores ? ` ${cores.trim().toUpperCase()}` : '';
+    const colorPart = cleanCores ? ` ${cleanCores}` : '';
     const sizePart = cleanSize ? ` Tam ${cleanSize}` : '';
     
     return `${cleanTipo} ${cleanMarca} ${cleanModelo}${refPart}${colorPart}${sizePart}`.replace(/\s+/g, ' ').trim();
