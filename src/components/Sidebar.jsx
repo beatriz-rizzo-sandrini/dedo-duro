@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet, Users, LogOut, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Layers, Box, Tags, Truck, Bell, Activity, ChevronLeft, ChevronRight, Menu, X, FileSpreadsheet, Users, LogOut, Sun, Moon, ClipboardList } from 'lucide-react';
 import { useCompany } from '../contexts/CompanyContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './Sidebar.css';
@@ -45,6 +45,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { to: "/sellout", icon: <Activity size={20} />, label: "Sellout" },
     { to: "/alertas", icon: <Bell size={20} />, label: "Alertas" },
     { to: "/planilha", icon: <FileSpreadsheet size={20} />, label: "Pedidos" },
+    { to: "/cadastro", icon: <ClipboardList size={20} />, label: "Cadastro" },
   ];
 
   // Adiciona a página de Usuários para administradores e gestores
