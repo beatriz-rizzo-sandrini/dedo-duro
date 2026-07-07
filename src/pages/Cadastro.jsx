@@ -282,36 +282,56 @@ export default function Cadastro() {
     const cleanModelo = capitalizeWords(modelo);
     const cleanSize = tamanho.trim().toUpperCase();
 
-    const cleanCores = cores
-      .split(/[\/,;]| - /)
-      .map(c => {
-        const u = c.replace(/-/g, ' ').trim().replace(/\s+/g, ' ').toUpperCase();
-        if (!u) return '';
+    const blocks = cores.split(/[\/,;]| - /);
+    const parsedColors = [];
+    const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
 
-        let targetColor = synonyms[u] || u;
+    for (const block of blocks) {
+      const cleanBlock = block.replace(/-/g, ' ').trim().replace(/\s+/g, ' ').toUpperCase();
+      if (!cleanBlock) continue;
 
-        if (DEFAULT_STANDARD_COLORS[targetColor]) {
-          return DEFAULT_STANDARD_COLORS[targetColor];
-        }
+      let target = synonyms[cleanBlock] || cleanBlock;
+      if (DEFAULT_STANDARD_COLORS[target]) {
+        parsedColors.push(DEFAULT_STANDARD_COLORS[target]);
+        continue;
+      }
+      if (validAbbrs.includes(cleanBlock)) {
+        parsedColors.push(cleanBlock);
+        continue;
+      }
 
-        const validAbbrs = Object.values(DEFAULT_STANDARD_COLORS);
-        if (validAbbrs.includes(u)) {
-          return u;
-        }
-
-        const words = u.split(/\s+/);
-        for (const w of words) {
-          let wordTarget = synonyms[w] || w;
-          if (DEFAULT_STANDARD_COLORS[wordTarget]) {
-            return DEFAULT_STANDARD_COLORS[wordTarget];
+      const words = cleanBlock.split(/\s+/);
+      let i = 0;
+      while (i < words.length) {
+        if (i + 1 < words.length) {
+          const twoWords = `${words[i]} ${words[i+1]}`;
+          let targetTwo = synonyms[twoWords] || twoWords;
+          if (DEFAULT_STANDARD_COLORS[targetTwo]) {
+            parsedColors.push(DEFAULT_STANDARD_COLORS[targetTwo]);
+            i += 2;
+            continue;
           }
-          if (validAbbrs.includes(w)) {
-            return w;
+          if (validAbbrs.includes(twoWords)) {
+            parsedColors.push(twoWords);
+            i += 2;
+            continue;
           }
         }
 
-        return u;
-      })
+        const oneWord = words[i];
+        let targetOne = synonyms[oneWord] || oneWord;
+        if (DEFAULT_STANDARD_COLORS[targetOne]) {
+          parsedColors.push(DEFAULT_STANDARD_COLORS[targetOne]);
+        } else if (validAbbrs.includes(oneWord)) {
+          parsedColors.push(oneWord);
+        } else {
+          parsedColors.push(oneWord);
+        }
+        i += 1;
+      }
+    }
+
+    const cleanCores = parsedColors
       .filter(Boolean)
       .slice(0, 3)
       .join('/');
