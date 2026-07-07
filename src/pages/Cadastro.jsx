@@ -269,6 +269,7 @@ export default function Cadastro() {
 
   const [newSynKey, setNewSynKey] = useState('');
   const [newSynVal, setNewSynVal] = useState('PRETO');
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
 
   const [copiedDesc, setCopiedDesc] = useState(false);
 
@@ -620,18 +621,92 @@ export default function Cadastro() {
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cor Padronizada</label>
-                <select 
+                
+                <button
+                  type="button"
+                  onClick={() => setIsSelectOpen(!isSelectOpen)}
                   className="input-padrao"
-                  value={newSynVal}
-                  onChange={(e) => setNewSynVal(e.target.value)}
-                  style={{ background: 'white' }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'white',
+                    cursor: 'pointer',
+                    width: '100%',
+                    textAlign: 'left'
+                  }}
                 >
-                  {STANDARD_COLOR_OPTIONS.map(opt => (
-                    <option key={opt.abbr} value={opt.color}>{opt.color} ({opt.abbr})</option>
-                  ))}
-                </select>
+                  <span>
+                    {newSynVal} ({DEFAULT_STANDARD_COLORS[newSynVal] || STANDARD_COLOR_OPTIONS.find(o => o.color === newSynVal)?.abbr || ''})
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#64748b' }}>▼</span>
+                </button>
+
+                {isSelectOpen && (
+                  <>
+                    <div 
+                      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                      onClick={() => setIsSelectOpen(false)}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        marginTop: '6px',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                        padding: '6px'
+                      }}
+                    >
+                      {STANDARD_COLOR_OPTIONS.map(opt => (
+                        <div
+                          key={opt.abbr}
+                          onClick={() => {
+                            setNewSynVal(opt.color);
+                            setIsSelectOpen(false);
+                          }}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            color: newSynVal === opt.color ? '#3b82f6' : '#1e293b',
+                            background: newSynVal === opt.color ? '#eff6ff' : 'transparent',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'background-color 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (newSynVal !== opt.color) {
+                              e.currentTarget.style.backgroundColor = '#f8fafc';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (newSynVal !== opt.color) {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                        >
+                          <span>{opt.color}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold', color: newSynVal === opt.color ? '#3b82f6' : '#64748b' }}>
+                            {opt.abbr}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               <button className="btn-padrao" onClick={addSynonym} style={{ width: '100%', justifyContent: 'center', gap: '8px', marginTop: '10px' }}>
