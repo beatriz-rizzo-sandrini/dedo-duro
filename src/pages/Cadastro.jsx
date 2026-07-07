@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, ClipboardCopy, CheckCircle, FileText, Settings, Plus, Trash2, Search, HelpCircle } from 'lucide-react';
+import { FileEdit, ClipboardCopy, CheckCircle, FileText, Settings, Plus, Trash2, Search, HelpCircle } from 'lucide-react';
 
 // Standard color list from the official guidelines
 const DEFAULT_STANDARD_COLORS = {
@@ -290,7 +290,7 @@ export default function Cadastro() {
             color: activeTab === 'assistente' ? '#3b82f6' : '#64748b'
           }}
         >
-          <ClipboardList size={16} style={{ marginRight: '6px', display: 'inline' }} /> Assistente de Cadastro
+          <FileEdit size={16} style={{ marginRight: '6px', display: 'inline' }} /> Assistente de Cadastro
         </button>
         <button 
           onClick={() => setActiveTab('guia')}
