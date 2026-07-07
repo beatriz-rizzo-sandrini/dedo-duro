@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, ClipboardCopy, CheckCircle, RefreshCw, FileText, Settings, HelpCircle, Plus, Trash2, Palette } from 'lucide-react';
-import { toTitleCase } from '../utils/stringUtils';
+import { ClipboardList, ClipboardCopy, CheckCircle, FileText, Settings, Plus, Trash2, Search, HelpCircle } from 'lucide-react';
 
 // Standard color list from the official guidelines
 const DEFAULT_STANDARD_COLORS = {
@@ -50,20 +49,109 @@ const DEFAULT_COLOR_SYNONYMS = {
   'MILITAR': 'VERDE MILITAR',
   'MUSTARD': 'AMARELO',
   'MOSTARDA': 'AMARELO',
-  'ROXO': 'AZUL' // standard color group mapping example
+  'ROXO': 'AZUL'
 };
+
+// Color codes used to form the SKU
+const SKU_COLOR_CODES = [
+  { code: 'AA', seq: '1', color: 'Preto' },
+  { code: 'AB', seq: '2', color: 'Branco' },
+  { code: 'AC', seq: '3', color: 'Azul' },
+  { code: 'AD', seq: '4', color: 'Marinho' },
+  { code: 'AE', seq: '5', color: 'Cinza' },
+  { code: 'AF', seq: '6', color: 'Vermelho' },
+  { code: 'AG', seq: '7', color: 'Bege' },
+  { code: 'AH', seq: '8', color: 'Marrom' },
+  { code: 'AI', seq: '9', color: 'Verde Militar' },
+  { code: 'AJ', seq: '10', color: 'Verde' },
+  { code: 'AK', seq: '11', color: 'Bordô' },
+  { code: 'AL', seq: '12', color: 'Azul Escuro' },
+  { code: 'AM', seq: '13', color: 'Verde Limão' },
+  { code: 'AN', seq: '14', color: 'Vinho' },
+  { code: 'AO', seq: '15', color: 'Azul Claro' },
+  { code: 'AP', seq: '16', color: 'Azul Royal' },
+  { code: 'AQ', seq: '17', color: 'Azul Navy' },
+  { code: 'AR', seq: '18', color: 'Rosa' },
+  { code: 'AS', seq: '19', color: 'Rosa Claro' },
+  { code: 'AT', seq: '20', color: 'Amarelo' },
+  { code: 'AU', seq: '21', color: 'Amarelo Fluorescente' },
+  { code: 'AV', seq: '22', color: 'Laranja' },
+  { code: 'AW', seq: '23', color: 'Verde Claro' },
+  { code: 'AX', seq: '24', color: 'Chocolate' },
+  { code: 'AY', seq: '25', color: 'Caramelo' },
+  { code: 'AZ', seq: '26', color: 'Cinza Claro' },
+  { code: 'BA', seq: '27', color: 'Mescla' },
+  { code: 'BB', seq: '28', color: 'Marrom Claro' },
+  { code: 'BC', seq: '29', color: 'Salmão' },
+  { code: 'BD', style: {}, seq: '30', color: 'Coral' },
+  { code: 'BE', seq: '31', color: 'Vermelho Escuro' },
+  { code: 'BF', seq: '32', color: 'Mostarda' },
+  { code: 'BG', seq: '33', color: 'Cáqui' },
+  { code: 'BH', seq: '34', color: 'Nude' },
+  { code: 'BI', seq: '35', color: 'Champanhe' },
+  { code: 'BJ', seq: '36', color: 'Lavanda' },
+  { code: 'BK', seq: '37', color: 'Verde Escuro' },
+  { code: 'BL', seq: '38', color: 'Verde Água' },
+  { code: 'BM', seq: '39', color: 'Amarelo Limão' },
+  { code: 'BN', seq: '40', color: 'Azul Turquesa' },
+  { code: 'BO', seq: '41', color: 'Verde Musgo' },
+  { code: 'BP', seq: '42', color: 'Grafite' },
+  { code: 'BQ', seq: '43', color: 'Rosa Neon' },
+  { code: 'BR', seq: '44', color: 'Jeans' },
+  { code: 'BS', seq: '45', color: 'Marsala' },
+  { code: 'BT', seq: '46', color: 'Ouro Velho' },
+  { code: 'BU', seq: '47', color: 'Azul Petróleo' },
+  { code: 'BV', seq: '48', color: 'Lilás' },
+  { code: 'BW', seq: '49', color: 'Pink' },
+  { code: 'BX', seq: '50', color: 'Vermelho Claro' },
+  { code: 'BY', seq: '51', color: 'Off White' },
+  { code: 'BZ', seq: '52', color: 'Rosa Bebê' },
+  { code: 'CA', seq: '53', color: 'Palha' },
+  { code: 'CB', seq: '54', color: 'Dourado' },
+  { code: 'CC', seq: '55', color: 'Roxo' },
+  { code: 'CD', seq: '56', color: 'Amêndoa' },
+  { code: 'CE', seq: '57', color: 'Areia' },
+  { code: 'CF', seq: '58', color: 'Verde Oliva' },
+  { code: 'CG', seq: '59', color: 'Rosa Escuro' },
+  { code: 'CH', seq: '60', color: 'Tabaco' },
+  { code: 'CI', seq: '61', color: 'Marfim' },
+  { code: 'CJ', seq: '62', color: 'Rosê' },
+  { code: 'CK', seq: '63', color: 'Rubi' },
+  { code: 'CL', seq: '64', color: 'Prata' },
+  { code: 'CM', seq: '65', color: 'Sortido' },
+  { code: 'CN', seq: '66', color: 'Sem cor' },
+  { code: 'CO', seq: '67', color: 'Multicolor' },
+  { code: 'CP', seq: '68', color: 'Chumbo' },
+  { code: 'CQ', seq: '69', color: 'Azul Bebe' },
+  { code: 'CR', seq: '70', color: 'Lotus' },
+  { code: 'CS', seq: '71', color: 'Cobre' },
+  { code: 'CT', seq: '72', color: 'Creme' },
+  { code: 'CU', seq: '73', color: 'Lima' },
+  { code: 'CV', seq: '74', color: 'Transparente' },
+  { code: 'CW', seq: '75', color: 'Marrom Escuro' },
+  { code: 'CX', seq: '', color: 'Café' },
+  { code: 'CY', seq: '', color: 'Natural' },
+  { code: 'CZ', seq: '', color: 'Mascavo' },
+  { code: 'DA', seq: '', color: 'Goiaba' },
+  { code: 'DB', seq: '', color: 'Telha' },
+  { code: 'DC', seq: '', color: 'Nectarine' },
+  { code: 'DD', seq: '', color: 'Látex' }
+];
 
 export default function Cadastro() {
   const [activeTab, setActiveTab] = useState('assistente');
-  const [rawInput, setRawInput] = useState('');
   
-  // Fields for manual correction & real-time preview
+  // Fields for manual input
   const [tipo, setTipo] = useState('');
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
   const [referencia, setReferencia] = useState('');
   const [cores, setCores] = useState('');
   const [tamanho, setTamanho] = useState('');
+
+  // Searches
+  const [synonymSearch, setSynonymSearch] = useState('');
+  const [skuColorSearch, setSkuColorSearch] = useState('');
 
   // Color synonyms state
   const [synonyms, setSynonyms] = useState(() => {
@@ -75,207 +163,43 @@ export default function Cadastro() {
   const [newSynVal, setNewSynVal] = useState('PRETO');
 
   const [copiedDesc, setCopiedDesc] = useState(false);
-  const [copiedSku, setCopiedSku] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('__dedo_duro_color_synonyms__', JSON.stringify(synonyms));
   }, [synonyms]);
 
-  // Main Parsing Logic
-  const handleParse = (text) => {
-    if (!text) return;
-    
-    let workingText = text.trim().replace(/\s+/g, ' ');
-    const upperText = workingText.toUpperCase();
-
-    // 1. Identify "Tamanho"
-    let parsedSize = '';
-    const sizeRegex = /\b(?:TAM\.?|TAMANHO|Tam:?|tam\.?|Tamanho|CORL)\s*(GG|XG|EGG|EG|XXG|XGG|XP|XM|G\d|[GPM]|\d+(?:\/\d+)?)\b/i;
-    const sizeMatch = workingText.match(sizeRegex);
-    if (sizeMatch) {
-      parsedSize = sizeMatch[1].toUpperCase();
-      workingText = workingText.replace(sizeRegex, '');
-    } else {
-      const endSizeRegex = /\b(G\d|GG|XG|EGG|EG|XXG|XGG|XP|XM|[GPM]|\d{2}(?:\/\d{2})?)$/i;
-      const endSizeMatch = workingText.match(endSizeRegex);
-      if (endSizeMatch) {
-        parsedSize = endSizeMatch[1].toUpperCase();
-        workingText = workingText.replace(endSizeRegex, '');
-      }
-    }
-    if (!parsedSize) parsedSize = 'U';
-
-    // 2. Identify "Referência" (Codes like F02TR00072, U01FB00454, 016RPB21, or terms in parenthesis)
-    let parsedRef = '';
-    const refRegex = /\b([A-Z]\d{2}[A-Z]{1,2}\d{3,5}|\d{2,3}[A-Z]{2,3}\d{2,3}|[A-Z]{2,3}\d{2,5})\b/i;
-    const parenRefRegex = /\(([^)]+)\)/;
-    
-    const parenMatch = workingText.match(parenRefRegex);
-    if (parenMatch) {
-      parsedRef = parenMatch[1].trim().toUpperCase();
-      workingText = workingText.replace(parenRefRegex, '');
-    } else {
-      const refMatch = workingText.match(refRegex);
-      if (refMatch) {
-        parsedRef = refMatch[1].toUpperCase();
-        workingText = workingText.replace(refRegex, '');
-      }
-    }
-
-    // 3. Identify "Marca"
-    let parsedMarca = '';
-    const marcasConhecidas = ['FILA', 'ADIDAS', 'NEW BALANCE', 'OLYMPIKUS', 'PUMA', 'UMBRO', 'SANDRINI', 'RVL', 'BIBI', 'KLIN'];
-    for (const m of marcasConhecidas) {
-      const mRegex = new RegExp(`\\b${m}\\b`, 'i');
-      if (mRegex.test(workingText)) {
-        parsedMarca = m;
-        workingText = workingText.replace(mRegex, '');
-        break;
-      }
-    }
-
-    // 4. Identify "Tipo"
-    let parsedTipo = '';
-    const tiposConhecidos = [
-      { term: 'TENIS', output: 'Tenis' },
-      { term: 'TÊNIS', output: 'Tenis' },
-      { term: 'CHUTEIRA', output: 'Chuteira' },
-      { term: 'CHINELO', output: 'Chinelo' },
-      { term: 'SAPATENIS', output: 'Sapatenis' },
-      { term: 'SAPATÊNIS', output: 'Sapatenis' },
-      { term: 'SANDALIA', output: 'Sandalia' },
-      { term: 'SANDÁLIA', output: 'Sandalia' },
-      { term: 'BOTA', output: 'Bota' },
-      { term: 'CAMISETA REGATA', output: 'Camiseta Regata' },
-      { term: 'REGATA', output: 'Camiseta Regata' },
-      { term: 'CAMISETA', output: 'Camiseta' },
-      { term: 'CAMISA', output: 'Camiseta' },
-      { term: 'SHORTS', output: 'Shorts' },
-      { term: 'SHORT', output: 'Shorts' },
-      { term: 'CALÇA', output: 'Calça' },
-      { term: 'CALCA', output: 'Calça' },
-      { term: 'CUECA', output: 'Cueca' },
-      { term: 'MEIA', output: 'Meia' }
-    ];
-
-    // Check if it is a Kit first
-    const isKit = /\bKIT\s*(\d*)\b/i.test(workingText);
-    let kitQty = '';
-    if (isKit) {
-      const qtyMatch = workingText.match(/\bKIT\s*(\d+)\b/i);
-      kitQty = qtyMatch ? qtyMatch[1] : '';
-      workingText = workingText.replace(/\bKIT\s*(\d*)\b/i, '');
-    }
-
-    for (const t of tiposConhecidos) {
-      const tRegex = new RegExp(`\\b${t.term}\\b`, 'i');
-      if (tRegex.test(workingText)) {
-        parsedTipo = t.output;
-        workingText = workingText.replace(tRegex, '');
-        break;
-      }
-    }
-    if (isKit) {
-      parsedTipo = `Kit ${kitQty || 'X'} ${parsedTipo || 'Unidades'}`.trim();
-    }
-
-    // 5. Identify "Cores"
-    const foundColors = [];
-    const words = workingText.toUpperCase().split(/[\s,;/-]+/);
-    
-    // Look for synonyms or direct colors in standard
-    const allKnownColors = { ...synonyms, ...DEFAULT_STANDARD_COLORS };
-    
-    words.forEach(w => {
-      if (!w) return;
-      // Check multi-word matching or direct matching
-      if (allKnownColors[w]) {
-        const stdColor = allKnownColors[w]; // e.g. "VERMELHO" or "PTO"
-        const abbr = DEFAULT_STANDARD_COLORS[stdColor] || stdColor;
-        if (!foundColors.includes(abbr)) {
-          foundColors.push(abbr);
-        }
-        // Remove word from text
-        const wRegex = new RegExp(`\\b${w}\\b`, 'i');
-        workingText = workingText.replace(wRegex, '');
-      }
-    });
-
-    // Fallback for multi-word supplier color synonyms (e.g. Flamingo Scarlet)
-    Object.keys(synonyms).forEach(syn => {
-      const synRegex = new RegExp(`\\b${syn}\\b`, 'i');
-      if (synRegex.test(workingText)) {
-        const stdColor = synonyms[syn];
-        const abbr = DEFAULT_STANDARD_COLORS[stdColor] || stdColor;
-        if (!foundColors.includes(abbr)) {
-          foundColors.push(abbr);
-        }
-        workingText = workingText.replace(synRegex, '');
-      }
-    });
-
-    // 6. Modelo is the remaining clean text
-    // Clean up residual dashes, commas, spaces
-    let parsedModelo = workingText
-      .replace(/\b(MASCULINO|MASCULINA|FEMININO|FEMININA|UNISEX|UNISSEX|INFANTIL|JUVENIL)\b/gi, '')
-      .replace(/[\s\-,;:/()]+$/, '')
-      .replace(/^[\s\-,;:/()]+/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    parsedModelo = toTitleCase(parsedModelo);
-
-    // Update states
-    setTipo(parsedTipo || 'Produto');
-    setMarca(toTitleCase(parsedMarca) || 'Sandrini');
-    setModelo(parsedModelo || 'Modelo');
-    setReferencia(parsedRef);
-    setCores(foundColors.length > 0 ? foundColors.slice(0, 3).join('/') : 'SORT');
-    setTamanho(parsedSize);
+  // Helper to capitalize each word cleanly
+  const capitalizeWords = (str) => {
+    if (!str) return '';
+    return str
+      .trim()
+      .split(/\s+/)
+      .map(w => {
+        const u = w.toUpperCase();
+        if (['NB', 'FBA', 'RVL', 'BY', 'BZ', 'CA', 'CB', 'CC', 'CD', 'CE', 'CF', 'CG', 'CH', 'CI', 'CJ', 'CK', 'CL', 'CM', 'CN', 'CO', 'CP', 'CQ', 'CR', 'CS', 'CT', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DA', 'DB', 'DC', 'DD'].includes(u)) return u;
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      })
+      .join(' ');
   };
-
-  useEffect(() => {
-    handleParse(rawInput);
-  }, [rawInput]);
 
   // Output Standardized Text
   const formatStandardDescription = () => {
-    const refPart = referencia ? ` (${referencia})` : '';
-    const colorPart = cores ? ` ${cores.toUpperCase()}` : '';
-    const sizePart = tamanho ? ` Tam ${tamanho.toUpperCase()}` : '';
-    return `${tipo} ${marca} ${modelo}${refPart}${colorPart}${sizePart}`.replace(/\s+/g, ' ').trim();
-  };
-
-  // Sugerir SKU para Cadastro
-  const suggestSKU = () => {
-    if (!modelo || !marca) return 'SA0000000000000000000000';
+    const cleanTipo = capitalizeWords(tipo);
+    const cleanMarca = capitalizeWords(marca);
+    const cleanModelo = capitalizeWords(modelo);
+    const cleanSize = tamanho.trim().toUpperCase();
     
-    // Extrar modelo numérico ou gerar abreviação
-    const digitsMatch = modelo.match(/\d+/);
-    let modelCode = digitsMatch ? digitsMatch[0] : '';
-    if (modelCode.length < 4) {
-      modelCode = modelCode.padStart(4, '0');
-    }
+    const refPart = referencia ? ` (${referencia.trim().toUpperCase()})` : '';
+    const colorPart = cores ? ` ${cores.trim().toUpperCase()}` : '';
+    const sizePart = cleanSize ? ` Tam ${cleanSize}` : '';
     
-    const isSandrini = marca.toUpperCase() === 'SANDRINI';
-    const prefix = isSandrini ? 'SA' : 'FL';
-    
-    const cleanColor = cores.split('/')[0] || 'CN';
-    const cleanSize = tamanho.toUpperCase() === 'G' ? '0G' : tamanho.toUpperCase() === 'M' ? '0M' : tamanho.toUpperCase() === 'P' ? '0P' : tamanho.toUpperCase();
-    
-    return `${prefix}000${modelCode.substring(0, 4)}${cleanColor}CNCN0${cleanSize.substring(0, 2)}0000`.toUpperCase();
+    return `${cleanTipo} ${cleanMarca} ${cleanModelo}${refPart}${colorPart}${sizePart}`.replace(/\s+/g, ' ').trim();
   };
 
   const handleCopyDescription = () => {
     navigator.clipboard.writeText(formatStandardDescription());
     setCopiedDesc(true);
     setTimeout(() => setCopiedDesc(false), 2000);
-  };
-
-  const handleCopySku = () => {
-    navigator.clipboard.writeText(suggestSKU());
-    setCopiedSku(true);
-    setTimeout(() => setCopiedSku(false), 2000);
   };
 
   const addSynonym = () => {
@@ -294,6 +218,18 @@ export default function Cadastro() {
       return copy;
     });
   };
+
+  // Filtered color synonyms
+  const filteredSynonyms = Object.entries(synonyms).filter(([k, v]) => {
+    const term = synonymSearch.toLowerCase();
+    return k.toLowerCase().includes(term) || v.toLowerCase().includes(term);
+  });
+
+  // Filtered SKU color codes
+  const filteredSkuColors = SKU_COLOR_CODES.filter(item => {
+    const term = skuColorSearch.toLowerCase();
+    return item.code.toLowerCase().includes(term) || item.color.toLowerCase().includes(term) || item.seq.includes(term);
+  });
 
   return (
     <div className="header-main">
@@ -336,100 +272,113 @@ export default function Cadastro() {
         >
           <Settings size={16} style={{ marginRight: '6px', display: 'inline' }} /> Mapeador de Cores
         </button>
+        <button 
+          onClick={() => setActiveTab('tabelasku')}
+          style={{
+            padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
+            borderBottom: activeTab === 'tabelasku' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: activeTab === 'tabelasku' ? '#3b82f6' : '#64748b'
+          }}
+        >
+          <Search size={16} style={{ marginRight: '6px', display: 'inline' }} /> Tabela de Cores (SKU)
+        </button>
       </div>
 
       {/* Tab: Assistente */}
       {activeTab === 'assistente' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
           
-          {/* Inputs Section */}
+          {/* Manual Input Form */}
           <div style={{ flex: '1 1 500px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b' }}>
-              <RefreshCw size={18} color="#3b82f6" /> Entrada de Dados
+            <h3 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b' }}>
+              Preencher Campos do Produto
             </h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>COLE O TEXTO DA NOTA FISCAL / FORNECEDOR</label>
-                <textarea 
-                  placeholder="Ex: SHORT SANDRINI MASCULINO LINHO 2032VD VERDE CLARO TAM. M"
-                  value={rawInput}
-                  onChange={(e) => setRawInput(e.target.value)}
-                  style={{ width: '100%', height: '80px', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', resize: 'vertical', fontFamily: 'monospace' }}
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TIPO (EX: TENIS, CAMISETA)</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={tipo} 
+                  onChange={(e) => setTipo(e.target.value)} 
+                  placeholder="Tenis, Camiseta, Shorts..."
                 />
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TIPO</label>
-                  <input type="text" className="input-padrao" value={tipo} onChange={(e) => setTipo(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MARCA</label>
-                  <input type="text" className="input-padrao" value={marca} onChange={(e) => setMarca(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MODELO</label>
-                  <input type="text" className="input-padrao" value={modelo} onChange={(e) => setModelo(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>REFERÊNCIA</label>
-                  <input type="text" className="input-padrao" value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="Opcional" />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SIGLAS DAS CORES (MAX 3 - SEP. POR BARRA)</label>
-                  <input type="text" className="input-padrao" value={cores} onChange={(e) => setCores(e.target.value)} placeholder="Ex: PTO/BCO" />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TAMANHO</label>
-                  <input type="text" className="input-padrao" value={tamanho} onChange={(e) => setTamanho(e.target.value)} />
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MARCA (EX: FILA, SANDRINI)</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={marca} 
+                  onChange={(e) => setMarca(e.target.value)} 
+                  placeholder="Fila, Adidas, Sandrini..."
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MODELO (EX: RIDE 2, LINHO)</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={modelo} 
+                  onChange={(e) => setModelo(e.target.value)} 
+                  placeholder="Ride 2, Linho 2032..."
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>REFERÊNCIA (OPCIONAL)</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={referencia} 
+                  onChange={(e) => setReferencia(e.target.value)} 
+                  placeholder="F02TR00072..."
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SIGLAS DAS CORES (MAX 3 - SEP. POR BARRA)</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={cores} 
+                  onChange={(e) => setCores(e.target.value)} 
+                  placeholder="Ex: PTO/BCO/VM"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TAMANHO</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
+                  value={tamanho} 
+                  onChange={(e) => setTamanho(e.target.value)} 
+                  placeholder="Ex: 37, M, GG"
+                />
               </div>
             </div>
           </div>
 
-          {/* Outputs Section */}
-          <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Standard Title Card */}
-            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Standard Title Card Output */}
+          <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <h3 style={{ margin: 0, color: '#1e293b' }}>Descrição Padronizada</h3>
               
-              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', minHeight: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>
-                {formatStandardDescription() || 'Aguardando entrada...'}
+              <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontWeight: 600, fontSize: '16px', color: '#1e293b', lineHeight: '1.4' }}>
+                {formatStandardDescription() || 'Preencha os campos para visualizar a descrição padronizada...'}
               </div>
 
               <button 
                 className="btn-padrao" 
                 onClick={handleCopyDescription} 
-                disabled={!rawInput}
-                style={{ width: '100%', justifyContent: 'center', gap: '8px' }}
+                disabled={!tipo && !marca && !modelo}
+                style={{ width: '100%', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '14px' }}
               >
                 {copiedDesc ? <CheckCircle size={16} /> : <ClipboardCopy size={16} />}
                 {copiedDesc ? 'Copiado!' : 'Copiar Descrição'}
               </button>
             </div>
-
-            {/* Suggested SKU Card */}
-            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <h3 style={{ margin: 0, color: '#1e293b' }}>Sugestão de SKU (Sênior)</h3>
-              
-              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', fontFamily: 'monospace', fontSize: '14px', fontWeight: 'bold', color: '#475569', textAlign: 'center', letterSpacing: '1px' }}>
-                {suggestSKU()}
-              </div>
-
-              <button 
-                className="btn-padrao" 
-                onClick={handleCopySku} 
-                disabled={!rawInput}
-                style={{ width: '100%', justifyContent: 'center', gap: '8px', background: '#475569', borderColor: '#475569' }}
-              >
-                {copiedSku ? <CheckCircle size={16} /> : <ClipboardCopy size={16} />}
-                {copiedSku ? 'Copiado!' : 'Copiar SKU Sugerido'}
-              </button>
-            </div>
-
           </div>
+
         </div>
       )}
 
@@ -542,9 +491,23 @@ export default function Cadastro() {
             </div>
           </div>
 
-          {/* List of Custom Synonyms */}
+          {/* List of Custom Synonyms with Search */}
           <div style={{ flex: '1 1 500px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ marginTop: 0, color: '#1e293b', marginBottom: '16px' }}>Tabela de Equivalência Ativa</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#1e293b' }}>Tabela de Equivalência Ativa</h3>
+              
+              <div style={{ position: 'relative', width: '200px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }} />
+                <input 
+                  type="text"
+                  placeholder="Buscar cor..."
+                  className="input-padrao"
+                  style={{ paddingLeft: '32px', height: '32px', fontSize: '12px', width: '100%' }}
+                  value={synonymSearch}
+                  onChange={(e) => setSynonymSearch(e.target.value)}
+                />
+              </div>
+            </div>
             
             <div style={{ overflowX: 'auto', maxHeight: '400px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -556,29 +519,96 @@ export default function Cadastro() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(synonyms).map(([k, v]) => (
-                    <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 600 }}>{k}</td>
-                      <td style={{ padding: '10px' }}>
-                        <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #a7f3d0' }}>
-                          {v} ({DEFAULT_STANDARD_COLORS[v] || v})
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'center' }}>
-                        <button 
-                          onClick={() => removeSynonym(k)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                  {filteredSynonyms.length > 0 ? (
+                    filteredSynonyms.map(([k, v]) => (
+                      <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 600 }}>{k}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #a7f3d0' }}>
+                            {v} ({DEFAULT_STANDARD_COLORS[v] || v})
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <button 
+                            onClick={() => removeSynonym(k)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+                        Nenhuma equivalência encontrada.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Tab: Tabela de Cores (SKU) */}
+      {activeTab === 'tabelasku' && (
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
+            <div>
+              <h3 style={{ margin: 0, color: '#1e293b' }}>Códigos de Cores para Formação de SKU</h3>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>Use esta tabela de consulta para encontrar o código de 2 letras que deve ser inserido no SKU da Sênior.</p>
+            </div>
+            
+            <div style={{ position: 'relative', width: '250px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
+              <input 
+                type="text"
+                placeholder="Buscar por cor ou código..."
+                className="input-padrao"
+                style={{ paddingLeft: '38px', height: '38px', fontSize: '13px', width: '100%' }}
+                value={skuColorSearch}
+                onChange={(e) => setSkuColorSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 'bold', width: '150px' }}>CÓDIGO (SKU)</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 'bold', width: '150px' }}>Sequência</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 'bold' }}>Cor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSkuColors.length > 0 ? (
+                  filteredSkuColors.map((item, idx) => (
+                    <tr key={item.code + idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'transparent' : '#fcfcfc' }}>
+                      <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 'bold', color: '#3b82f6', fontSize: '14px' }}>
+                        {item.code}
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#64748b' }}>
+                        {item.seq || '-'}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>
+                        {item.color}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                      Nenhuma cor ou código encontrado para a busca realizada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
