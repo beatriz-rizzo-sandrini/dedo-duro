@@ -317,7 +317,7 @@ export default function Cadastro() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TIPO (EX: TENIS, CAMISETA)</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Tipo</label>
                 <input
                   type="text"
                   className="input-padrao"
@@ -327,7 +327,7 @@ export default function Cadastro() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MARCA (EX: FILA, SANDRINI)</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Marca</label>
                 <input
                   type="text"
                   className="input-padrao"
@@ -337,7 +337,7 @@ export default function Cadastro() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>MODELO (EX: AERO SPARK, LINHO)</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Modelo</label>
                 <input
                   type="text"
                   className="input-padrao"
@@ -347,17 +347,17 @@ export default function Cadastro() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>REFERÊNCIA (OPCIONAL)</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Referência (Opcional)</label>
                 <input
                   type="text"
                   className="input-padrao"
                   value={referencia}
                   onChange={(e) => setReferencia(e.target.value)}
-                  placeholder="F02TR00072..."
+                  placeholder="Ex: F02TR00072"
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SIGLAS DAS CORES (MAX 3 - SEP. POR BARRA)</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cores</label>
                 <input
                   type="text"
                   className="input-padrao"
@@ -367,7 +367,7 @@ export default function Cadastro() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TAMANHO</label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Tamanho</label>
                 <input
                   type="text"
                   className="input-padrao"
