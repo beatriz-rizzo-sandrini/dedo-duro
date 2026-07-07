@@ -104,6 +104,19 @@ const DEFAULT_STANDARD_COLORS = {
   'LATEX': 'LTX'
 };
 
+const STANDARD_COLOR_OPTIONS = Object.entries(
+  Object.entries(DEFAULT_STANDARD_COLORS).reduce((acc, [colorName, abbr]) => {
+    const existing = acc[abbr];
+    const hasAccent = /[ÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÄËÏÖÜ]/.test(colorName);
+    if (!existing || hasAccent) {
+      acc[abbr] = colorName;
+    }
+    return acc;
+  }, {})
+)
+  .map(([abbr, color]) => ({ color, abbr }))
+  .sort((a, b) => a.color.localeCompare(b.color));
+
 const DEFAULT_COLOR_SYNONYMS = {
   'FLAMINGO SCARLET': 'VERMELHO',
   'FLAMENGOSCARLET': 'VERMELHO',
@@ -597,10 +610,10 @@ export default function Cadastro() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>COR DO FORNECEDOR (EX: FLAMINGO SCARLET)</label>
-                <input
-                  type="text"
-                  className="input-padrao"
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cor no Fornecedor</label>
+                <input 
+                  type="text" 
+                  className="input-padrao" 
                   placeholder="Ex: FLAMINGO SCARLET"
                   value={newSynKey}
                   onChange={(e) => setNewSynKey(e.target.value)}
@@ -608,15 +621,15 @@ export default function Cadastro() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569' }}>COR PADRÃO DESEJADA</label>
-                <select
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cor Padronizada</label>
+                <select 
                   className="input-padrao"
                   value={newSynVal}
                   onChange={(e) => setNewSynVal(e.target.value)}
                   style={{ background: 'white' }}
                 >
-                  {Object.keys(DEFAULT_STANDARD_COLORS).filter(c => c === c.toUpperCase()).map(c => (
-                    <option key={c} value={c}>{c} ({DEFAULT_STANDARD_COLORS[c]})</option>
+                  {STANDARD_COLOR_OPTIONS.map(opt => (
+                    <option key={opt.abbr} value={opt.color}>{opt.color} ({opt.abbr})</option>
                   ))}
                 </select>
               </div>
