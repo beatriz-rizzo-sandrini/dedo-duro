@@ -124,6 +124,9 @@
 .card-usuarios:hover .icon-wrapper { background: rgba(99, 102, 241, 0.2); transform: scale(1.1); }
 .card-usuarios:hover .card-icon { color: #818cf8; filter: drop-shadow(0 0 8px #6366f1); }
 
+.card-cadastro:hover .icon-wrapper { background: rgba(217, 70, 239, 0.2); transform: scale(1.1); }
+.card-cadastro:hover .card-icon { color: #e879f9; filter: drop-shadow(0 0 8px #d946ef); }
+
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 20px;

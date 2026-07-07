@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity, FileSpreadsheet, UserCog } from 'lucide-react';
+import { TrendingUp, Layers, Box, Tags, Truck, Share2, Bell, Activity, FileSpreadsheet, UserCog, ClipboardList } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './Dashboard.css';
 
@@ -14,6 +14,7 @@ const cards = [
   { id: 'sellout', title: 'Sellout', desc: 'Análise de Sellout', icon: Activity, path: '/sellout', className: 'card-sellout' },
   { id: 'alertas', title: 'Alertas', desc: 'Alertas de estoque', icon: Bell, path: '/alertas', className: 'card-alertas' },
   { id: 'planilha', title: 'Pedidos', desc: 'Pedidos para fornecedores', icon: FileSpreadsheet, path: '/planilha', className: 'card-planilha' },
+  { id: 'cadastro', title: 'Cadastro', desc: 'Auxiliar de cadastro de produtos', icon: ClipboardList, path: '/cadastro', className: 'card-cadastro' },
 ];
 
 const containerVariants = {
