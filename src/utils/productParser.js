@@ -829,7 +829,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   }
 
   // 3. Remove generic e-commerce adjectives that hinder grouping
-  baseTitle = baseTitle.replace(/\b(original|originals|classico|classica|clássico|clássica|urbano|urbana|casual|esportivo|esportiva|running|kids|adulto|escolar)\b/gi, '');
+  baseTitle = baseTitle.replace(/\b(original|originals|classico|classica|clássico|clássica|urbano|urbana|casual|esportivo|esportiva|running|kids|adulto|escolar|unitario|unitário)\b/gi, '');
 
   // 4. Clean up multiple spaces, dashes, commas, and trim
   baseTitle = baseTitle
