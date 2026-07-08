@@ -129,10 +129,29 @@ function isValidSize(val) {
   return false;
 }
 
+// Pre-build a prefix cache for fast fallback lookups (runs once at module load)
+const _prefixCache = {};
+for (const key of Object.keys(seniorCatalog)) {
+  // Cache progressively shorter prefixes (from 10 chars up to full key length)
+  for (let len = 10; len <= key.length; len++) {
+    const prefix = key.substring(0, len);
+    if (!_prefixCache[prefix]) {
+      _prefixCache[prefix] = key;
+    }
+  }
+}
+
 export function parseProductDescription(desc, sku = '', isWatch = false, brand = '') {
   const skuUpper = String(sku || '').trim().toUpperCase();
   const cleanSkuKey = skuUpper.replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
-  const catalogInfo = seniorCatalog[cleanSkuKey];
+  let catalogInfo = seniorCatalog[cleanSkuKey];
+  // Fallback: use pre-built prefix cache for O(1) lookup
+  if (!catalogInfo && cleanSkuKey.length >= 10) {
+    const matchingKey = _prefixCache[cleanSkuKey];
+    if (matchingKey) {
+      catalogInfo = seniorCatalog[matchingKey];
+    }
+  }
   if (catalogInfo && catalogInfo.descricao_oficial) {
     desc = catalogInfo.descricao_oficial;
   }
@@ -192,6 +211,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     if ((skuUpper.startsWith('SA00184') || skuUpper.startsWith('KSA00184')) && normBrand === 'SANDRINI') {
       const isKit = skuUpper.startsWith('K') || skuUpper.startsWith('KSA') || finalTitle.toUpperCase().includes('KIT');
       finalTitle = isKit ? 'Kit Tenis Sandrini Aero Spark' : 'Tenis Sandrini Aero Spark';
+    } else if (skuUpper.includes('SD2600') || finalTitle.toUpperCase().includes('SD2600')) {
+      const isKit = skuUpper.startsWith('K') || skuUpper.startsWith('KSA') || finalTitle.toUpperCase().includes('KIT');
+      finalTitle = isKit ? 'Kit Tenis Sandrini Storm Wave (SD2600)' : 'Tenis Sandrini Storm Wave (SD2600)';
     }
 
     return {
@@ -829,6 +851,9 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     baseTitle = 'Kit 3 Regatas Dry (2355) + 2 Shorts Tactel (77046)';
   } else if (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('DRY') && (baseTitleUpper.includes('2350') || skuUpper.includes('2350')) && (baseTitleUpper.includes('KIT 4') || skuUpper.startsWith('KSA04') || skuUpper.startsWith('K4'))) {
     baseTitle = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
+  } else if (baseTitleUpper.includes('SD2600') || skuUpper.includes('SD2600')) {
+    const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
+    baseTitle = isKit ? 'Kit Tenis Sandrini Storm Wave (SD2600)' : 'Tenis Sandrini Storm Wave (SD2600)';
   } else if (baseTitleUpper.includes('SD2513') || skuUpper.includes('SD2513')) {
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     baseTitle = isKit ? 'Kit Tenis Sandrini Aero Run (SD2513)' : 'Tenis Sandrini Aero Run (SD2513)';

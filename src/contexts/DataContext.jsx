@@ -450,8 +450,9 @@ async function fetchSandriniCasa() {
           const expedicaoStr = String(cols[finalExpIdx] || '').replace(/\./g, '').trim();
           const expedicaoVal = Number(expedicaoStr) || 0;
 
-          const totalExpStr = String(cols[8] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
-          const totalExpCostVal = Number(totalExpStr) || 0;
+          const unitCostStr = String(cols[7] || '').replace(/[^0-9,\.-]/g, '').replace(',', '.');
+          const unitCostVal = Number(unitCostStr) || 0;
+          const totalExpCostVal = expedicaoVal * unitCostVal;
 
           if (sku && expedicaoVal > 0) {
             if (!map[sku]) {
@@ -459,6 +460,9 @@ async function fetchSandriniCasa() {
             }
             map[sku].expedicao += Math.round(expedicaoVal);
             map[sku].totalExpedicaoCost = (map[sku].totalExpedicaoCost || 0) + totalExpCostVal;
+            if (unitCostVal > 0 && (!map[sku].cost || map[sku].cost === 0)) {
+              map[sku].cost = unitCostVal;
+            }
           }
         }
       }

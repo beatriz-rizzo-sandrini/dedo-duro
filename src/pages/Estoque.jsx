@@ -418,6 +418,7 @@ export default function Estoque() {
           const company = v.lojaEstoque || 'SANDRINI';
           let qtyCasa = 0;
           let qtyExpedicao = 0;
+          let custoExpedicao = 0;
           const mapToUse = company === 'BUY CLOCK' ? buyclockCasaMap : sandriniCasaMap;
 
           const key1 = String(v.sku || '').toUpperCase().trim();
@@ -451,6 +452,7 @@ export default function Estoque() {
             if (!usedExternalSkus.has(matchedKey)) {
               qtyCasa = mapToUse[matchedKey].estoqueCasa || 0;
               qtyExpedicao = mapToUse[matchedKey].expedicao || 0;
+              custoExpedicao = mapToUse[matchedKey].totalExpedicaoCost || 0;
               usedExternalSkus.add(matchedKey);
             }
             if (mapToUse[matchedKey].cost > 0) {
@@ -464,7 +466,7 @@ export default function Estoque() {
 
           v.custoPlataforma = v.estoquePlataforma * v.valorUnitario;
           v.custoCasa = qtyCasa * v.valorUnitario;
-          v.custoExpedicao = qtyExpedicao * v.valorUnitario;
+          v.custoExpedicao = custoExpedicao;
           v.custoTotal = v.custoPlataforma + v.custoCasa + v.custoExpedicao;
 
           corPlatEstoque += v.estoquePlataforma;
