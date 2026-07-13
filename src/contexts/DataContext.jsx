@@ -29,7 +29,7 @@ function parseGoogleJSON(text) {
 
 async function fetchSheet(name) {
   const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${name}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: 'no-store' });
   const text = await res.text();
   return parseGoogleJSON(text);
 }
@@ -401,25 +401,41 @@ async function fetchSandriniCasa() {
   try {
     console.log('[DataContext] Buscando estoque Sandrini Casa de planilha externa (CSV)...');
     const url = `https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/export?format=csv&gid=1363555604`;
-    const res = await fetch(url);
+    // Forçamos o no-store para evitar cache agressivo do navegador
+    const res = await fetch(url, { cache: 'no-store' });
     const text = await res.text();
     const lines = text.split(/\r?\n/);
     const map = {};
     
     if (lines.length > 1) {
+      const headers = parseCSVLine(lines[0]);
+      const skuIdx = headers.findIndex(h => h.toUpperCase().trim() === 'SKU');
+      const qtdIdx = headers.findIndex(h => h.toUpperCase().trim() === 'QUANTIDADE' || h.toUpperCase().trim() === 'QTD');
+      const brandIdx = headers.findIndex(h => h.toUpperCase().trim() === 'MARCA');
+      const descIdx = headers.findIndex(h => h.toUpperCase().trim().includes('DESC'));
+      const costIdx = headers.findIndex(h => h.toUpperCase().trim().includes('CUSTO UNIT'));
+      const totalCasaIdx = headers.findIndex(h => h.toUpperCase().trim().includes('CUSTO EM CASA') || h.toUpperCase().trim().includes('CUSTO CASA'));
+      
+      const finalSkuIdx = skuIdx !== -1 ? skuIdx : 4;
+      const finalQtdIdx = qtdIdx !== -1 ? qtdIdx : 6;
+      const finalBrandIdx = brandIdx !== -1 ? brandIdx : 3;
+      const finalDescIdx = descIdx !== -1 ? descIdx : 5;
+      const finalCostIdx = costIdx !== -1 ? costIdx : 8;
+      const finalTotalCasaIdx = totalCasaIdx !== -1 ? totalCasaIdx : 9;
+
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const cols = parseCSVLine(lines[i]);
         
-        const sku = String(cols[4] || '').trim().toUpperCase();
-        const qtdStr = String(cols[6] || '').replace(/\./g, '').trim();
+        const sku = String(cols[finalSkuIdx] || '').trim().toUpperCase();
+        const qtdStr = String(cols[finalQtdIdx] || '').replace(/\./g, '').trim();
         const qtd = Number(qtdStr) || 0;
         
-        const brand = String(cols[3] || 'SANDRINI').trim().toUpperCase();
-        const desc = cols[5] || '';
-        const costStr = String(cols[8] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const brand = String(cols[finalBrandIdx] || 'SANDRINI').trim().toUpperCase();
+        const desc = cols[finalDescIdx] || '';
+        const costStr = String(cols[finalCostIdx] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
         const cost = Number(costStr) || 0;
-        const totalCasaStr = String(cols[9] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const totalCasaStr = String(cols[finalTotalCasaIdx] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
         const totalCasaCostVal = Number(totalCasaStr) || 0;
 
         if (sku && qtd > 0) {
@@ -435,7 +451,7 @@ async function fetchSandriniCasa() {
     try {
       console.log('[DataContext] Buscando expedição Sandrini da aba INVENTÁRIO_SANDRINI...');
       const sandriniExpUrl = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1109424210`;
-      const expRes = await fetch(sandriniExpUrl);
+      const expRes = await fetch(sandriniExpUrl, { cache: 'no-store' });
       const expText = await expRes.text();
       const expLines = expText.split(/\r?\n/);
       if (expLines.length > 1) {
@@ -443,14 +459,20 @@ async function fetchSandriniCasa() {
         const expIdx = expHeaders.indexOf('EXPEDIÇÃO -105');
         const finalExpIdx = expIdx !== -1 ? expIdx : 4;
         
+        const skuIdx = expHeaders.findIndex(h => h.toUpperCase().trim() === 'SKU' || h.toUpperCase().trim().includes('CÓDIGO') || h.toUpperCase().trim().includes('CODIGO'));
+        const costIdx = expHeaders.findIndex(h => h.toUpperCase().trim().includes('CUSTO UNIT') || h.toUpperCase().trim().includes('VALOR UNIT'));
+        
+        const finalSkuIdx = skuIdx !== -1 ? skuIdx : 0;
+        const finalCostIdx = costIdx !== -1 ? costIdx : 7;
+
         for (let i = 2; i < expLines.length; i++) {
           if (!expLines[i].trim()) continue;
           const cols = parseCSVLine(expLines[i]);
-          const sku = String(cols[0] || '').trim().toUpperCase();
+          const sku = String(cols[finalSkuIdx] || '').trim().toUpperCase();
           const expedicaoStr = String(cols[finalExpIdx] || '').replace(/\./g, '').trim();
           const expedicaoVal = Number(expedicaoStr) || 0;
 
-          const unitCostStr = String(cols[7] || '').replace(/[^0-9,\.-]/g, '').replace(',', '.');
+          const unitCostStr = String(cols[finalCostIdx] || '').replace(/[^0-9,\.-]/g, '').replace(',', '.');
           const unitCostVal = Number(unitCostStr) || 0;
           const totalExpCostVal = expedicaoVal * unitCostVal;
 
@@ -500,7 +522,7 @@ async function fetchBuyclockCasa() {
   try {
     console.log('[DataContext] Buscando estoque Buyclock Casa de planilha externa via CSV...');
     const url = `https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1072598256`;
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     const text = await res.text();
     const lines = text.split(/\r?\n/);
     const map = {};
@@ -513,17 +535,27 @@ async function fetchBuyclockCasa() {
       const finalEstoqueIdx = estoqueCasaIdx !== -1 ? estoqueCasaIdx : 37;
       const finalExpedicaoIdx = expedicaoIdx !== -1 ? expedicaoIdx : 4;
       
+      const skuIdx = headers.findIndex(h => h.toUpperCase().trim().includes('SKU') || h.toUpperCase().trim() === 'CÓDIGO' || h.toUpperCase().trim() === 'CODIGO');
+      const eanIdx = headers.findIndex(h => h.toUpperCase().trim().includes('BARRAS') || h.toUpperCase().trim() === 'EAN');
+      const brandIdx = headers.findIndex(h => h.toUpperCase().trim() === 'MARCA');
+      const costIdx = headers.findIndex(h => h.toUpperCase().trim().includes('CUSTO UNIT'));
+      
+      const finalSkuIdx = skuIdx !== -1 ? skuIdx : 0;
+      const finalEanIdx = eanIdx !== -1 ? eanIdx : 1;
+      const finalBrandIdx = brandIdx !== -1 ? brandIdx : 2;
+      const finalCostIdx = costIdx !== -1 ? costIdx : 34;
+
       for (let i = 3; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const cols = parseCSVLine(lines[i]);
-        const sku = String(cols[0] || '').trim().toUpperCase();
-        const ean = String(cols[1] || '').trim();
-        const brand = String(cols[2] || '').trim().toUpperCase();
+        const sku = String(cols[finalSkuIdx] || '').trim().toUpperCase();
+        const ean = String(cols[finalEanIdx] || '').trim();
+        const brand = String(cols[finalBrandIdx] || '').trim().toUpperCase();
         const estoqueCasaStr = String(cols[finalEstoqueIdx] || '').replace(/\./g, '').trim();
         const estoqueCasaVal = Number(estoqueCasaStr) || 0;
         const expedicaoStr = String(cols[finalExpedicaoIdx] || '').replace(/\./g, '').trim();
         const expedicaoVal = Number(expedicaoStr) || 0;
-        const costValStr = String(cols[34] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const costValStr = String(cols[finalCostIdx] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
         const cost = Number(costValStr) || 0;
         if (sku) {
           if (!map[sku]) {

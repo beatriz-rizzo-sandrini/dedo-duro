@@ -162,7 +162,7 @@ async function run() {
 
       const filterParts = batch.map(sku => `codDer eq '${sku}'`);
       const filterQuery = filterParts.join(' or ');
-      const queryUrl = `https://api.senior.com.br/erpx_fnd/produto/entities/e075der?filter=${encodeURIComponent(filterQuery)}`;
+      const queryUrl = `https://api.senior.com.br/erpx_fnd/produto/entities/e075der?size=40&filter=${encodeURIComponent(filterQuery)}`;
 
       try {
         const response = await axios.get(queryUrl, {

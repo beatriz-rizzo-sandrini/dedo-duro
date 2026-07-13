@@ -218,7 +218,7 @@ async function syncEstoque() {
   for (const r of rows) {
     if (!r || !r.c) continue;
     const dataStr = r.c[0]?.f || r.c[0]?.v || null;
-    const sku = r.c[1]?.v || null;
+    let sku = r.c[1]?.v || null;
     const desc = r.c[2]?.v || null;
     const local = r.c[3]?.v || null;
     const marca = r.c[4]?.v || null;
@@ -271,7 +271,7 @@ async function syncReposicao() {
 
   for (const r of rows) {
     if (!r || !r.c) continue;
-    const sku = r.c[0]?.v || null;
+    let sku = r.c[0]?.v || null;
     const desc = r.c[1]?.v || null;
     const local = r.c[2]?.v || null;
     const qtd = r.c[4]?.v || null;
@@ -315,7 +315,7 @@ async function syncBadstock() {
 
   for (const r of rows) {
     if (!r || !r.c) continue;
-    const sku = r.c[1]?.v || null;
+    let sku = r.c[1]?.v || null;
     const local = r.c[2]?.v || null;
 
     if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';

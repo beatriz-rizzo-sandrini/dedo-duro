@@ -54254,12 +54254,12 @@
   },
   "LTSK0002G1RG": {
     "sku_senior": "LTSK0002G1RG",
-    "descricao_oficial": "RELÓGIO ORIENT QUARTZ.ANLGO.CX.ACO INOX LTSK0002G1RG",
+    "descricao_oficial": "RELÓGIO ORIENT QUARTZ,ANLGO,CX,ACO INOX LTSK0002G1RG",
     "idePro": null,
     "codRef": null,
     "nomMar": "Orient",
     "desFam": "Orient",
-    "dthger": "2026-04-02T16:42:08.859Z"
+    "dthger": "2026-07-06T11:20:25.105Z"
   },
   "OL43395156PAACBCN430424": {
     "sku_senior": "OL43395156PAACBCN430424",
@@ -86183,7 +86183,7 @@
     "codRef": null,
     "nomMar": "Mondaine",
     "desFam": "Mondaine",
-    "dthger": "2026-07-03T19:26:20.229Z"
+    "dthger": "2026-01-14T13:54:03.343Z"
   },
   "6P29ALD1P": {
     "sku_senior": "6P29ALD1P",
@@ -93852,5 +93852,338 @@
     "nomMar": "Olympikus",
     "desFam": "Olympikus",
     "dthger": "2025-05-16T12:31:31.263Z"
+  },
+  "SA000001841AABYCN431376": {
+    "sku_senior": "SA000001841AABYCN431376",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 43",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:34.853Z"
+  },
+  "SA000001841AABYCN351368": {
+    "sku_senior": "SA000001841AABYCN351368",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 35",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:32.653Z"
+  },
+  "SA000002350AACNCN0M0129": {
+    "sku_senior": "SA000002350AACNCN0M0129",
+    "descricao_oficial": "Camiseta Sandrini Dry Fit (2350) Preto Tam M",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:33.666Z"
+  },
+  "KCV05056004132CM0G0058": {
+    "sku_senior": "KCV05056004132CM0G0058",
+    "descricao_oficial": "Kit 5 Cuecas Cavalera Sort 1 - G",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Cavalera",
+    "desFam": "KITS CAVALERA",
+    "dthger": "2025-05-12T14:11:45.143Z"
+  },
+  "KCV05056004132CM0M0059": {
+    "sku_senior": "KCV05056004132CM0M0059",
+    "descricao_oficial": "Kit 5 Cuecas Cavalera Sort 1 - M",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Cavalera",
+    "desFam": "KITS CAVALERA",
+    "dthger": "2025-05-12T14:11:45.288Z"
+  },
+  "KCV05056004132CM0P0060": {
+    "sku_senior": "KCV05056004132CM0P0060",
+    "descricao_oficial": "Kit 5 Cuecas Cavalera Sort 1 - p",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Cavalera",
+    "desFam": "KITS CAVALERA",
+    "dthger": "2025-05-12T14:11:45.354Z"
+  },
+  "SA000002350ACCNCN0G0134": {
+    "sku_senior": "SA000002350ACCNCN0G0134",
+    "descricao_oficial": "DRY FIT SANDRINI UNITÁRIO 2350 - AZL - G",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:35.91Z"
+  },
+  "SA000002350AECNCN0P0136": {
+    "sku_senior": "SA000002350AECNCN0P0136",
+    "descricao_oficial": "DRY FIT SANDRINI UNITÁRIO 2350 - CZ - P",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:37.668Z"
+  },
+  "CV056004132CMCNCN0M0014": {
+    "sku_senior": "CV056004132CMCNCN0M0014",
+    "descricao_oficial": "Cuecas Cavalera SORT 1 - M",
+    "idePro": "056004132",
+    "codRef": "CV056004132",
+    "nomMar": "Cavalera",
+    "desFam": "Cavalera",
+    "dthger": "2025-04-08T12:53:38.037Z"
+  },
+  "CV056004132CMCNCN0P0015": {
+    "sku_senior": "CV056004132CMCNCN0P0015",
+    "descricao_oficial": "Cuecas Cavalera SORT 1 - P",
+    "idePro": "056004132",
+    "codRef": "CV056004132",
+    "nomMar": "Cavalera",
+    "desFam": "Cavalera",
+    "dthger": "2025-04-08T12:53:37.979Z"
+  },
+  "SA000SD2600AACBCN380886": {
+    "sku_senior": "SA000SD2600AACBCN380886",
+    "descricao_oficial": "TENIS SANDRINI SD2600 OFF PRETO/DOURADO TAM. 38",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-12-04T20:03:12.195Z"
+  },
+  "SA000001887AAAHCN381352": {
+    "sku_senior": "SA000001887AAAHCN381352",
+    "descricao_oficial": "Tênis Sandrini Axis Onyx Street Skate (1887) PTO/MRRM Tam 38",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-05-19T14:24:40.607Z"
+  },
+  "SA000SD2600BYAACN390881": {
+    "sku_senior": "SA000SD2600BYAACN390881",
+    "descricao_oficial": "TENIS SANDRINI SD2600 OFF GELO/PRETO TAM. 39",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-12-04T20:03:10.509Z"
+  },
+  "SA000002350AACNCN0G0130": {
+    "sku_senior": "SA000002350AACNCN0G0130",
+    "descricao_oficial": "Camiseta Sandrini Dry Fit (2350) Preto Tam G",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:35.652Z"
+  },
+  "SA000002350AECNCN0G0138": {
+    "sku_senior": "SA000002350AECNCN0G0138",
+    "descricao_oficial": "DRY FIT SANDRINI UNITÁRIO 2350 - CZ - G",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:37.656Z"
+  },
+  "SA000001841AABYCN371370": {
+    "sku_senior": "SA000001841AABYCN371370",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 37",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:32.574Z"
+  },
+  "SA000001841BYAYCN371364": {
+    "sku_senior": "SA000001841BYAYCN371364",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 37",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:27.075Z"
+  },
+  "CV056004132CMCNCN0G0013": {
+    "sku_senior": "CV056004132CMCNCN0G0013",
+    "descricao_oficial": "Cuecas Cavalera SORT 1 - G",
+    "idePro": "056004132",
+    "codRef": "CV056004132",
+    "nomMar": "Cavalera",
+    "desFam": "Cavalera",
+    "dthger": "2025-04-08T12:53:37.989Z"
+  },
+  "SA000001841BYAYCN381365": {
+    "sku_senior": "SA000001841BYAYCN381365",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 38",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:30.689Z"
+  },
+  "SA000002350AACNCNGG0131": {
+    "sku_senior": "SA000002350AACNCNGG0131",
+    "descricao_oficial": "Camiseta Sandrini Dry Fit (2350) Preto Tam GG",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:35.728Z"
+  },
+  "KCV05056004132CMGG0057": {
+    "sku_senior": "KCV05056004132CMGG0057",
+    "descricao_oficial": "Kit 5 Cuecas Cavalera sort 1 - GG",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Cavalera",
+    "desFam": "KITS CAVALERA",
+    "dthger": "2025-05-12T14:11:45.272Z"
+  },
+  "SA000001841BYAYCN401367": {
+    "sku_senior": "SA000001841BYAYCN401367",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 40",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:32.578Z"
+  },
+  "SA000002350AECNCNGG0139": {
+    "sku_senior": "SA000002350AECNCNGG0139",
+    "descricao_oficial": "DRY FIT SANDRINI UNITÁRIO 2350 - CZ - GG",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:37.612Z"
+  },
+  "SA000001841BYAYCN361363": {
+    "sku_senior": "SA000001841BYAYCN361363",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 36",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:27.123Z"
+  },
+  "SA000001841AABYCN381371": {
+    "sku_senior": "SA000001841AABYCN381371",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 38",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:32.59Z"
+  },
+  "SA000SD2600AABPCN410877": {
+    "sku_senior": "SA000SD2600AABPCN410877",
+    "descricao_oficial": "TENIS SANDRINI SD2600 PRETO/GRAFITE TAM. 41",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-12-04T20:03:08.793Z"
+  },
+  "CV056004132CMCNCNGG0012": {
+    "sku_senior": "CV056004132CMCNCNGG0012",
+    "descricao_oficial": "Cuecas Cavalera SORT 1 - GG",
+    "idePro": "056004132",
+    "codRef": "CV056004132",
+    "nomMar": "Cavalera",
+    "desFam": "Cavalera",
+    "dthger": "2025-04-08T12:53:38.029Z"
+  },
+  "SA000001841BYAYCN391366": {
+    "sku_senior": "SA000001841BYAYCN391366",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 39",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:27.123Z"
+  },
+  "SA000001841AABYCN361369": {
+    "sku_senior": "SA000001841AABYCN361369",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 36",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:32.586Z"
+  },
+  "SA000SD2600AABPCN380874": {
+    "sku_senior": "SA000SD2600AABPCN380874",
+    "descricao_oficial": "TENIS SANDRINI SD2600 PRETO/GRAFITE TAM. 38",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-12-04T20:03:04.747Z"
+  },
+  "SA000001841AABYCN391372": {
+    "sku_senior": "SA000001841AABYCN391372",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 39",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:34.808Z"
+  },
+  "SA000001841AABYCN401373": {
+    "sku_senior": "SA000001841AABYCN401373",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 40",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:34.795Z"
+  },
+  "SA000001841BYAYCN351362": {
+    "sku_senior": "SA000001841BYAYCN351362",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) OFW/CAR Tam 35",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:30.688Z"
+  },
+  "SA000SD2600CTAACN390893": {
+    "sku_senior": "SA000SD2600CTAACN390893",
+    "descricao_oficial": "TENIS SANDRINI SD2600 OFF CREME/PRETO TAM. 39",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-12-04T20:03:13.831Z"
+  },
+  "KCV05056004132CMG10056": {
+    "sku_senior": "KCV05056004132CMG10056",
+    "descricao_oficial": "Kit 5 Cuecas Cavalera Sort 1 - G1",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Cavalera",
+    "desFam": "KITS CAVALERA",
+    "dthger": "2025-05-12T14:11:44.979Z"
+  },
+  "SA000002350AACNCN0P0128": {
+    "sku_senior": "SA000002350AACNCN0P0128",
+    "descricao_oficial": "Camiseta Sandrini Dry Fit (2350) Preto Tam P",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2025-05-27T13:16:33.678Z"
+  },
+  "SA000001841AABYCN421375": {
+    "sku_senior": "SA000001841AABYCN421375",
+    "descricao_oficial": "Tênis Sandrini Aero Spark (1841) PTO/OFW Tam 42",
+    "idePro": null,
+    "codRef": null,
+    "nomMar": "Sandrini",
+    "desFam": "Sandrini",
+    "dthger": "2026-06-02T19:03:34.795Z"
   }
 }
