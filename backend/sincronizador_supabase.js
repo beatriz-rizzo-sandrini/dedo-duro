@@ -666,7 +666,7 @@ function obterMarcaPorSkuEDesc(sku, desc) {
   if (cleanSku.startsWith('KL')) {
     return 'KLIN';
   }
-  if (cleanSku.startsWith('KCV')) {
+  if (cleanSku.startsWith('CV') || cleanSku.startsWith('KCV')) {
     return 'CAVALERA';
   }
   if (cleanSku.startsWith('BT')) {

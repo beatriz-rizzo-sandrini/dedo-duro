@@ -1014,6 +1014,9 @@ export function normalizeBrand(brand, sku, desc) {
     }
   }
 
+  if (skuUpper.startsWith('CV') || skuUpper.startsWith('KCV') || descUpper.includes('CAVALERA') || detectedBrand === 'CAVALERA') {
+    return 'CAVALERA';
+  }
   // 2. Normalize and check standard prefix / text rules
   if (skuUpper.startsWith('NB') || skuUpper.startsWith('KNB') || descUpper.includes('NEW BALANCE') || descUpper.includes('NEWBALANCE') || detectedBrand === 'NB' || detectedBrand === 'NEW BALANCE') {
     return 'NEW BALANCE';

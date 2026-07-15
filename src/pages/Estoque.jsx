@@ -247,7 +247,7 @@ export default function Estoque() {
           };
         }
 
-        const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
+        const isPlat = !local.includes('CASA') && !local.includes('EXPEDI') && !local.includes('OUT') && !local.includes('TRANS');
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
         } else {
