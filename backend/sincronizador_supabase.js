@@ -290,6 +290,54 @@ async function syncEstoque() {
     console.error('⚠️ Erro ao carregar estoque Casa Sandrini para o histórico:', err.message);
   }
 
+  // 1b. Carregar estoque Inventário Sandrini (fisicamente em Casa)
+  try {
+    const resInvSandrini = await axios.get('https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1109424210');
+    const linesInvSandrini = resInvSandrini.data.split(/\r?\n/);
+    if (linesInvSandrini.length > 1) {
+      const headers = parseCSVLine(linesInvSandrini[1]);
+      const expIdx = headers.indexOf('EXPEDIÇÃO -105');
+      const finalExpIdx = expIdx !== -1 ? expIdx : 4;
+      const skuIdx = headers.findIndex(h => h.toUpperCase().trim() === 'SKU' || h.toUpperCase().trim().includes('CÓDIGO') || h.toUpperCase().trim().includes('CODIGO'));
+      const finalSkuIdx = skuIdx !== -1 ? skuIdx : 0;
+      const costIdx = headers.findIndex(h => h.toUpperCase().trim().includes('CUSTO UNIT') || h.toUpperCase().trim().includes('VALOR UNIT'));
+      const finalCostIdx = costIdx !== -1 ? costIdx : 7;
+      const brandIdx = headers.findIndex(h => h.toUpperCase().trim() === 'MARCA');
+      const finalBrandIdx = brandIdx !== -1 ? brandIdx : 2;
+      const descIdx = headers.findIndex(h => h.toUpperCase().trim().includes('NOME DO PRODUTO') || h.toUpperCase().trim().includes('DESC'));
+      const finalDescIdx = descIdx !== -1 ? descIdx : 3;
+
+      let countInvSandrini = 0;
+      for (let i = 2; i < linesInvSandrini.length; i++) {
+        if (!linesInvSandrini[i].trim()) continue;
+        const cols = parseCSVLine(linesInvSandrini[i]);
+        const sku = String(cols[finalSkuIdx] || '').trim().toUpperCase();
+        const qtdStr = String(cols[finalExpIdx] || '').replace(/\./g, '').trim();
+        const qtd = Number(qtdStr) || 0;
+        const brand = String(cols[finalBrandIdx] || 'SANDRINI').trim().toUpperCase();
+        const desc = cols[finalDescIdx] || '';
+        const costStr = String(cols[finalCostIdx] || '').replace(/[^0-9,\.-]/g, '').replace(',', '.');
+        const cost = Number(costStr) || 0;
+
+        if (sku && qtd > 0) {
+          insertData.push({
+            data_atualizacao: activeSyncDate,
+            sku_produto: sku,
+            descricao_produto: desc || `Produto SKU: ${sku}`,
+            marca: brand || 'SANDRINI',
+            local_estoque: 'CASA',
+            quantidade_disponivel: Math.round(qtd),
+            valor_unitario: cost
+          });
+          countInvSandrini++;
+        }
+      }
+      console.log(`- Estoque Inventário Sandrini (Casa): ${countInvSandrini} registros carregados.`);
+    }
+  } catch (err) {
+    console.error('⚠️ Erro ao carregar estoque Inventário Sandrini para o histórico:', err.message);
+  }
+
   // 2. Carregar estoque Casa Buy Clock
   try {
     const resBuyClock = await axios.get('https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1072598256');
