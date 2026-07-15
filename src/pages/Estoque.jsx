@@ -247,12 +247,13 @@ export default function Estoque() {
           };
         }
 
-        const isPlat = !local.includes('CASA') && !local.includes('EXPEDI') && !local.includes('OUT') && !local.includes('TRANS');
+        const isCasa = local.includes('CASA') || local.includes('TIKTOK');
+        const isExp = local.includes('EXPEDI');
+        const isPlat = !local.includes('CASA') && !local.includes('EXPEDI') && !local.includes('OUT') && !local.includes('TRANS') && !local.includes('TIKTOK');
+        
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
         } else {
-          const isCasa = local.includes('CASA');
-          const isExp = local.includes('EXPEDI');
           if (isCasa) {
             stats[prodKey].cores[corKey].variacoes[varKey].estoqueCasaDb = (stats[prodKey].cores[corKey].variacoes[varKey].estoqueCasaDb || 0) + qtd;
           } else if (isExp) {

@@ -501,8 +501,8 @@ async function fetchSandriniCasa() {
             if (!map[sku]) {
               map[sku] = { estoqueCasa: 0, expedicao: 0, brand: 'SANDRINI', desc: '', cost: 0, totalCasaCost: 0, totalExpedicaoCost: 0 };
             }
-            map[sku].estoqueCasa += Math.round(expedicaoVal);
-            map[sku].totalCasaCost = (map[sku].totalCasaCost || 0) + totalExpCostVal;
+            map[sku].expedicao += Math.round(expedicaoVal);
+            map[sku].totalExpedicaoCost = (map[sku].totalExpedicaoCost || 0) + totalExpCostVal;
             if (unitCostVal > 0 && (!map[sku].cost || map[sku].cost === 0)) {
               map[sku].cost = unitCostVal;
             }

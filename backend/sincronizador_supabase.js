@@ -325,14 +325,14 @@ async function syncEstoque() {
             sku_produto: sku,
             descricao_produto: desc || `Produto SKU: ${sku}`,
             marca: brand || 'SANDRINI',
-            local_estoque: 'CASA',
+            local_estoque: 'EXPEDIÇÃO',
             quantidade_disponivel: Math.round(qtd),
             valor_unitario: cost
           });
           countInvSandrini++;
         }
       }
-      console.log(`- Estoque Inventário Sandrini (Casa): ${countInvSandrini} registros carregados.`);
+      console.log(`- Estoque Inventário Sandrini (Expedição): ${countInvSandrini} registros carregados.`);
     }
   } catch (err) {
     console.error('⚠️ Erro ao carregar estoque Inventário Sandrini para o histórico:', err.message);
