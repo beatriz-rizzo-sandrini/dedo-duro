@@ -449,11 +449,12 @@ export default function Estoque() {
           else if (searchKey2 && mapToUse[searchKey2] !== undefined) matchedKey = searchKey2;
 
           if (matchedKey) {
-            if (!usedExternalSkus.has(matchedKey)) {
+            const externalKey = `${company}|${matchedKey}`;
+            if (!usedExternalSkus.has(externalKey)) {
               qtyCasa = mapToUse[matchedKey].estoqueCasa || 0;
               qtyExpedicao = mapToUse[matchedKey].expedicao || 0;
               custoExpedicao = mapToUse[matchedKey].totalExpedicaoCost || 0;
-              usedExternalSkus.add(matchedKey);
+              usedExternalSkus.add(externalKey);
             }
             if (mapToUse[matchedKey].cost > 0) {
               v.valorUnitario = mapToUse[matchedKey].cost;
