@@ -240,6 +240,113 @@ async function syncEstoque() {
     }
   }
 
+  // Obter a data ativa para salvar o estoque de Casa correspondente ao dia do lote de estoque
+  let activeSyncDate = null;
+  for (const r of rows) {
+    if (r && r.c) {
+      activeSyncDate = r.c[0]?.f || r.c[0]?.v || null;
+      if (activeSyncDate) break;
+    }
+  }
+  if (!activeSyncDate) {
+    const d = new Date();
+    activeSyncDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  console.log(`Carregando estoque físico de Casa para a data ${activeSyncDate}...`);
+  
+  // 1. Carregar estoque Casa Sandrini
+  try {
+    const resSandrini = await axios.get('https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/export?format=csv&gid=1363555604');
+    const linesSandrini = resSandrini.data.split(/\r?\n/);
+    let countSandrini = 0;
+    
+    for (let i = 1; i < linesSandrini.length; i++) {
+      if (!linesSandrini[i].trim()) continue;
+      const cols = parseCSVLine(linesSandrini[i]);
+      const sku = String(cols[4] || '').trim().toUpperCase();
+      const qtdStr = String(cols[6] || '').replace(/\./g, '').trim();
+      const qtd = Number(qtdStr) || 0;
+      const brand = String(cols[3] || 'SANDRINI').trim().toUpperCase();
+      const desc = cols[5] || '';
+      const costStr = String(cols[8] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+      const cost = Number(costStr) || 0;
+
+      if (sku && qtd > 0) {
+        insertData.push({
+          data_atualizacao: activeSyncDate,
+          sku_produto: sku,
+          descricao_produto: desc || `Produto SKU: ${sku}`,
+          marca: brand || 'SANDRINI',
+          local_estoque: 'CASA',
+          quantidade_disponivel: Math.round(qtd),
+          valor_unitario: cost
+        });
+        countSandrini++;
+      }
+    }
+    console.log(`- Estoque Casa Sandrini: ${countSandrini} registros carregados.`);
+  } catch (err) {
+    console.error('⚠️ Erro ao carregar estoque Casa Sandrini para o histórico:', err.message);
+  }
+
+  // 2. Carregar estoque Casa Buy Clock
+  try {
+    const resBuyClock = await axios.get('https://docs.google.com/spreadsheets/d/1EsG5ZNcNmU_DPXhWousiSWo8CHf4Ak3k/export?format=csv&gid=1072598256');
+    const linesBuyClock = resBuyClock.data.split(/\r?\n/);
+    if (linesBuyClock.length > 2) {
+      const headers = parseCSVLine(linesBuyClock[2]);
+      const estoqueCasaIdx = headers.indexOf('ESTOQUE CASA');
+      const expedicaoIdx = headers.indexOf('EXPEDIÇÃO -105');
+      const finalEstoqueIdx = estoqueCasaIdx !== -1 ? estoqueCasaIdx : 37;
+      const finalExpedicaoIdx = expedicaoIdx !== -1 ? expedicaoIdx : 4;
+      let countBuyClock = 0;
+      
+      for (let i = 3; i < linesBuyClock.length; i++) {
+        if (!linesBuyClock[i].trim()) continue;
+        const cols = parseCSVLine(linesBuyClock[i]);
+        const sku = String(cols[0] || '').trim().toUpperCase();
+        const brand = String(cols[2] || 'BUY CLOCK').trim().toUpperCase();
+        const estoqueCasaStr = String(cols[finalEstoqueIdx] || '').replace(/\./g, '').trim();
+        const estoqueCasaVal = Number(estoqueCasaStr) || 0;
+        const expedicaoStr = String(cols[finalExpedicaoIdx] || '').replace(/\./g, '').trim();
+        const expedicaoVal = Number(expedicaoStr) || 0;
+        const costValStr = String(cols[34] || '').replace(/\./g, '').replace(',', '.').replace(/[^0-9\.-]/g, '');
+        const cost = Number(costValStr) || 0;
+
+        if (sku) {
+          if (estoqueCasaVal > 0) {
+            insertData.push({
+              data_atualizacao: activeSyncDate,
+              sku_produto: sku,
+              descricao_produto: `Produto SKU: ${sku}`,
+              marca: brand || 'BUY CLOCK',
+              local_estoque: 'CASA BUY CLOCK',
+              quantidade_disponivel: Math.round(estoqueCasaVal),
+              valor_unitario: cost
+            });
+            countBuyClock++;
+          }
+          if (expedicaoVal > 0) {
+            insertData.push({
+              data_atualizacao: activeSyncDate,
+              sku_produto: sku,
+              descricao_produto: `Produto SKU: ${sku}`,
+              marca: brand || 'BUY CLOCK',
+              local_estoque: 'EXPEDIÇÃO BUY CLOCK',
+              quantidade_disponivel: Math.round(expedicaoVal),
+              valor_unitario: cost
+            });
+            countBuyClock++;
+          }
+        }
+      }
+      console.log(`- Estoque Casa Buy Clock: ${countBuyClock} registros carregados.`);
+    }
+  } catch (err) {
+    console.error('⚠️ Erro ao carregar estoque Casa Buy Clock para o histórico:', err.message);
+  }
+
   const mapaEstoque = {};
   for (const item of insertData) {
     const chave = `${item.data_atualizacao}|${item.sku_produto}|${item.local_estoque}`;

@@ -250,6 +250,14 @@ export default function Estoque() {
         const isPlat = local.includes('MELI') || local.includes('AMAZON') || local.includes('MAGALU') || local.includes('SHOPEE') || local.includes('DAFITI');
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
+        } else {
+          const isCasa = local.includes('CASA');
+          const isExp = local.includes('EXPEDI');
+          if (isCasa) {
+            stats[prodKey].cores[corKey].variacoes[varKey].estoqueCasaDb = (stats[prodKey].cores[corKey].variacoes[varKey].estoqueCasaDb || 0) + qtd;
+          } else if (isExp) {
+            stats[prodKey].cores[corKey].variacoes[varKey].expedicaoDb = (stats[prodKey].cores[corKey].variacoes[varKey].expedicaoDb || 0) + qtd;
+          }
         }
         // Track stock per specific local for accurate per-platform filtering
         if (local) {
@@ -399,6 +407,11 @@ export default function Estoque() {
     }
 
     // 4. Recalcular os estoques e custos casa usando os mapas das planilhas externas
+    const dbHasHouseStock = estoqueRows.some(r => {
+      const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
+      return local.includes('CASA') || local.includes('EXPEDI');
+    });
+
     const usedExternalSkus = new Set();
     Object.values(stats).forEach(prod => {
       let prodPlatEstoque = 0;
@@ -448,16 +461,22 @@ export default function Estoque() {
           if (searchKey1 && mapToUse[searchKey1] !== undefined) matchedKey = searchKey1;
           else if (searchKey2 && mapToUse[searchKey2] !== undefined) matchedKey = searchKey2;
 
-          if (matchedKey) {
-            const externalKey = `${company}|${matchedKey}`;
-            if (!usedExternalSkus.has(externalKey)) {
-              qtyCasa = mapToUse[matchedKey].estoqueCasa || 0;
-              qtyExpedicao = mapToUse[matchedKey].expedicao || 0;
-              custoExpedicao = mapToUse[matchedKey].totalExpedicaoCost || 0;
-              usedExternalSkus.add(externalKey);
-            }
-            if (mapToUse[matchedKey].cost > 0) {
-              v.valorUnitario = mapToUse[matchedKey].cost;
+          if (dbHasHouseStock) {
+            qtyCasa = v.estoqueCasaDb || 0;
+            qtyExpedicao = v.expedicaoDb || 0;
+            custoExpedicao = qtyExpedicao * v.valorUnitario;
+          } else {
+            if (matchedKey) {
+              const externalKey = `${company}|${matchedKey}`;
+              if (!usedExternalSkus.has(externalKey)) {
+                qtyCasa = mapToUse[matchedKey].estoqueCasa || 0;
+                qtyExpedicao = mapToUse[matchedKey].expedicao || 0;
+                custoExpedicao = mapToUse[matchedKey].totalExpedicaoCost || 0;
+                usedExternalSkus.add(externalKey);
+              }
+              if (mapToUse[matchedKey].cost > 0) {
+                v.valorUnitario = mapToUse[matchedKey].cost;
+              }
             }
           }
 
