@@ -170,11 +170,32 @@ async function fetchAvailableStockDates() {
 async function fetchResumoEstoqueDiario() {
   try {
     console.log('[DataContext] Buscando resumo de estoque diário...');
-    const { data, error } = await supabase
-      .from('v_resumo_estoque_diario')
-      .select('data_atualizacao, marca, local_estoque, total_quantidade, total_valor');
-    if (error) throw error;
-    return data || [];
+    let allData = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('v_resumo_estoque_diario')
+        .select('data_atualizacao, marca, local_estoque, total_quantidade, total_valor')
+        .range(from, from + PAGE_SIZE - 1);
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        allData = allData.concat(data);
+        if (data.length < PAGE_SIZE) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+      from += PAGE_SIZE;
+    }
+    
+    console.log(`[DataContext] Resumo de estoque diário carregado: ${allData.length} registros.`);
+    return allData;
   } catch (err) {
     console.error('Erro ao buscar resumo de estoque diário:', err?.message);
     return [];
