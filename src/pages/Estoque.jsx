@@ -247,9 +247,9 @@ export default function Estoque() {
           };
         }
 
-        const isCasa = local.includes('CASA') || local.includes('TIKTOK');
+        const isCasa = local.includes('CASA');
         const isExp = local.includes('EXPEDI');
-        const isPlat = !local.includes('CASA') && !local.includes('EXPEDI') && !local.includes('OUT') && !local.includes('TRANS') && !local.includes('TIKTOK');
+        const isPlat = !local.includes('CASA') && !local.includes('EXPEDI') && !local.includes('OUT') && !local.includes('TRANS');
         
         if (isPlat) {
           stats[prodKey].cores[corKey].variacoes[varKey].estoquePlataforma += qtd;
