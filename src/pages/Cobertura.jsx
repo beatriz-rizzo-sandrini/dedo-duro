@@ -315,7 +315,7 @@ export default function Cobertura() {
       const media = diasPeriodo > 0 ? l.total / diasPeriodo : 0;
       const estoqueTotal = Object.values(l.cores).reduce((acc, c) => acc + c.totalEstoque, 0);
       const caminhoTotal = Object.values(l.cores).reduce((acc, c) => acc + c.totalCaminho, 0);
-      const diasCobertos = media > 0 ? Math.round(estoqueTotal / media) : (estoqueTotal > 0 ? 9999 : 0);
+      const diasCobertos = media > 0 ? Math.round((estoqueTotal + caminhoTotal) / media) : ((estoqueTotal + caminhoTotal) > 0 ? 9999 : 0);
       return { ...l, media, estoqueTotal, caminhoTotal, dias: diasCobertos };
     });
 
@@ -389,7 +389,7 @@ export default function Cobertura() {
         Object.values(item.cores).forEach(corObj => {
           Object.values(corObj.variacoes).forEach(v => {
             const media = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
-            const dias = media > 0 ? Math.round(v.estoque / media) : (v.estoque > 0 ? 9999 : 0);
+            const dias = media > 0 ? Math.round((v.estoque + v.caminho) / media) : ((v.estoque + v.caminho) > 0 ? 9999 : 0);
             
             let statusStr = "Saudável";
             if (dias <= 29) statusStr = "Ruptura";
@@ -678,7 +678,7 @@ export default function Cobertura() {
                         return aVal.localeCompare(bVal);
                       }).map((v) => {
                         const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
-                        const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
+                        const coberturaSKU = mediaSKU > 0 ? Math.round((v.estoque + v.caminho) / mediaSKU) : ((v.estoque + v.caminho) > 0 ? '∞' : 0);
                         
                         let badgeColor = '#64748b', badgeBg = '#f1f5f9';
                         if (typeof coberturaSKU === 'number') {
@@ -759,7 +759,7 @@ export default function Cobertura() {
                       return aVal.localeCompare(bVal);
                     }).map((v, vIdx, arr) => {
                       const mediaSKU = dadosProcessados.diasPeriodo > 0 ? v.vendas / dadosProcessados.diasPeriodo : 0;
-                      const coberturaSKU = mediaSKU > 0 ? Math.round(v.estoque / mediaSKU) : (v.estoque > 0 ? '∞' : 0);
+                      const coberturaSKU = mediaSKU > 0 ? Math.round((v.estoque + v.caminho) / mediaSKU) : ((v.estoque + v.caminho) > 0 ? '∞' : 0);
                       return (
                         <div key={v.sku} style={{ display: 'flex', flexDirection: 'column', padding: '12px 0', borderBottom: vIdx === arr.length - 1 ? 'none' : '1px solid #f1f5f9', gap: '6px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
