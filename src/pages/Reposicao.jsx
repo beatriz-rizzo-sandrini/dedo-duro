@@ -178,7 +178,9 @@ export default function Reposicao() {
       if (inicioTime && previsaoTime && previsaoTime < inicioTime) return;
       if (fimTime !== Infinity && previsaoTime && previsaoTime > fimTime) return;
 
-      totalGeral += quantidade;
+      if (status !== 'FINALIZADO' || filtroStatus === 'FINALIZADO') {
+        totalGeral += quantidade;
+      }
 
       // 1. Agrupamento por Envio/NF
       const chaveEnvio = `${local}||${envio}||${status}||${previsao}`;
