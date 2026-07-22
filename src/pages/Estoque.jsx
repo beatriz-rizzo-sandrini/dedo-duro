@@ -184,12 +184,12 @@ export default function Estoque() {
 
       const sku = normalizeSku(r?.c?.[COL_ESTOQUE.SKU]?.v || "");
       const skuPlat = r?.c?.[7]?.v || "";
-      if (
-        sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
-        skuPlat === 'TENISNEWBB80CBRPTOT38' || skuPlat === 'TENISNEWBB80CBRPTOT41' || skuPlat === 'AD000IF4135ABAJCN430031'
-      ) {
-        return;
-      }
+      // if (
+      //   sku === 'TENISNEWBB80CBRPTOT38' || sku === 'TENISNEWBB80CBRPTOT41' || sku === 'AD000IF4135ABAJCN430031' ||
+      //   skuPlat === 'TENISNEWBB80CBRPTOT38' || skuPlat === 'TENISNEWBB80CBRPTOT41' || skuPlat === 'AD000IF4135ABAJCN430031'
+      // ) {
+      //   return;
+      // }
 
       const local = String(r?.c?.[COL_ESTOQUE.LOCAL]?.v || "").toUpperCase();
       const lojaEstoque = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";

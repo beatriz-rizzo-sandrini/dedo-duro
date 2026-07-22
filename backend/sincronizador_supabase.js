@@ -133,13 +133,14 @@ async function syncVendas() {
         qtd = r.c[4]?.v || null;
         marca = r.c[5]?.v || null;
       }
-      
+
       if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+      if (sku === 'AD000IF4135ABAJCN430031') sku = 'AD000HP6011ADABCN430026';
 
       if (dataSQL && sku && local) {
         const cleanLocal = String(local).toUpperCase().trim();
         if (integracaoMeliAtiva && (cleanLocal === 'MELI SP' || cleanLocal === 'MELI SP BUY CLOCK')) {
-          continue;
+          // continue;
         }
         insertData.push({
           data_venda: dataSQL,
@@ -169,13 +170,13 @@ async function syncVendas() {
   ];
   const currentMonthTab = MONTHS[new Date().getMonth()];
   const activeTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
-  
+
   if (currentMonthTab && currentMonthTab !== 'VENDAS' && activeTabs.includes(currentMonthTab)) {
     let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
     if (!isFullSync && query) {
       monthlyUrl += `&tq=${query}`;
     }
-    
+
     try {
       console.log(`Carregando aba mensal ativa: "${currentMonthTab}"...`);
       const monthlyRows = await fetchSheetData(monthlyUrl);
@@ -226,6 +227,7 @@ async function syncEstoque() {
     const valor = r.c[6]?.v || null;
 
     if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+    if (sku === 'AD000IF4135ABAJCN430031') sku = 'AD000HP6011ADABCN430026';
 
     if (sku && local) {
       insertData.push({
@@ -254,13 +256,13 @@ async function syncEstoque() {
   }
 
   console.log(`Carregando estoque físico de Casa para a data ${activeSyncDate}...`);
-  
+
   // 1. Carregar estoque Casa Sandrini
   try {
     const resSandrini = await axios.get('https://docs.google.com/spreadsheets/d/1CzdDnDQSJLca-qvkRUmkXgxjvDSMPr70UlyW_uj4KQo/export?format=csv&gid=1363555604');
     const linesSandrini = resSandrini.data.split(/\r?\n/);
     let countSandrini = 0;
-    
+
     for (let i = 1; i < linesSandrini.length; i++) {
       if (!linesSandrini[i].trim()) continue;
       const cols = parseCSVLine(linesSandrini[i]);
@@ -349,7 +351,7 @@ async function syncEstoque() {
       const finalEstoqueIdx = estoqueCasaIdx !== -1 ? estoqueCasaIdx : 37;
       const finalExpedicaoIdx = expedicaoIdx !== -1 ? expedicaoIdx : 4;
       let countBuyClock = 0;
-      
+
       for (let i = 3; i < linesBuyClock.length; i++) {
         if (!linesBuyClock[i].trim()) continue;
         const cols = parseCSVLine(linesBuyClock[i]);
@@ -435,6 +437,7 @@ async function syncReposicao() {
     const nf = r.c[7]?.f || r.c[7]?.v || null;
 
     if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+    if (sku === 'AD000IF4135ABAJCN430031') sku = 'AD000HP6011ADABCN430026';
 
     if (sku && local && nf) {
       insertData.push({
@@ -474,6 +477,7 @@ async function syncBadstock() {
     const local = r.c[2]?.v || null;
 
     if (sku === 'SA0A6230063ABBYCN390409') sku = 'SA0A6230063ABBYCN390408';
+    if (sku === 'AD000IF4135ABAJCN430031') sku = 'AD000HP6011ADABCN430026';
 
     if (sku && local) {
       insertData.push({
@@ -517,7 +521,7 @@ function parseCSVLine(line) {
   const result = [];
   let current = '';
   let inQuotes = false;
-  
+
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
@@ -838,18 +842,18 @@ async function syncMapeamento() {
         if (String(skuPlat).trim() === 'SA0A6230063ABBYCN390409') skuPlat = 'SA0A6230063ABBYCN390408';
 
         // Evitar mapear produtos Dry Fit da Sandrini para SKU Sênior da Lupo
-        const isSandriniDry = 
-          (skuPlat.toUpperCase().includes('DRY') || skuPlat.toUpperCase().includes('2350') || skuPlat.toUpperCase().includes('2351') || skuPlat.toUpperCase().includes('2352') || skuPlat.toUpperCase().includes('2353') || skuPlat.toUpperCase().includes('2355')) && 
-          !skuPlat.toUpperCase().startsWith('LP') && 
+        const isSandriniDry =
+          (skuPlat.toUpperCase().includes('DRY') || skuPlat.toUpperCase().includes('2350') || skuPlat.toUpperCase().includes('2351') || skuPlat.toUpperCase().includes('2352') || skuPlat.toUpperCase().includes('2353') || skuPlat.toUpperCase().includes('2355')) &&
+          !skuPlat.toUpperCase().startsWith('LP') &&
           !skuPlat.toUpperCase().startsWith('KLP');
 
-        const isMappedToLupo = 
-          finalSkuSen && 
+        const isMappedToLupo =
+          finalSkuSen &&
           (finalSkuSen.toUpperCase().startsWith('LP') || finalSkuSen.toUpperCase().startsWith('KLP') || (finalDesc && finalDesc.toUpperCase().includes('LUPO')));
 
         if (isSandriniDry) {
           const skuPlatUpper = skuPlat.toUpperCase().trim();
-          
+
           let size = '';
           if (skuPlatUpper.endsWith('TGG') || skuPlatUpper.endsWith('GG')) size = 'GG';
           else if (skuPlatUpper.endsWith('TG') || skuPlatUpper.endsWith('G')) size = 'G';
@@ -864,7 +868,7 @@ async function syncMapeamento() {
             else if (size === 'M') officialSku = 'KSA04000002350CM0M0146';
             else if (size === 'G') officialSku = 'KSA04000002350CM0G0145';
             else if (size === 'GG') officialSku = 'KSA04000002350CMGG0144';
-            
+
             officialDesc = 'Kit 4 Camisetas Dry Sandrini Manga Curta';
           }
 
@@ -916,7 +920,7 @@ async function syncMapeamento() {
       { skuPlat: 'F02R00172CGRPTCBRT38', skuSen: 'FL000012871BPAACS380259', desc: 'Tênis Fila Duality 2 Feminino' },
       { skuPlat: 'F02R00172CGRPTCBRT39', skuSen: 'FL000012871BPAACS390261', desc: 'Tênis Fila Duality 2 Feminino' },
       { skuPlat: 'F02R00172CGRPTCBRT40', skuSen: 'FL000012871BPAACS400260', desc: 'Tênis Fila Duality 2 Feminino' },
-      
+
       { skuPlat: 'F01R00165CBRPTLRT38', skuSen: 'FL000012871ABAAAV380268', desc: 'Tênis Fila Duality 2 Masculino' },
       { skuPlat: 'F01R00165CBRPTLRT39', skuSen: 'FL000012871ABAAAV390273', desc: 'Tênis Fila Duality 2 Masculino' },
       { skuPlat: 'F01R00165CBRPTLRT40', skuSen: 'FL000012871ABAAAV400272', desc: 'Tênis Fila Duality 2 Masculino' },

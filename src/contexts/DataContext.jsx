@@ -380,8 +380,7 @@ async function fetchCaminhoSupabase() {
   console.log('[DataContext] Buscando reposição (caminho) do Supabase...');
   const { data, error } = await supabase
     .from('silver_reposicao')
-    .select('sku_produto, descricao_produto, local_destino, quantidade_enviada, status_envio, previsao_chegada, numero_nota_fiscal')
-    .neq('status_envio', 'FINALIZADO');
+    .select('sku_produto, descricao_produto, local_destino, quantidade_enviada, status_envio, previsao_chegada, numero_nota_fiscal');
   if (error) {
     console.error('Erro ao buscar reposicao do Supabase:', error.message);
     return [];
@@ -863,8 +862,10 @@ export function DataProvider({ children }) {
         const rawLocal = String(r.c[2]?.v || "").trim().toUpperCase();
         const mapping = mapLookup[`${rawSku}|${rawLocal}`] || globalSkuMap[rawSku];
 
-        const mappedSku = mapping?.sku_senior || rawSku;
+        let mappedSku = mapping?.sku_senior || rawSku;
         const mappedDesc = mapping?.descricao_oficial || r.c[1]?.v || "";
+
+        mappedSku = autoResolveMeliSku(mappedSku, mappedDesc);
 
         return {
           c: [

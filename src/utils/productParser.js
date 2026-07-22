@@ -147,9 +147,13 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   let catalogInfo = seniorCatalog[cleanSkuKey];
   // Fallback: use pre-built prefix cache for O(1) lookup
   if (!catalogInfo && cleanSkuKey.length >= 10) {
-    const matchingKey = _prefixCache[cleanSkuKey];
-    if (matchingKey) {
-      catalogInfo = seniorCatalog[matchingKey];
+    for (let len = cleanSkuKey.length; len >= 10; len--) {
+      const prefix = cleanSkuKey.substring(0, len);
+      const matchingKey = _prefixCache[prefix];
+      if (matchingKey) {
+        catalogInfo = seniorCatalog[matchingKey];
+        break;
+      }
     }
   }
   if (catalogInfo && catalogInfo.descricao_oficial) {
