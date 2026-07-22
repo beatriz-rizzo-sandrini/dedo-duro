@@ -378,14 +378,32 @@ async function fetchEstoqueSupabase(targetDate = null) {
 
 async function fetchCaminhoSupabase() {
   console.log('[DataContext] Buscando reposição (caminho) do Supabase...');
-  const { data, error } = await supabase
-    .from('silver_reposicao')
-    .select('sku_produto, descricao_produto, local_destino, quantidade_enviada, status_envio, previsao_chegada, numero_nota_fiscal');
-  if (error) {
-    console.error('Erro ao buscar reposicao do Supabase:', error.message);
-    return [];
+  let allData = [];
+  let hasMore = true;
+  let page = 0;
+  const pageSize = 1000;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('silver_reposicao')
+      .select('sku_produto, descricao_produto, local_destino, quantidade_enviada, status_envio, previsao_chegada, numero_nota_fiscal')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) {
+      console.error('Erro ao buscar reposicao do Supabase:', error.message);
+      return [];
+    }
+
+    if (data && data.length > 0) {
+      allData = [...allData, ...data];
+      page++;
+      if (data.length < pageSize) hasMore = false;
+    } else {
+      hasMore = false;
+    }
   }
-  return data.map(r => ({
+
+  return allData.map(r => ({
     c: [
       { v: r.sku_produto },
       { v: r.descricao_produto },
