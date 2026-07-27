@@ -13,7 +13,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Select from 'react-select';
-import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer, Package , Palette } from 'lucide-react';
+import { Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileText, FileSpreadsheet, Filter, Printer, Package, Palette, HelpCircle } from 'lucide-react';
 import { handleExport, generatePDFBlob } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
 import eanMapping from '../utils/eanMapping.json';
@@ -1495,7 +1495,11 @@ export default function Sellout() {
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Expedição</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '150px', background: '#fafafa' }}>Estoque Total</th>
                           <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Vendas</th>
-                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>Cobertura</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 600, color: '#64748b', width: '120px', background: '#fafafa' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                              Cobertura <HelpCircle size={14} style={{ cursor: 'help' }} title="Cálculo: Estoque Total / Média de Vendas (VMD). Não contabiliza itens a caminho." />
+                            </div>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

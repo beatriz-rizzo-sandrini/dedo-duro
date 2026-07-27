@@ -59,7 +59,7 @@ const COLOR_ABBR_MAP = {
   'SORT': 'SORT', 'SORTIDO': 'SORT',
   'BGE': 'BGE', 'BEGE': 'BGE',
   'OFW': 'OFW', 'OFF WHITE': 'OFW', 'OFF-WHITE': 'OFW', 'OFFWHITE': 'OFW',
-  'OFF BRANCO': 'OFW', 'OFF-BRANCO': 'OFW',
+  'OFF BRANCO': 'OFW', 'OFF-BRANCO': 'OFW', 'BRANCO GELO': 'OFW', 'BRANCOGELO': 'OFW', 'BRANCO-GELO': 'OFW',
   'MRM': 'MRM', 'MARROM': 'MRM',
   'MRC': 'MRC', 'MARROM CLARO': 'MRC',
   'CAF': 'CAF', 'CAFÉ': 'CAF',
@@ -96,7 +96,7 @@ const COLOR_ABBR_MAP = {
   'LRJ': 'LRJ', 'LARANJA': 'LRJ',
   'LRJA': 'LRJ', 'GEL': 'GEL', 'GELO': 'GEL',
   'CAR': 'CAR', 'CARAMELO': 'CAR',
-  'ALL BLACK': 'ALL BLACK', 'ALLBLACK': 'ALL BLACK',
+  'ALL BLACK': 'ABLK', 'ALLBLACK': 'ABLK', 'ABLK': 'ABLK',
   'MILITAR': 'VDM', 'SORTIDOG': 'SORT',
   'SORTIDO': 'SORT', 'SORTIDOS': 'SORT',
   'SORTIDA': 'SORT', 'SORTIDAS': 'SORT',
@@ -624,7 +624,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
       isSeniorSKU = true;
       if (block === 'AAAAAA') {
-        skuColor = 'ALL BLACK';
+        skuColor = 'ABLK';
       } else {
         const colors = [];
         if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);
@@ -643,7 +643,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       if (SKU_COLOR_MAP[p1] && SKU_COLOR_MAP[p2] && SKU_COLOR_MAP[p3]) {
         isSeniorSKU = true;
         if (block === 'AAAAAA') {
-          skuColor = 'ALL BLACK';
+          skuColor = 'ABLK';
         } else {
           const colors = [];
           if (p1 !== 'CN' && p1 !== '00') colors.push(SKU_COLOR_MAP[p1]);

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../contexts/DataContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown , Palette , AlertCircle , AlertOctagon } from 'lucide-react';
+import { Search, ShoppingCart, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, Palette, AlertCircle, AlertOctagon, HelpCircle } from 'lucide-react';
 import Select from 'react-select';
 import { handleExport } from '../utils/exportUtils';
 import { toTitleCase } from '../utils/stringUtils';
@@ -190,7 +190,7 @@ export default function Produto() {
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (status === 'FINALIZADO') return;
+      if (status === 'FINALIZADO' || status.includes('TRANSFER')) return;
 
       if (!aCaminhoMap[local]) aCaminhoMap[local] = {};
       if (!aCaminhoMap[local][sku]) aCaminhoMap[local][sku] = 0;
@@ -678,7 +678,7 @@ export default function Produto() {
               },
               {
                 key: 'cobertura',
-                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Cobertura {getSortIcon('cobertura')}</div>,
+                label: <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} title="Cálculo: Estoque / Média de Vendas. O 'A Caminho' é descontado apenas na Reposição.">Cobertura <HelpCircle size={14} style={{ cursor: 'help' }} /> {getSortIcon('cobertura')}</div>,
                 rawLabel: 'Cobertura',
                 render: (row) => row.cobertura === -1 ? '∞' : `${Math.round(row.cobertura)} dias`,
                 onSort: () => requestSort('cobertura'),
@@ -742,7 +742,11 @@ export default function Produto() {
                           <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Estoque</th>
                           <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>A Caminho</th>
                           <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Vendas</th>
-                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>Cobertura</th>
+                          <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600, color: '#64748b', background: '#fafafa' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              Cobertura <HelpCircle size={14} style={{ cursor: 'help' }} title="Cálculo: Estoque / Média de Vendas. O 'A Caminho' é descontado apenas na Reposição." />
+                            </div>
+                          </th>
                           <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600, color: '#64748b', width: '180px', background: '#fafafa' }}>Add Reposição</th>
                         </tr>
                       </thead>
