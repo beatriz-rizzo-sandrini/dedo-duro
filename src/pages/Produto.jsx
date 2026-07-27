@@ -190,7 +190,7 @@ export default function Produto() {
       const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
 
-      if (status === 'FINALIZADO' || status.includes('TRANSFER')) return;
+      if (status === 'FINALIZADO' || status.includes('TRANSFER') || status.includes('CONFER')) return;
 
       if (!aCaminhoMap[local]) aCaminhoMap[local] = {};
       if (!aCaminhoMap[local][sku]) aCaminhoMap[local][sku] = 0;

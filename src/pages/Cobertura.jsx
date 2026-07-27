@@ -270,7 +270,7 @@ export default function Cobertura() {
       const status = String(r?.c?.[COL_CAMINHO.STATUS]?.v ?? "").toUpperCase().trim();
 
       if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-      if (status === 'FINALIZADO') return;
+      if (status === 'FINALIZADO' || status.includes('TRANSFER') || status.includes('CONFER')) return;
 
       desc = skuToDesc[sku] || desc;
       if (!sku && !desc) return;
