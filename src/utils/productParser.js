@@ -153,6 +153,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     'FL02TR00127AKAACN': { title: 'TENIS FILA SPRINT FEMININO F02TR00127', col: 'BOR/PTO' },
   };
 
+  const sandriniOverrides = {
+    'SA000002375AACNCN': { title: 'Camiseta Sandrini Tech (2375)', col: 'PTO' },
+  };
+
   for (const [key, val] of Object.entries(filaOverrides)) {
     if (skuUpper.startsWith(key)) {
       const sizeStr = skuUpper.substring(17, 19);
@@ -161,6 +165,20 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
         color: val.col,
         size: sizeStr || 'U',
         brand: 'FILA',
+        isSenior: true,
+        skusMerged: [skuUpper]
+      };
+    }
+  }
+
+  for (const [key, val] of Object.entries(sandriniOverrides)) {
+    if (skuUpper.startsWith(key)) {
+      const sizeStr = skuUpper.substring(17, 19).replace('0', '');
+      return {
+        baseTitle: val.title,
+        color: val.col,
+        size: sizeStr || 'U',
+        brand: 'SANDRINI',
         isSenior: true,
         skusMerged: [skuUpper]
       };
