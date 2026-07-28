@@ -527,7 +527,7 @@ export default function Estoque() {
 
     // Aplicar filtros de busca e locais/marcas
     if (busca) {
-      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
         const skusArray = (l.skusArr || []).map(s => s.toLowerCase());
@@ -1551,7 +1551,12 @@ export default function Estoque() {
                               </span>
                             </td>
                             <td style={{ padding: '10px 20px', fontFamily: 'monospace', color: '#475569', fontWeight: 500 }}>
-                              {v.sku}
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span>{v.sku}</span>
+                                {v.skuPlat && v.skuPlat !== v.sku && (
+                                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Plat: {v.skuPlat}</span>
+                                )}
+                              </div>
                             </td>
                             <td style={{ padding: '10px 20px', textAlign: 'right', color: '#475569', fontWeight: 500 }}>
                               {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -1625,6 +1630,9 @@ export default function Estoque() {
                               </span>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span style={{ fontFamily: 'monospace', color: '#475569', fontSize: '11px' }}>{v.sku}</span>
+                                {v.skuPlat && v.skuPlat !== v.sku && (
+                                  <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94a3b8' }}>Plat: {v.skuPlat}</span>
+                                )}
                                 <span style={{ fontSize: '10px', color: '#64748b' }}>Unit: {v.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                               </div>
                             </div>

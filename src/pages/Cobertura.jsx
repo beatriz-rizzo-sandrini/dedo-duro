@@ -321,7 +321,7 @@ export default function Cobertura() {
 
     // Filtro de Busca por Descrição ou SKU
     if (busca) {
-      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
         const skusArray = (l.skusArr || []).map(s => s.toLowerCase());

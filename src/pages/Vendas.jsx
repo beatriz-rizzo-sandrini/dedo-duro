@@ -234,7 +234,7 @@ export default function Vendas() {
       if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === parsed.brand.toUpperCase())) return;
 
       if (busca) {
-        const termos = busca.toLowerCase().trim().split(/\s+/);
+        const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
         const descLower = desc.toLowerCase();
         const skuLower = sku.toLowerCase();
         const skuPlatLower = skuPlat.toLowerCase();

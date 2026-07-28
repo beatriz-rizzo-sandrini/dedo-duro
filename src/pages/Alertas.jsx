@@ -235,7 +235,7 @@ export default function Alertas() {
     });
 
     if (busca) {
-      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
       alertas = alertas.filter(l => {
         const skuLower = (l.sku || "").toLowerCase();
         const skuPlatLower = (l.skuPlat || "").toLowerCase();

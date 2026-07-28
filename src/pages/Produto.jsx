@@ -465,7 +465,7 @@ export default function Produto() {
     });
 
     if (busca) {
-      const termos = busca.toLowerCase().trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
         const localLower = (l.local || "").toLowerCase();
