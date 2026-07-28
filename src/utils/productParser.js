@@ -155,6 +155,8 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
   const sandriniOverrides = {
     'SA000002375AACNCN': { title: 'Camiseta Sandrini Tech (2375)', col: 'PTO' },
+    'SA000002355CMCNCN': { title: 'Camiseta Sandrini Regata Dry Fit (2355)', col: 'SORT' },
+    'SA000002355AACNCN': { title: 'Camiseta Sandrini Regata Dry Fit (2355)', col: 'PTO' },
   };
 
   const adidasOverrides = {
