@@ -157,6 +157,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     'SA000002375AACNCN': { title: 'Camiseta Sandrini Tech (2375)', col: 'PTO' },
   };
 
+  const adidasOverrides = {
+    'AD000KB5968ABCNCN': { title: 'REGATA ADIDAS ADI365 B M KB5968', col: 'BCO' },
+  };
+
   for (const [key, val] of Object.entries(filaOverrides)) {
     if (skuUpper.startsWith(key)) {
       const sizeStr = skuUpper.substring(17, 19);
@@ -179,6 +183,20 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
         color: val.col,
         size: sizeStr || 'U',
         brand: 'SANDRINI',
+        isSenior: true,
+        skusMerged: [skuUpper]
+      };
+    }
+  }
+
+  for (const [key, val] of Object.entries(adidasOverrides)) {
+    if (skuUpper.startsWith(key)) {
+      const sizeStr = skuUpper.substring(17, 19).replace('0', '');
+      return {
+        baseTitle: val.title,
+        color: val.col,
+        size: sizeStr || 'U',
+        brand: 'ADIDAS',
         isSenior: true,
         skusMerged: [skuUpper]
       };
