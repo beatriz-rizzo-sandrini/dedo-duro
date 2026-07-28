@@ -143,6 +143,30 @@ for (const key of Object.keys(seniorCatalog)) {
 
 export function parseProductDescription(desc, sku = '', isWatch = false, brand = '') {
   const skuUpper = String(sku || '').trim().toUpperCase();
+
+  const filaOverrides = {
+    'FLF01L00390ABAQAF': { title: 'Tenis Fila Renno Classic SL (F01L00390)', col: 'BCO/NAV/VER' },
+    'FL02TR00127AJACCN': { title: 'TENIS FILA SPRINT FEMININO F02TR00127', col: 'VER/AZUGEL' },
+    'FLF01L00390AHAGCN': { title: 'Tenis Fila Renno Classic SL (F01L00390)', col: 'MARROM/BEGE' },
+    'FLF01L00390AQBPAB': { title: 'Tenis Fila Renno Classic SL (F01L00390)', col: 'NAV/GRF/BCO' },
+    'FL02TR00127ADARCN': { title: 'TENIS FILA SPRINT FEMININO F02TR00127', col: 'MAR/ROSA' },
+    'FL02TR00127AKAACN': { title: 'TENIS FILA SPRINT FEMININO F02TR00127', col: 'BOR/PTO' },
+  };
+
+  for (const [key, val] of Object.entries(filaOverrides)) {
+    if (skuUpper.startsWith(key)) {
+      const sizeStr = skuUpper.substring(17, 19);
+      return {
+        baseTitle: val.title,
+        color: val.col,
+        size: sizeStr || 'U',
+        brand: 'FILA',
+        isSenior: true,
+        skusMerged: [skuUpper]
+      };
+    }
+  }
+
   const cleanSkuKey = skuUpper.replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
   let catalogInfo = seniorCatalog[cleanSkuKey];
   // Fallback: use pre-built prefix cache for O(1) lookup
