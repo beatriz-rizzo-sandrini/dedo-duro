@@ -910,7 +910,49 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     }
   }
 
-  const titleCasedBase = toTitleCase(baseTitle);
+  let titleCasedBase = toTitleCase(baseTitle);
+
+  const customTitleMap = {
+    'Tenis Sandrini SN-465': 'Tênis Sandrini Casual Ivory (SN465)',
+    'Tenis Sandrini Evoke Lite SN-407': 'Tênis Sandrini Casual Evoke Lite (SN407)',
+    'Tenis Sandrini Evoke Lite SN-407 All Black': 'Tênis Sandrini Casual Evoke Lite (SN407)',
+    'Sapatenis Casual Sandrini A593001': 'Sapatênis Sandrini Rover (A593001)',
+    'Sapatenis Casual Sandrini A593005': 'Sapatênis Sandrini Rover (A593005)',
+    'Sapatenis Sandrini A585004': 'Sapatênis Sandrini Rover (A585004)',
+    'Sapatenis Sandrini A593008': 'Sapatenis Sandrini Rover (A593008)',
+    'Sapatenis Sandrini A585005': 'Sapatenis Sandrini Rover (A585005)',
+    'Tenis Sandrini 1809-003': 'Tênis Sandrini V12 Molas (1809)',
+    'Tenis Sandrini 1809004': 'Tênis Sandrini V12 Molas (1809)',
+    'Tenis Sandrini 1809069': 'Tênis Sandrini V12 Molas (1809)',
+    'Tenis Sandrini 26128sr': 'Tênis Sandrini Livelli (26128SR)',
+    'Tenis Sandrini 21114sr': 'Tênis Sandrini Luux (21114SR)',
+    'Tenis Sandrini 10189sr': 'Tênis Sandrini Junno (10189SR)',
+    'Tenis Sandrini Evoke Street SN-360r All Black': 'Tênis Sandrini Evoke Street (SN360R)',
+    'Tenis Sandrini SN-360': 'Tênis Sandrini Evoke Street (SN360R)',
+    'Sapatenis Sandrini A585002': 'Sapatenis Sandrini Nero (A585002)',
+    'Kit 10 Cuecas Mash Boxer Cot Ela Bord 17038k': 'Kit 10 Cueca Mash Boxer (17038K)',
+    'Kit 6 Cuecas Mash Slip 07504n': 'Kit 6 Cueca Mash Slip (07504N)',
+    'Tenis New Balance Fresh Foam MARISZ4G': 'Tenis New Balance Fresh Foam ARISHIV4',
+    'Tenis New Balance Fresh Foam MARIST4J Mrnho': 'Tenis New Balance Fresh Foam ARISHIV4',
+    'Kit 5 Cuecas Boxer Sem Costura Puma - 14100': 'Kit 5 Cueca Puma (14100)',
+    'Kit 4 Cuecas Boxer Sem Costura Puma 14100': 'Kit 4 Cueca Puma (14100)',
+    'Tenis Fila Freestyle /nectarine': 'Tenis Fila Freestyle (F01TR00102)',
+    'Tenis Fila Freestyle Ii': 'Tenis Fila Freestyle (F01TR00102)',
+    'Kit 03 Cueca Boxer Sandrini Night - 8169': 'Kit 3 Cueca Sandrini Boxer Night (8169)',
+    'Sandalia Sandrini D6901sad25': 'Sandália Papete Sandrini Nomad (D6901SA)',
+    'Sandalia Sandrini D6901sad16': 'Sandália Papete Sandrini Nomad (D6901SA)',
+    'Tenis Sandrini SD2593 Off': 'Tênis Sandrini Cloud Track (SD2593)'
+  };
+  
+  const mapKey = Object.keys(customTitleMap).find(k => k.toLowerCase() === titleCasedBase.toLowerCase());
+  if (mapKey) {
+    titleCasedBase = customTitleMap[mapKey];
+  }
+
+  if (skuUpperForOverride === 'NB001226059ADCNCN00062') {
+    size = '42';
+  }
+
   const colorPart = color && color !== 'SEM COR' ? ` ${color.toUpperCase()}` : '';
   const sizePart = size && size !== 'U' ? ` Tam ${size.toUpperCase()}` : '';
   const descricaoFormatada = `${titleCasedBase}${colorPart}${sizePart}`;
