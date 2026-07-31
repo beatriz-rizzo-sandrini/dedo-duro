@@ -424,6 +424,20 @@ export default function Cobertura() {
     setCurrentPage(1);
   }, [filtroLocal, filtroMarca, dataIni, dataFim, busca, filtroStatus, selectedCompany]);
 
+  const { totalVendas, totalEstoque, coberturaGeral } = useMemo(() => {
+    let tVendas = 0;
+    let tEstoque = 0;
+    dadosProcessados.linhas.forEach(l => {
+      tVendas += l.total || 0;
+      tEstoque += (l.estoqueTotal || 0) + (l.caminhoTotal || 0);
+    });
+    
+    const mediaGlobal = dadosProcessados.diasPeriodo > 0 ? tVendas / dadosProcessados.diasPeriodo : 0;
+    const cobGeral = mediaGlobal > 0 ? Math.round(tEstoque / mediaGlobal) : (tEstoque > 0 ? '∞' : 0);
+    
+    return { totalVendas: tVendas, totalEstoque: tEstoque, coberturaGeral: cobGeral };
+  }, [dadosProcessados]);
+
   if (loading) {
     return (
       <div className="header-main">
@@ -479,6 +493,7 @@ export default function Cobertura() {
           </AnimatePresence>
         </div>
       </div>
+
 
       <div className="filters-container">
         <CompanySelector />
@@ -555,6 +570,24 @@ export default function Cobertura() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '140px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DATA FINAL</label>
           <input type="date" className="input-padrao" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+        </div>
+      </div>
+
+      {/* KPIs Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Cobertura Global</span>
+          <span style={{ fontSize: '28px', color: '#0f172a', fontWeight: '700' }}>
+            {coberturaGeral} {typeof coberturaGeral === 'number' ? 'dias' : ''}
+          </span>
+        </div>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Total de Vendas (Período)</span>
+          <span style={{ fontSize: '28px', color: '#0f172a', fontWeight: '700' }}>{totalVendas.toLocaleString('pt-BR')}</span>
+        </div>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Total de Estoque (+ A Caminho)</span>
+          <span style={{ fontSize: '28px', color: '#0f172a', fontWeight: '700' }}>{totalEstoque.toLocaleString('pt-BR')}</span>
         </div>
       </div>
 

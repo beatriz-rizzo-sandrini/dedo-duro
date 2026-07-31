@@ -853,9 +853,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       .map(p => COLOR_ABBR_MAP[p] || p)
       .filter(p => p && p !== 'SEM COR' && p !== 'E' && p !== 'AND' && p !== 'COM' && p !== 'WITH');
     
-    if (!isSandrini) {
-      normalizedParts.sort();
-    }
+    // Ordenação alfabética removida para manter a ordem original do Senior/SKU
     color = normalizedParts.length > 0 ? normalizedParts.join('/') : 'SEM COR';
   } else {
     color = 'SEM COR';
