@@ -169,6 +169,11 @@ export default function Cadastro() {
 
   const [copiedDesc, setCopiedDesc] = useState(false);
 
+  // Estados para a Aba de Descrição SEO
+  const [seoProduto, setSeoProduto] = useState('');
+  const [seoDescricao, setSeoDescricao] = useState('');
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('__dedo_duro_color_synonyms__', JSON.stringify(synonyms));
   }, [synonyms]);
@@ -438,7 +443,98 @@ export default function Cadastro() {
         >
           <Search size={16} style={{ marginRight: '6px', display: 'inline' }} /> Tabela de Cores (SKU)
         </button>
+        <button
+          onClick={() => setActiveTab('seo')}
+          style={{
+            padding: '10px 20px', fontSize: '14px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
+            borderBottom: activeTab === 'seo' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: activeTab === 'seo' ? '#3b82f6' : '#64748b'
+          }}
+        >
+          <FileText size={16} style={{ marginRight: '6px', display: 'inline' }} /> Descrição Site (SEO)
+        </button>
       </div>
+
+      {activeTab === 'seo' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+          <div style={{ flex: '1 1 100%', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b' }}>
+              Gerador de Descrição para o Site (Foco em SEO)
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '800px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Produto para gerar descrição</label>
+                <input
+                  type="text"
+                  className="input-padrao"
+                  placeholder="Ex: Camiseta Masculina Dry Fit Sandrini"
+                  value={seoProduto}
+                  onChange={(e) => setSeoProduto(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  className="btn-padrao"
+                  onClick={async () => {
+                    if (!seoProduto) return;
+                    setIsGeneratingSeo(true);
+                    
+                    try {
+                      const response = await fetch('http://localhost:3001/api/generate-seo', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ produto: seoProduto }),
+                      });
+
+                      if (!response.ok) {
+                        throw new Error('Erro ao gerar descrição. Verifique se o backend está rodando.');
+                      }
+
+                      const data = await response.json();
+                      setSeoDescricao(data.descricao);
+                    } catch (err) {
+                      console.error(err);
+                      alert('Falha na geração: ' + err.message);
+                    } finally {
+                      setIsGeneratingSeo(false);
+                    }
+                  }}
+                  disabled={isGeneratingSeo}
+                  style={{ justifyContent: 'center', gap: '8px', minWidth: '200px' }}
+                >
+                  {isGeneratingSeo ? 'Gerando Descrição...' : 'Gerar Descrição'}
+                </button>
+              </div>
+
+              {seoDescricao && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '16px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Descrição Gerada</label>
+                  <textarea
+                    className="input-padrao"
+                    style={{ minHeight: '150px', resize: 'vertical', lineHeight: '1.5' }}
+                    value={seoDescricao}
+                    onChange={(e) => setSeoDescricao(e.target.value)}
+                  />
+                  <button
+                    className="btn-padrao"
+                    onClick={() => {
+                      navigator.clipboard.writeText(seoDescricao);
+                      alert('Descrição copiada para a área de transferência!');
+                    }}
+                    style={{ marginTop: '8px', alignSelf: 'flex-start', background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
+                  >
+                    <ClipboardCopy size={16} /> Copiar Descrição
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'assistente' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>

@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Inicializar Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const PORT = process.env.PORT || 3001;
 
@@ -152,6 +156,32 @@ app.get('/api/badstock', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint Gerador SEO (Gemini)
+app.post('/api/generate-seo', async (req, res) => {
+  try {
+    const { produto } = req.body;
+    if (!produto) {
+      return res.status(400).json({ error: 'Nome do produto é obrigatório.' });
+    }
+
+    // Usando a versão 3.6 do Gemini que está disponível na sua conta
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+    const prompt = `Você é um especialista em SEO para e-commerce. 
+Escreva uma descrição atraente, focada em SEO e conversão para o produto: "${produto}".
+Destaque características como conforto, materiais de alta qualidade, leveza e indique para quais situações o produto é ideal (ex: dia a dia, trabalho, eventos casuais, esportes, etc.). 
+Não precisa criar um título, apenas escreva o parágrafo da descrição em texto corrido (máximo 2 parágrafos) de forma fluída e profissional.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ descricao: text });
+  } catch (error) {
+    console.error('Erro ao gerar descrição no Gemini:', error);
+    res.status(500).json({ error: 'Erro ao gerar descrição com IA. Tente novamente mais tarde.' });
   }
 });
 
