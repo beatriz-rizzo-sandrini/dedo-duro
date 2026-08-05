@@ -44,6 +44,6 @@ Não precisa criar um título, apenas escreva o parágrafo da descrição em tex
     return res.status(200).json({ descricao: text });
   } catch (error) {
     console.error('Erro ao gerar descrição no Gemini:', error);
-    return res.status(500).json({ error: 'Erro interno ao gerar descrição com IA. Tente novamente mais tarde.' });
+    return res.status(500).json({ error: `Erro do Gemini: ${error.message}` });
   }
 }
