@@ -132,8 +132,11 @@ function isValidSize(val) {
 // Pre-build a prefix cache for fast fallback lookups (runs once at module load)
 const _prefixCache = {};
 for (const key of Object.keys(seniorCatalog)) {
-  // Cache progressively shorter prefixes (from 10 chars up to full key length)
-  for (let len = 10; len <= key.length; len++) {
+  let minLen = 12;
+  if (key.startsWith('KSA')) minLen = 14;
+  else if (key.startsWith('SA') || key.startsWith('FL') || key.startsWith('PN') || key.startsWith('DM') || key.startsWith('LP')) minLen = 11;
+
+  for (let len = minLen; len <= key.length; len++) {
     const prefix = key.substring(0, len);
     if (!_prefixCache[prefix]) {
       _prefixCache[prefix] = key;
@@ -208,13 +211,19 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   const cleanSkuKey = skuUpper.replace(/(_FBA|_FULL|-FBA|-FULL)$/i, '');
   let catalogInfo = seniorCatalog[cleanSkuKey];
   // Fallback: use pre-built prefix cache for O(1) lookup
-  if (!catalogInfo && cleanSkuKey.length >= 10) {
-    for (let len = cleanSkuKey.length; len >= 10; len--) {
-      const prefix = cleanSkuKey.substring(0, len);
-      const matchingKey = _prefixCache[prefix];
-      if (matchingKey) {
-        catalogInfo = seniorCatalog[matchingKey];
-        break;
+  if (!catalogInfo) {
+    let minLen = 12;
+    if (cleanSkuKey.startsWith('KSA')) minLen = 14;
+    else if (cleanSkuKey.startsWith('SA') || cleanSkuKey.startsWith('FL') || cleanSkuKey.startsWith('PN') || cleanSkuKey.startsWith('DM') || cleanSkuKey.startsWith('LP')) minLen = 11;
+    
+    if (cleanSkuKey.length >= minLen) {
+      for (let len = cleanSkuKey.length; len >= minLen; len--) {
+        const prefix = cleanSkuKey.substring(0, len);
+        const matchingKey = _prefixCache[prefix];
+        if (matchingKey) {
+          catalogInfo = seniorCatalog[matchingKey];
+          break;
+        }
       }
     }
   }
