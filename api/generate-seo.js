@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
     const prompt = `Você é um especialista em SEO para e-commerce. 
 Escreva uma descrição atraente, focada em SEO e conversão para o produto: "${produto}".
