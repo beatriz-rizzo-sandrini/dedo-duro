@@ -168,7 +168,7 @@ app.post('/api/generate-seo', async (req, res) => {
     }
 
     // Usando a versão 3.6 do Gemini que está disponível na sua conta
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = `Você é um especialista em SEO para e-commerce. 
 Escreva uma descrição atraente, focada em SEO e conversão para o produto: "${produto}".
 Destaque características como conforto, materiais de alta qualidade, leveza e indique para quais situações o produto é ideal (ex: dia a dia, trabalho, eventos casuais, esportes, etc.). 

@@ -482,7 +482,8 @@ export default function Cadastro() {
                     setIsGeneratingSeo(true);
                     
                     try {
-                      const response = await fetch('http://localhost:3001/api/generate-seo', {
+                      const apiUrl = import.meta.env.VITE_API_URL || '';
+                      const response = await fetch(`${apiUrl}/api/generate-seo`, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
