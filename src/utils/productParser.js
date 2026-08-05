@@ -231,6 +231,10 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     desc = catalogInfo.descricao_oficial;
   }
 
+  if (desc === '#N/A' || desc === '#n/a') {
+    desc = '';
+  }
+
   let finalBrand = brand;
   if (catalogInfo && catalogInfo.nomMar) {
     finalBrand = catalogInfo.nomMar;
@@ -238,12 +242,25 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   const normBrand = normalizeBrand(finalBrand, sku, desc);
 
   if (!desc) {
+    let fallbackTitle = sku || 'Produto Sem Descrição';
+    // Se for um SKU padronizado da Sandrini e não temos descrição, tentamos montar algo básico
+    if (sku && sku.startsWith('KSA') && sku.length >= 14) {
+      const qtd = parseInt(sku.substring(3, 5), 10) || '';
+      const ref = sku.substring(10, 14);
+      fallbackTitle = `Kit ${qtd} Sandrini (${ref})`;
+    } else if (sku && sku.startsWith('SA') && sku.length >= 12) {
+      const ref = sku.substring(7, 11);
+      fallbackTitle = `Sandrini (${ref})`;
+    }
+
     return {
-      baseTitle: sku || 'Produto Sem Descrição',
+      baseTitle: fallbackTitle,
       color: 'SEM COR',
       size: 'U',
       brand: normBrand,
-      descricaoFormatada: sku || 'Produto Sem Descrição'
+      descricaoFormatada: fallbackTitle,
+      isSenior: false,
+      skusMerged: [skuUpper]
     };
   }
 
