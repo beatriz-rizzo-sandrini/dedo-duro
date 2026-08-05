@@ -492,7 +492,14 @@ export default function Cadastro() {
                       });
 
                       if (!response.ok) {
-                        throw new Error('Erro ao gerar descrição. Verifique se o backend está rodando.');
+                        let errMsg = 'Erro desconhecido';
+                        try {
+                          const errData = await response.json();
+                          errMsg = errData.error || `Erro HTTP: ${response.status}`;
+                        } catch(e) {
+                          errMsg = `Erro HTTP: ${response.status}`;
+                        }
+                        throw new Error(errMsg);
                       }
 
                       const data = await response.json();
