@@ -70,6 +70,76 @@ async function upsertEmLotes(tabela, dados, onConflict, tamanhoLote = 500) {
   }
 }
 
+async function apagarDeletadosNaPlanilhaPorData(tabela, dados, colunaData, chaves) {
+  const datasNoBanco = [...new Set(dados.map(d => d[colunaData]))];
+  const mapaPlanilha = new Set(dados.map(d => chaves.map(k => d[k]).join('|')));
+
+  const loteDatas = 30;
+  let idsParaDeletar = [];
+
+  for (let i = 0; i < datasNoBanco.length; i += loteDatas) {
+    const chunk = datasNoBanco.slice(i, i + loteDatas);
+    const { data: recordsNoBanco, error } = await supabase
+      .from(tabela)
+      .select(`id, ${chaves.join(', ')}`)
+      .in(colunaData, chunk);
+
+    if (error) continue;
+
+    for (const rec of recordsNoBanco) {
+      const chaveRec = chaves.map(k => rec[k]).join('|');
+      if (!mapaPlanilha.has(chaveRec)) {
+        idsParaDeletar.push(rec.id);
+      }
+    }
+  }
+
+  if (idsParaDeletar.length > 0) {
+    console.log(`Encontrados ${idsParaDeletar.length} registros em ${tabela} deletados da planilha. Removendo do banco...`);
+    const loteDeletar = 200;
+    for (let i = 0; i < idsParaDeletar.length; i += loteDeletar) {
+      const chunkIds = idsParaDeletar.slice(i, i + loteDeletar);
+      await supabase.from(tabela).delete().in('id', chunkIds);
+    }
+  }
+}
+
+async function apagarDeletadosNaPlanilhaSemData(tabela, dados, chaves) {
+  const mapaPlanilha = new Set(dados.map(d => chaves.map(k => d[k]).join('|')));
+  let allRecords = [];
+  let page = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(tabela)
+      .select(`id, ${chaves.join(', ')}`)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error || !data || data.length === 0) break;
+    allRecords.push(...data);
+    if (data.length < pageSize) break;
+    page++;
+  }
+
+  let idsParaDeletar = [];
+  for (const rec of allRecords) {
+    const chaveRec = chaves.map(k => rec[k]).join('|');
+    if (!mapaPlanilha.has(chaveRec)) {
+      idsParaDeletar.push(rec.id);
+    }
+  }
+
+  if (idsParaDeletar.length > 0) {
+    console.log(`Encontrados ${idsParaDeletar.length} registros em ${tabela} deletados da planilha. Removendo do banco...`);
+    const loteDeletar = 200;
+    for (let i = 0; i < idsParaDeletar.length; i += loteDeletar) {
+      const chunkIds = idsParaDeletar.slice(i, i + loteDeletar);
+      await supabase.from(tabela).delete().in('id', chunkIds);
+    }
+  }
+}
+
 function parseDateToSQL(f, v) {
   if (f && typeof f === 'string' && f.includes('/')) {
     const parts = f.split('/');
@@ -168,24 +238,35 @@ async function syncVendas() {
     'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
     'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
   ];
-  const currentMonthTab = MONTHS[new Date().getMonth()];
+
+  const currentMonthIdx = new Date().getMonth();
+  const currentMonthTab = MONTHS[currentMonthIdx];
+  const previousMonthTab = MONTHS[currentMonthIdx === 0 ? 11 : currentMonthIdx - 1];
   const activeTabs = await getSpreadsheetTabs(SPREADSHEET_ID);
 
-  if (currentMonthTab && currentMonthTab !== 'VENDAS' && activeTabs.includes(currentMonthTab)) {
-    let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(currentMonthTab)}`;
-    if (!isFullSync && query) {
-      monthlyUrl += `&tq=${query}`;
-    }
+  const monthsToSync = [currentMonthTab];
+  // No modo full ou início do mês (até dia 5), sincroniza também o mês anterior
+  if (isFullSync || new Date().getDate() <= 5) {
+    monthsToSync.push(previousMonthTab);
+  }
 
-    try {
-      console.log(`Carregando aba mensal ativa: "${currentMonthTab}"...`);
-      const monthlyRows = await fetchSheetData(monthlyUrl);
-      if (monthlyRows && monthlyRows.length > 0) {
-        console.log(`Aba "${currentMonthTab}": ${monthlyRows.length} linhas encontradas.`);
-        processarLinhas(monthlyRows, true);
+  for (const monthTab of monthsToSync) {
+    if (monthTab && monthTab !== 'VENDAS' && activeTabs.includes(monthTab)) {
+      let monthlyUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(monthTab)}`;
+      if (!isFullSync && query) {
+        monthlyUrl += `&tq=${query}`;
       }
-    } catch (err) {
-      console.log(`Aba mensal "${currentMonthTab}" inativa ou indisponível:`, err.message);
+
+      try {
+        console.log(`Carregando aba mensal: "${monthTab}"...`);
+        const monthlyRows = await fetchSheetData(monthlyUrl);
+        if (monthlyRows && monthlyRows.length > 0) {
+          console.log(`Aba "${monthTab}": ${monthlyRows.length} linhas encontradas.`);
+          processarLinhas(monthlyRows, true);
+        }
+      } catch (err) {
+        console.log(`Aba mensal "${monthTab}" inativa ou indisponível:`, err.message);
+      }
     }
   }
 
@@ -200,12 +281,9 @@ async function syncVendas() {
   }
   const dadosUnicos = Object.values(mapa);
 
-  const datasNoBanco = [...new Set(dadosUnicos.map(d => d.data_venda))];
-  console.log(`Limpando histórico local para as datas: ${datasNoBanco.join(', ')}`);
-  for (const data of datasNoBanco) {
-    await supabase.from('silver_vendas').delete().eq('data_venda', data);
-  }
 
+
+  await apagarDeletadosNaPlanilhaPorData('silver_vendas', dadosUnicos, 'data_venda', ['data_venda', 'local_venda', 'sku_produto']);
   await upsertEmLotes('silver_vendas', dadosUnicos, 'data_venda, local_venda, sku_produto');
   console.log(`Vendas sincronizadas com sucesso (${dadosUnicos.length} registros).`);
 }
@@ -220,6 +298,12 @@ async function syncEstoque() {
     if (!r || !r.c) continue;
     const dataStr = r.c[0]?.f || r.c[0]?.v || null;
     let sku = r.c[1]?.v || null;
+
+    // Ignorar cabeçalho caso tenha vindo na resposta do Google Sheets
+    if (String(dataStr).trim().toUpperCase() === 'DATA' || String(sku).trim().toUpperCase() === 'SKU') {
+      continue;
+    }
+
     const desc = r.c[2]?.v || null;
     const local = r.c[3]?.v || null;
     const marca = r.c[4]?.v || null;
@@ -246,8 +330,11 @@ async function syncEstoque() {
   let activeSyncDate = null;
   for (const r of rows) {
     if (r && r.c) {
-      activeSyncDate = r.c[0]?.f || r.c[0]?.v || null;
-      if (activeSyncDate) break;
+      const dVal = r.c[0]?.f || r.c[0]?.v || null;
+      if (dVal && String(dVal).trim().toUpperCase() !== 'DATA') {
+        activeSyncDate = dVal;
+        break;
+      }
     }
   }
   if (!activeSyncDate) {
@@ -408,12 +495,9 @@ async function syncEstoque() {
   }
   const dadosUnicosEstoque = Object.values(mapaEstoque);
 
-  const datasNoBanco = [...new Set(dadosUnicosEstoque.map(d => d.data_atualizacao))];
-  console.log(`Limpando histórico local para as datas de estoque: ${datasNoBanco.join(', ')}`);
-  for (const data of datasNoBanco) {
-    await supabase.from('silver_estoque').delete().eq('data_atualizacao', data);
-  }
 
+
+  await apagarDeletadosNaPlanilhaPorData('silver_estoque', dadosUnicosEstoque, 'data_atualizacao', ['data_atualizacao', 'sku_produto', 'local_estoque']);
   await upsertEmLotes('silver_estoque', dadosUnicosEstoque, 'data_atualizacao, sku_produto, local_estoque');
   console.log(`Estoque sincronizado com sucesso (${dadosUnicosEstoque.length} registros).`);
 }
@@ -422,7 +506,7 @@ async function syncReposicao() {
   console.log('Sincronizando reposições...');
   const rows = await fetchSheetData(SHEET_URLS.caminho);
 
-  await supabase.from('silver_reposicao').delete().neq('id', 0);
+
 
   const insertData = [];
 
@@ -459,6 +543,7 @@ async function syncReposicao() {
   }
   const dadosUnicosReposicao = Object.values(mapaReposicao);
 
+  await apagarDeletadosNaPlanilhaSemData('silver_reposicao', dadosUnicosReposicao, ['sku_produto', 'numero_nota_fiscal', 'local_destino']);
   await upsertEmLotes('silver_reposicao', dadosUnicosReposicao, 'sku_produto, numero_nota_fiscal, local_destino');
   console.log(`Reposições sincronizadas com sucesso (${dadosUnicosReposicao.length} registros).`);
 }
@@ -467,7 +552,7 @@ async function syncBadstock() {
   console.log('Sincronizando badstock...');
   const rows = await fetchSheetData(SHEET_URLS.badstock);
 
-  await supabase.from('silver_badstock').delete().neq('id', 0);
+
 
   const insertData = [];
 
@@ -494,6 +579,7 @@ async function syncBadstock() {
   }
   const dadosUnicosBadstock = Object.values(mapaBadstock);
 
+  await apagarDeletadosNaPlanilhaSemData('silver_badstock', dadosUnicosBadstock, ['sku_produto', 'local_badstock']);
   await upsertEmLotes('silver_badstock', dadosUnicosBadstock, 'sku_produto, local_badstock');
   console.log(`Badstock sincronizado com sucesso (${dadosUnicosBadstock.length} registros).`);
 }
