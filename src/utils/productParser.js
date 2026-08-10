@@ -1000,8 +1000,8 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
   const customTitleMap = {
     'Tenis Sandrini SN-465': 'Tênis Sandrini Casual Ivory (SN465)',
-    'Tenis Sandrini Evoke Lite SN-407': 'Tênis Sandrini Casual Evoke Lite (SN407)',
-    'Tenis Sandrini Evoke Lite SN-407 All Black': 'Tênis Sandrini Casual Evoke Lite (SN407)',
+    'Tenis Sandrini Evoke Lite SN-407': 'Tenis Sandrini Evoke Lite (SN407)',
+    'Tenis Sandrini Evoke Lite SN-407 All Black': 'Tenis Sandrini Evoke Lite (SN407)',
     'Sapatenis Casual Sandrini A593001': 'Sapatênis Sandrini Rover (A593001)',
     'Sapatenis Casual Sandrini A593005': 'Sapatênis Sandrini Rover (A593005)',
     'Sapatenis Sandrini A585004': 'Sapatênis Sandrini Rover (A585004)',
