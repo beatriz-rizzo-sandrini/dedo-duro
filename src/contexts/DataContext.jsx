@@ -47,10 +47,8 @@ function sqlDateToBR(d) {
 async function fetchVendasSupabase() {
   const PAGE_SIZE = 1000;
   
-  // Cutoff dinâmico de 40 dias atrás para manter o carregamento leve e estável
-  const today = new Date();
-  const cutoffDate = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000);
-  const dynamicCutoff = cutoffDate.toISOString().split('T')[0];
+  // Cutoff estático para carregar todo o histórico a partir do final de março
+  const dynamicCutoff = VENDAS_CUTOFF;
   try {
     // 1. Obtém o total de registros (head request rápido)
     const { count, error: countError } = await supabase
@@ -138,53 +136,6 @@ async function fetchVendasSupabase() {
         { v: r.marca },
       ]
     }));
-  }
-}
-
-async function fetchHistoricalVendasInBackground(dynamicCutoff) {
-  try {
-    console.log(`[DataContext] Iniciando fetch do histórico (antes de ${dynamicCutoff} até ${VENDAS_CUTOFF})`);
-    const PAGE_SIZE = 2000;
-    
-    const { count, error: countError } = await supabase
-      .from('vw_vendas_consolidadas')
-      .select('*', { count: 'exact', head: true })
-      .lt('data_venda', dynamicCutoff)
-      .gte('data_venda', VENDAS_CUTOFF);
-      
-    if (countError) throw countError;
-    const totalRows = count || 0;
-    if (totalRows === 0) return [];
-    
-    const totalPages = Math.ceil(totalRows / PAGE_SIZE);
-    console.log(`[DataContext] Histórico a carregar: ${totalRows} registros (${totalPages} páginas em paralelo)`);
-    
-    const promises = [];
-    for (let page = 0; page < totalPages; page++) {
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      promises.push(
-        supabase
-          .from('vw_vendas_consolidadas')
-          .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
-          .lt('data_venda', dynamicCutoff)
-          .gte('data_venda', VENDAS_CUTOFF)
-          .order('data_venda', { ascending: false })
-          .range(from, to)
-          .then(({ data, error }) => {
-            if (error) throw error;
-            return data || [];
-          })
-      );
-    }
-    
-    const results = await Promise.all(promises);
-    let allData = [];
-    results.forEach(res => { allData = allData.concat(res); });
-    return allData;
-  } catch (error) {
-    console.error('[DataContext] Erro no background fetch do histórico:', error);
-    return [];
   }
 }
 
@@ -985,49 +936,6 @@ export function DataProvider({ children }) {
       try {
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), sheets: combined }));
       } catch { /* ignora quota */ }
-
-      // --- Inicia o fetch do histórico antigo em background ---
-      const today = new Date();
-      const cutoffDate = new Date(today.getTime() - 40 * 24 * 60 * 60 * 1000);
-      const dynamicCutoff = cutoffDate.toISOString().split('T')[0];
-      
-      fetchHistoricalVendasInBackground(dynamicCutoff).then(rawHistorico => {
-        if (rawHistorico && rawHistorico.length > 0) {
-          const mappedHistorico = rawHistorico.map(r => {
-            const rawSku = String(r.sku_produto || "").trim().toUpperCase();
-            const rawLocal = String(r.local_venda || "").trim().toUpperCase();
-            const mapping = mapLookup[`${rawSku}|${rawLocal}`] || globalSkuMap[rawSku];
-
-            let mappedSku = mapping?.sku_senior || rawSku;
-            let mappedDesc = mapping?.descricao_oficial || r.descricao_produto || "";
-            mappedSku = autoResolveMeliSku(mappedSku, mappedDesc);
-
-            return {
-              c: [
-                { v: r.data_venda, f: sqlDateToBR(r.data_venda) }, // data
-                { v: r.local_venda }, // local
-                { v: mappedSku }, // sku mapped
-                { v: mappedDesc }, // desc mapped
-                { v: Number(r.quantidade_vendida) || 0 }, // qtd
-                { v: normalizeBrand(r.marca || "", mappedSku, mappedDesc) }, // brand normalized
-                { v: rawSku } // index 6: original platform SKU
-              ]
-            };
-          });
-
-          setData(prev => {
-            const novasVendas = [...prev.vendas, ...mappedHistorico];
-            const updatedSheets = { ...prev, vendas: novasVendas };
-            
-            try {
-              sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), sheets: updatedSheets }));
-            } catch { /* ignora */ }
-            
-            return updatedSheets;
-          });
-          console.log(`[DataContext] Histórico antigo mesclado com sucesso! (+${mappedHistorico.length} vendas prontas para filtro)`);
-        }
-      });
 
     } catch (err) {
       setError(err.message);
