@@ -129,23 +129,77 @@ export default function Vendas() {
     return Array.from(setMarcas).sort();
   }, [vendasRows, selectedCompany]);
 
-  const dadosProcessados = useMemo(() => {
-    if (!vendasRows) return { linhas: [], linhasTudo: [], totalItens: 0, chartData: null, dataEstoque: "", dataVendas: "" };
+  const parseDateStr = (dateStr) => {
+    if (!dateStr || !dateStr.includes('/')) return 0;
+    const [dia, mes, ano] = dateStr.split('/');
+    return new Date(`${ano}-${mes}-${dia}`).getTime();
+  };
 
+  const parsedVendas = useMemo(() => {
+    if (!vendasRows) return [];
+    
     const skuToDesc = {};
-    // 1. Pega a descrição mais atualizada do Estoque como "fonte da verdade"
     estoqueRows.forEach(r => {
-      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || "";
-      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || "";
+      const sku = r?.c?.[COL_ESTOQUE.SKU]?.v || '';
+      const desc = r?.c?.[COL_ESTOQUE.DESC]?.v || '';
       if (sku && desc) skuToDesc[sku] = desc;
     });
 
-    // 2. Fallback para as vendas caso o SKU não exista mais no estoque
     vendasRows.forEach(r => {
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
-      const desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || '';
+      const desc = r?.c?.[COL_VENDAS.DESC]?.v || '';
       if (sku && desc && !skuToDesc[sku]) skuToDesc[sku] = desc;
     });
+
+    const parsed = [];
+    for (let i = 0; i < vendasRows.length; i++) {
+      const r = vendasRows[i];
+      const dateVal = r?.c?.[COL_VENDAS.DATA]?.f;
+      if (!dateVal) continue;
+      
+      const dateRow = parseDateStr(dateVal);
+      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || '').toUpperCase().trim();
+      const loja = local.includes('BUY CLOCK') ? 'BUY CLOCK' : 'SANDRINI';
+      const sku = r?.c?.[COL_VENDAS.SKU]?.v || '';
+      const skuPlat = r?.c?.[6]?.v || '';
+      let desc = r?.c?.[COL_VENDAS.DESC]?.v || '';
+      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
+
+      desc = skuToDesc[sku] || desc;
+      if (!sku && !desc) continue;
+      if (!desc) desc = `SKU: ${sku}`;
+
+      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || '';
+      const prodParsed = parseProductDescription(desc, sku, local.includes('BUY CLOCK'), brand);
+
+      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
+      
+      const prodKey = `${prodParsed.baseTitle}|${local}`;
+      const corKey = prodParsed.color;
+      const varKey = prodParsed.size || 'ÚNICO';
+
+      parsed.push({
+        dateVal, dateRow, local, loja, sku, skuPlat, qtd, desc,
+        brand: prodParsed.brand, 
+        baseTitle: prodParsed.baseTitle,
+        size: prodParsed.size,
+        prodKey, corKey, varKey, isNewBetter,
+        descLower: desc.toLowerCase(),
+        skuLower: sku.toLowerCase(),
+        skuPlatLower: skuPlat.toLowerCase(),
+        baseLower: prodParsed.baseTitle.toLowerCase(),
+        brandUpper: (prodParsed.brand || '').toUpperCase()
+      });
+    }
+    return parsed;
+  }, [vendasRows, estoqueRows]);
+
+  const dadosProcessados = useMemo(() => {
+    if (!parsedVendas || parsedVendas.length === 0) return { linhas: [], linhasTudo: [], totalItens: 0, chartData: null, dataEstoque: '', dataVendas: '' };
+
+    const inicioTime = dataIni ? new Date(dataIni).getTime() : 0;
+    const fimTime = dataFim ? new Date(dataFim).setHours(23, 59, 59, 999) : Infinity;
+    const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
 
     let totalItens = 0;
     const agrupado = {};
@@ -154,148 +208,75 @@ export default function Vendas() {
     const vendasPorLocalObj = {};
     const produtosVendidosObj = {};
 
-    const parseDateStr = (dateStr) => {
-      if (!dateStr || !dateStr.includes('/')) return 0;
-      const [dia, mes, ano] = dateStr.split('/');
-      return new Date(`${ano}-${mes}-${dia}`).getTime();
-    };
+    let searchTerms = null;
+    if (busca) {
+       searchTerms = busca.toLowerCase().replace(/plat:s*/g, '').trim().split(/s+/);
+    }
 
-    const inicioTime = dataIni ? new Date(dataIni).getTime() : 0;
-    const fimTime = dataFim ? new Date(dataFim).setHours(23, 59, 59, 999) : Infinity;
+    for (let i = 0; i < parsedVendas.length; i++) {
+      const r = parsedVendas[i];
 
-    const { dataEstoque, dataVendas } = getLatestDates(estoqueRows, vendasRows);
+      if (selectedCompany !== 'TODAS' && r.loja !== selectedCompany) continue;
+      if (r.dateRow < inicioTime) continue;
+      if (r.dateRow > fimTime) continue;
 
-    vendasRows.forEach(r => {
-      const dateVal = r?.c?.[COL_VENDAS.DATA]?.f;
-      const dateRow = parseDateStr(dateVal);
-      if (!dateVal) return;
-
-      const local = (r?.c?.[COL_VENDAS.LOCAL]?.v || "").toUpperCase().trim();
-      const loja = local.includes("BUY CLOCK") ? "BUY CLOCK" : "SANDRINI";
-      const sku = r?.c?.[COL_VENDAS.SKU]?.v || "";
-      const skuPlat = r?.c?.[6]?.v || "";
-      let desc = r?.c?.[COL_VENDAS.DESC]?.v || "";
-      const qtd = Number(r?.c?.[COL_VENDAS.QTD]?.v) || 0;
-
-      if (selectedCompany !== 'TODAS' && loja !== selectedCompany) return;
-
-      desc = skuToDesc[sku] || desc;
-      if (!sku && !desc) return;
-      if (!desc) desc = `SKU: ${sku}`;
-
-      if (dateRow < inicioTime) return;
-      if (dateRow > fimTime) return;
-
-      const brand = r?.c?.[COL_VENDAS.MARCA]?.v || "";
-      const parsed = parseProductDescription(desc, sku, local.includes("BUY CLOCK"), brand);
-
-      // Agrupamento Tudo (ignora busca e filtroLocal, mas respeita período e companhia)
-      const prodKey = `${parsed.baseTitle}|${local}`;
-      if (!agrupadoTudo[prodKey]) {
-        agrupadoTudo[prodKey] = { 
-          descricao: parsed.baseTitle,
-          local: local,
-          total: 0, 
-          cores: {},
-          id: prodKey 
-        };
+      if (!agrupadoTudo[r.prodKey]) {
+        agrupadoTudo[r.prodKey] = { descricao: r.baseTitle, local: r.local, total: 0, cores: {}, id: r.prodKey };
       }
-      agrupadoTudo[prodKey].total += qtd;
+      agrupadoTudo[r.prodKey].total += r.qtd;
       
-      const corKey = parsed.color;
-      if (!agrupadoTudo[prodKey].cores[corKey]) {
-        agrupadoTudo[prodKey].cores[corKey] = {
-          cor: corKey,
-          total: 0,
-          variacoes: {}
-        };
+      if (!agrupadoTudo[r.prodKey].cores[r.corKey]) {
+        agrupadoTudo[r.prodKey].cores[r.corKey] = { cor: r.corKey, total: 0, variacoes: {} };
       }
-      agrupadoTudo[prodKey].cores[corKey].total += qtd;
+      agrupadoTudo[r.prodKey].cores[r.corKey].total += r.qtd;
 
-      const varKey = parsed.size || 'ÚNICO';
-      if (!agrupadoTudo[prodKey].cores[corKey].variacoes[varKey]) {
-        agrupadoTudo[prodKey].cores[corKey].variacoes[varKey] = {
-          sku: sku,
-          size: parsed.size,
-          total: 0
-        };
+      if (!agrupadoTudo[r.prodKey].cores[r.corKey].variacoes[r.varKey]) {
+        agrupadoTudo[r.prodKey].cores[r.corKey].variacoes[r.varKey] = { sku: r.sku, size: r.size, total: 0 };
       }
-      const existingTudo = agrupadoTudo[prodKey].cores[corKey].variacoes[varKey];
-      existingTudo.total += qtd;
+      const extTudo = agrupadoTudo[r.prodKey].cores[r.corKey].variacoes[r.varKey];
+      extTudo.total += r.qtd;
       
-      const isCurrentGeneric = ['SD2513', 'A623', 'FLOW'].includes(existingTudo.sku) || existingTudo.sku.startsWith('MLB');
-      const isNewBetter = !['SD2513', 'A623', 'FLOW'].includes(sku) && !sku.startsWith('MLB');
-      if (isCurrentGeneric && isNewBetter) {
-        existingTudo.sku = sku;
-      }
+      const isCurTudo = ['SD2513', 'A623', 'FLOW'].includes(extTudo.sku) || String(extTudo.sku).startsWith('MLB');
+      if (isCurTudo && r.isNewBetter) extTudo.sku = r.sku;
 
-      // Agora aplica os filtros de busca e local para a visualização na tela
-      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === local)) return;
-      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === parsed.brand.toUpperCase())) return;
-
-      if (busca) {
-        const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
-        const descLower = desc.toLowerCase();
-        const skuLower = sku.toLowerCase();
-        const skuPlatLower = skuPlat.toLowerCase();
-        const baseLower = parsed.baseTitle.toLowerCase();
-        
-        const matches = termos.every(termo => 
-          descLower.includes(termo) || 
-          skuLower.includes(termo) ||
-          skuPlatLower.includes(termo) ||
-          baseLower.includes(termo)
-        );
-        if (!matches) return;
-      }
-
-      totalItens += qtd;
+      if (filtroLocal.length > 0 && !filtroLocal.some(f => f.value === r.local)) continue;
+      if (filtroMarca.length > 0 && !filtroMarca.some(f => f.value.toUpperCase() === r.brandUpper)) continue;
       
-      if (!vendasPorData[dateVal]) vendasPorData[dateVal] = 0;
-      vendasPorData[dateVal] += qtd;
-
-      if (!vendasPorLocalObj[local]) vendasPorLocalObj[local] = 0;
-      vendasPorLocalObj[local] += qtd;
-
-      if (!produtosVendidosObj[parsed.baseTitle]) produtosVendidosObj[parsed.baseTitle] = 0;
-      produtosVendidosObj[parsed.baseTitle] += qtd;
-
-      // Group by Base Title + Local (Model & Platform level)
-      if (!agrupado[prodKey]) {
-        agrupado[prodKey] = { 
-          descricao: parsed.baseTitle,
-          local: local,
-          total: 0, 
-          cores: {}, // Nest by color/variation
-          id: prodKey 
-        };
+      if (searchTerms) {
+        const matches = searchTerms.every(t => r.descLower.includes(t) || r.skuLower.includes(t) || r.skuPlatLower.includes(t) || r.baseLower.includes(t));
+        if (!matches) continue;
       }
-      agrupado[prodKey].total += qtd;
+
+      totalItens += r.qtd;
       
-      // Nest under Color
-      if (!agrupado[prodKey].cores[corKey]) {
-        agrupado[prodKey].cores[corKey] = {
-          cor: corKey,
-          total: 0,
-          variacoes: {} // Nest by variation key (sku + size)
-        };
-      }
-      agrupado[prodKey].cores[corKey].total += qtd;
+      if (!vendasPorData[r.dateVal]) vendasPorData[r.dateVal] = 0;
+      vendasPorData[r.dateVal] += r.qtd;
 
-      // Nest under variation (group by size to consolidate duplicates like SD2513 / MLB)
-      if (!agrupado[prodKey].cores[corKey].variacoes[varKey]) {
-        agrupado[prodKey].cores[corKey].variacoes[varKey] = {
-          sku: sku,
-          size: parsed.size,
-          total: 0
-        };
+      if (!vendasPorLocalObj[r.local]) vendasPorLocalObj[r.local] = 0;
+      vendasPorLocalObj[r.local] += r.qtd;
+
+      if (!produtosVendidosObj[r.baseTitle]) produtosVendidosObj[r.baseTitle] = 0;
+      produtosVendidosObj[r.baseTitle] += r.qtd;
+
+      if (!agrupado[r.prodKey]) {
+        agrupado[r.prodKey] = { descricao: r.baseTitle, local: r.local, total: 0, cores: {}, id: r.prodKey };
       }
-      const existing = agrupado[prodKey].cores[corKey].variacoes[varKey];
-      existing.total += qtd;
-      if (isCurrentGeneric && isNewBetter) {
-        existing.sku = sku;
+      agrupado[r.prodKey].total += r.qtd;
+      
+      if (!agrupado[r.prodKey].cores[r.corKey]) {
+        agrupado[r.prodKey].cores[r.corKey] = { cor: r.corKey, total: 0, variacoes: {} };
       }
-    });
+      agrupado[r.prodKey].cores[r.corKey].total += r.qtd;
+
+      if (!agrupado[r.prodKey].cores[r.corKey].variacoes[r.varKey]) {
+        agrupado[r.prodKey].cores[r.corKey].variacoes[r.varKey] = { sku: r.sku, size: r.size, total: 0 };
+      }
+      const ext = agrupado[r.prodKey].cores[r.corKey].variacoes[r.varKey];
+      ext.total += r.qtd;
+      
+      const isCur = ['SD2513', 'A623', 'FLOW'].includes(ext.sku) || String(ext.sku).startsWith('MLB');
+      if (isCur && r.isNewBetter) ext.sku = r.sku;
+    }
 
     let linhas = Object.values(agrupado);
     let linhasTudo = Object.values(agrupadoTudo);
@@ -316,8 +297,8 @@ export default function Vendas() {
     }
 
     const labels = Object.keys(vendasPorData).sort((a, b) => {
-      const [d1, m1, y1] = a.split("/");
-      const [d2, m2, y2] = b.split("/");
+      const [d1, m1, y1] = a.split('/');
+      const [d2, m2, y2] = b.split('/');
       return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
     });
     
@@ -347,7 +328,6 @@ export default function Vendas() {
       ]
     };
 
-    // Doughnut Chart Data (Local)
     const locaisLabels = Object.keys(vendasPorLocalObj).sort((a, b) => vendasPorLocalObj[b] - vendasPorLocalObj[a]);
     const locaisData = locaisLabels.map(l => vendasPorLocalObj[l]);
     const bgColors = [
@@ -365,7 +345,6 @@ export default function Vendas() {
       }]
     } : null;
 
-    // Top Produtos Data (Horizontal Bar)
     const produtosLabels = Object.keys(produtosVendidosObj)
       .sort((a, b) => produtosVendidosObj[b] - produtosVendidosObj[a])
       .slice(0, 10);
@@ -388,8 +367,7 @@ export default function Vendas() {
     } : null;
 
     return { linhas, linhasTudo, totalItens, chartData, chartLocalData, chartProdutosData, dataEstoque, dataVendas };
-  }, [vendasRows, estoqueRows, filtroLocal, filtroMarca, dataIni, dataFim, busca, sortConfig, selectedCompany]);
-
+  }, [parsedVendas, estoqueRows, vendasRows, filtroLocal, filtroMarca, dataIni, dataFim, busca, sortConfig, selectedCompany]);
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
