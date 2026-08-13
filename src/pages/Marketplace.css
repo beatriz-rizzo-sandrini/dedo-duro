@@ -1,0 +1,363 @@
+.mkp-dashboard {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-primary, #1f2937);
+}
+
+.mkp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.mkp-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.mkp-subtitle {
+  color: var(--text-secondary, #6b7280);
+  margin: 0;
+}
+
+.mkp-kpi-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.kpi-icon {
+  background: #eef2ff;
+  color: #3b82f6; /* Azul Dedo Duro */
+  padding: 12px;
+  border-radius: 50%;
+  display: flex;
+}
+
+.mkp-kpi-card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.kpi-value {
+  margin: 4px 0 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mkp-top-creators {
+  margin-bottom: 32px;
+}
+
+.mkp-top-creators h2 {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.icon-title {
+  color: #f59e0b;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.creator-card {
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.creator-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.creator-card.selected {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.rank-badge {
+  position: absolute;
+  top: -12px;
+  right: 24px;
+  background: #111827;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.rank-1 .rank-badge { background: #f59e0b; }
+.rank-2 .rank-badge { background: #94a3b8; }
+.rank-3 .rank-badge { background: #b45309; }
+
+.creator-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.creator-total {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 16px 0;
+}
+
+.creator-split {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 500;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.mkp-chart-section {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 32px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.chart-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.btn-clear {
+  background: #f1f5f9;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: #475569;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-clear:hover {
+  background: #e2e8f0;
+}
+
+.animated-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mkp-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .mkp-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mkp-table-section {
+  background: white;
+  border-radius: 12px; /* Dedo Duro roundness */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid #e2e8f0; /* Dedo Duro border */
+}
+
+.table-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-header h2 {
+  margin: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  color: #3b82f6;
+}
+
+.search-box {
+  position: relative;
+  width: 250px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 10px 10px 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  background-color: #f8fafc;
+}
+
+.search-box input:focus {
+  border-color: #3b82f6;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.td-creator {
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-row-icon {
+  color: #9ca3af;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.badge-total {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.td-empty {
+  text-align: center;
+  padding: 48px !important;
+  color: #64748b;
+}
+
+/* GMV Table Specifics */
+.group-header {
+  background: #f1f5f9 !important; /* Dedo Duro secondary gray */
+  border-bottom: 2px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.gmv-val {
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.border-left {
+  border-left: 2px solid #e2e8f0 !important;
+}
+
+.gmv-footer td {
+  font-weight: 700 !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-top: 2px solid #e2e8f0 !important;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  gap: 16px;
+  background: white;
+}
+
+.btn-page {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #334155;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+}
+
+.btn-page:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btn-page:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}

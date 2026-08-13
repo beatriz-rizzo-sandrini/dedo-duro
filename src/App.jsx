@@ -13,6 +13,7 @@ import Planilha from './pages/Planilha';
 import Login from './pages/Login';
 import Usuarios from './pages/Usuarios';
 import Cadastro from './pages/Cadastro';
+import Marketplace from './pages/Marketplace';
 import './index.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { CompanyProvider } from './contexts/CompanyContext.jsx';
@@ -40,6 +41,7 @@ function AppContent() {
           <Route path="planilha" element={<Planilha />} />
           <Route path="usuarios" element={<Usuarios />} />
           <Route path="cadastro" element={<Cadastro />} />
+          <Route path="marketplace" element={<Marketplace />} />
         </Route>
       </Routes>
     </BrowserRouter>
