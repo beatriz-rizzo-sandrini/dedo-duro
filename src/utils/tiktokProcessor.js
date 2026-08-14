@@ -131,7 +131,7 @@ export async function processTikTokFiles(files) {
   };
 
   const videos = rawVideo.map(row => ({
-    video_title: getCol(row, 'video title', 'título do vídeo', 'vídeo', 'video'),
+    video_title: getCol(row, 'video title', 'título do vídeo', 'vídeo', 'video') || 'Vídeo sem título',
     video_id: String(getCol(row, 'video id', 'id do vídeo') || ''),
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
@@ -142,7 +142,7 @@ export async function processTikTokFiles(files) {
     gmv: parseNum(getCol(row, 'gmv')),
     datetime: getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'),
     date: parseToISO(getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'))
-  })).filter(v => v.video_title);
+  })).filter(v => v.video_id || v.creator_name);
 
   const calculateDuration = (row) => {
     let dur = parseNum(getCol(row, 'live duration', 'duração da live'));
@@ -161,7 +161,7 @@ export async function processTikTokFiles(files) {
   };
 
   const lives = rawLive.map(row => ({
-    live_title: getCol(row, 'live title', 'título da live', 'transmissão', 'live'),
+    live_title: getCol(row, 'live title', 'título da live', 'transmissão', 'live') || 'Live sem título',
     live_id: String(getCol(row, 'live id', 'id da live') || ''),
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
@@ -173,7 +173,7 @@ export async function processTikTokFiles(files) {
     gmv: parseNum(getCol(row, 'gmv')),
     datetime: getCol(row, 'start time', 'início', 'date', 'data', 'horário'),
     date: parseToISO(getCol(row, 'start time', 'início', 'date', 'data', 'horário'))
-  })).filter(l => l.live_title);
+  })).filter(l => l.live_id || l.creator_name);
 
   // --- Processamento (Afinidade e Agrupamentos) ---
   const creatorMap = {};
