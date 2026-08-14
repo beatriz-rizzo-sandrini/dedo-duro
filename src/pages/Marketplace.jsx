@@ -215,14 +215,48 @@ export default function Marketplace() {
   // Totais Globais
   const sortedCreators = useMemo(() => {
     if (!marketplaceData?.creators) return [];
-    let list = [...marketplaceData.creators].filter(c => c.creator_name && c.creator_name.trim() !== '');
+    
+    const isFiltered = startDate || endDate;
+    let list = [];
+
+    if (isFiltered) {
+      const dynMap = {};
+      const addDyn = (creator, gmv, orders) => {
+        if (!creator) return;
+        if (!dynMap[creator]) dynMap[creator] = { creator_name: creator, gmv: 0, orders: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, items_sold: 0, commission: 0, refunds: 0 };
+        dynMap[creator].gmv += gmv;
+        dynMap[creator].orders += orders;
+        dynMap[creator].items_sold += orders; // aproximação
+      };
+
+      filteredVideos.forEach(v => {
+        addDyn(v.creator_name, v.gmv || 0, v.orders || 0);
+        if (v.creator_name) dynMap[v.creator_name].video_count += 1;
+      });
+
+      filteredLives.forEach(l => {
+        addDyn(l.creator_name, l.gmv || 0, l.orders || 0);
+        if (l.creator_name) {
+          dynMap[l.creator_name].live_count += 1;
+          dynMap[l.creator_name].live_duration_seconds += (l.duration_seconds || 0);
+        }
+      });
+      list = Object.values(dynMap);
+    } else {
+      list = [...marketplaceData.creators];
+    }
+
+    list = list.filter(c => c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
       list = list.filter(c => c.creator_name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return sortArray(list, sortConfig);
-  }, [searchTerm, sortConfig, marketplaceData]);
+  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredVideos, filteredLives]);
 
-  const totalGMV = marketplaceData?.metadata?.total_gmv || marketplaceData?.videos?.reduce((acc, v) => acc + (v.gmv || 0), 0) + marketplaceData?.lives?.reduce((acc, l) => acc + (l.gmv || 0), 0) || 0;
+  const totalGMV = (startDate || endDate) 
+    ? sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0)
+    : (marketplaceData?.metadata?.total_gmv || marketplaceData?.videos?.reduce((acc, v) => acc + (v.gmv || 0), 0) + marketplaceData?.lives?.reduce((acc, l) => acc + (l.gmv || 0), 0) || 0);
+    
   const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
   const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
 
@@ -249,12 +283,31 @@ export default function Marketplace() {
   // Top Products
   const sortedProducts = useMemo(() => {
     if (!marketplaceData?.products) return [];
-    let list = [...marketplaceData.products].filter(p => p.product_name && p.product_name.trim() !== '');
+    
+    const isFiltered = startDate || endDate;
+    let list = [];
+
+    if (isFiltered) {
+      const dynMap = {};
+      filteredAffinity.forEach(a => {
+        if (!a.product_name) return;
+        if (!dynMap[a.product_name]) {
+          dynMap[a.product_name] = { product_name: a.product_name, gmv: 0, orders: 0, items_sold: 0, refunds: 0, commission: 0 };
+        }
+        dynMap[a.product_name].gmv += (a.gmv_presence || 0);
+        dynMap[a.product_name].orders += (a.orders_presence || 0);
+        dynMap[a.product_name].items_sold += (a.orders_presence || 0);
+      });
+      list = Object.values(dynMap);
+    } else {
+      list = [...marketplaceData.products];
+    }
+
     if (searchTerm) {
-      list = list.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      list = list.filter(p => p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return sortArray(list, sortConfig).slice(0, 10);
-  }, [searchTerm, sortConfig, marketplaceData]);
+  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredAffinity]);
 
   // Affinity Data
   const affinityList = useMemo(() => {
