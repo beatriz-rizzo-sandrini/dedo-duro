@@ -1085,11 +1085,35 @@ export default function Marketplace() {
   if (dataError || !marketplaceData) {
     return (
       <div className="mkp-dashboard" style={{ padding: '40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div>
+            <h1 className="mkp-title">Marketplace & Afiliados</h1>
+            <p className="mkp-subtitle">Análise detalhada de performance</p>
+          </div>
+          <button 
+            onClick={() => setActiveTab(8)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'var(--mkp-accent-blue)', color: '#fff',
+              border: 'none', borderRadius: '8px', padding: '0 20px',
+              fontWeight: 'bold', cursor: 'pointer', height: '42px',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <UploadCloud size={18} /> Importar Planilhas
+          </button>
+        </div>
+
         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '24px', borderRadius: '8px', color: '#f87171' }}>
           <AlertCircle size={32} style={{ marginBottom: '16px' }} />
-          <h2 style={{ marginBottom: '8px' }}>Erro ao carregar dados</h2>
-          <p>{dataError || 'Nenhum dado disponível na tabela tiktok_reports.'}</p>
+          <h2 style={{ marginBottom: '8px' }}>Erro ao carregar dados (ou banco vazio)</h2>
+          <p>{dataError || 'Nenhum dado disponível na tabela tiktok_reports. Faça a importação das planilhas clicando no botão acima.'}</p>
         </div>
+
+        {activeTab === 8 && renderTab8()}
       </div>
     );
   }
