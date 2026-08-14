@@ -62,12 +62,31 @@ export async function processTikTokFiles(files) {
   const rawVideo = await readSheet(files.videos);
   const rawLive = await readSheet(files.lives);
 
-  // --- Normalização (Cópia exata do backend) ---
   const parseNum = (val) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
     const str = String(val).replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
     return Number(str) || 0;
+  };
+
+  const parseToISO = (str) => {
+    if (!str) return '';
+    const datePart = String(str).substring(0, 10);
+    const parts = datePart.split(/[/-]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) { // MM/DD/YYYY or DD/MM/YYYY
+        let m = Number(parts[0]);
+        let d = Number(parts[1]);
+        if (m > 12) {
+          d = Number(parts[0]);
+          m = Number(parts[1]);
+        }
+        return `${parts[2]}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      } else if (parts[0].length === 4) { // YYYY-MM-DD
+        return `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
+      }
+    }
+    return datePart;
   };
 
   const creators = rawCreator.map(row => ({
@@ -108,7 +127,7 @@ export async function processTikTokFiles(files) {
     orders: parseNum(row['orders'] || row['pedidos']),
     gmv: parseNum(row['gmv']),
     datetime: row['video publish time'] || row['horário de publicação do vídeo'] || row['date'] || row['data'],
-    date: (row['video publish time'] || row['horário de publicação do vídeo'] || row['date'] || row['data'] || '').substring(0, 10)
+    date: parseToISO(row['video publish time'] || row['horário de publicação do vídeo'] || row['date'] || row['data'])
   })).filter(v => v.video_title);
 
   const lives = rawLive.map(row => ({
@@ -123,7 +142,7 @@ export async function processTikTokFiles(files) {
     orders: parseNum(row['orders'] || row['pedidos']),
     gmv: parseNum(row['gmv']),
     datetime: row['live start time'] || row['horário de início da live'] || row['date'] || row['data'],
-    date: (row['live start time'] || row['horário de início da live'] || row['date'] || row['data'] || '').substring(0, 10)
+    date: parseToISO(row['live start time'] || row['horário de início da live'] || row['date'] || row['data'])
   })).filter(l => l.live_title);
 
   // --- Processamento (Afinidade e Agrupamentos) ---
@@ -183,28 +202,23 @@ export async function processTikTokFiles(files) {
   lives.forEach(l => addToAffinity(l, 'live'));
 
   // --- Auto-detect Period ---
-  let minDateMs = Infinity;
-  let maxDateMs = -Infinity;
+  let minDateStr = '9999-12-31';
+  let maxDateStr = '0000-01-01';
   
   [...videos, ...lives].forEach(item => {
-    if (item.date && item.date.length >= 8) {
-      // Data vem como texto (MM/DD/YYYY ou afins)
-      const d = new Date(item.date);
-      if (!isNaN(d.getTime())) {
-        if (d.getTime() < minDateMs) minDateMs = d.getTime();
-        if (d.getTime() > maxDateMs) maxDateMs = d.getTime();
-      }
+    if (item.date && item.date.length >= 10) {
+      if (item.date < minDateStr) minDateStr = item.date;
+      if (item.date > maxDateStr) maxDateStr = item.date;
     }
   });
   
-  let period = "Período Desconhecido";
-  if (minDateMs !== Infinity && maxDateMs !== -Infinity) {
-    const minD = new Date(minDateMs);
-    const maxD = new Date(maxDateMs);
-    // Formata para DD/MM/YYYY
-    const pad = (n) => String(n).padStart(2, '0');
-    period = `${pad(minD.getDate())}/${pad(minD.getMonth()+1)}/${minD.getFullYear()} - ${pad(maxD.getDate())}/${pad(maxD.getMonth()+1)}/${maxD.getFullYear()}`;
-  }
+  const formatBr = (dStr) => {
+    const p = dStr.split('-');
+    if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+    return dStr;
+  };
+  
+  const period = minDateStr !== '9999-12-31' ? `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}` : "Período Desconhecido";
 
   const finalData = {
     metadata: {
@@ -262,8 +276,8 @@ export function mergeMarketplaceData(reportsArray) {
   const liveMap = {};
   const affinityMap = {};
 
-  let minDate = '9999-12-31';
-  let maxDate = '0000-01-01';
+  let minDateStr = '9999-12-31';
+  let maxDateStr = '0000-01-01';
 
   validDataList.forEach(data => {
     merged.metadata.total_gmv += (data.metadata.total_gmv || 0);
@@ -307,8 +321,8 @@ export function mergeMarketplaceData(reportsArray) {
       if (!videoMap[v.video_id]) {
         videoMap[v.video_id] = { ...v };
         if (v.date && v.date.length >= 10) {
-          if (v.date < minDate) minDate = v.date;
-          if (v.date > maxDate) maxDate = v.date;
+          if (v.date < minDateStr) minDateStr = v.date;
+          if (v.date > maxDateStr) maxDateStr = v.date;
         }
       }
     });
@@ -319,8 +333,8 @@ export function mergeMarketplaceData(reportsArray) {
       if (!liveMap[l.live_id]) {
         liveMap[l.live_id] = { ...l };
         if (l.date && l.date.length >= 10) {
-          if (l.date < minDate) minDate = l.date;
-          if (l.date > maxDate) maxDate = l.date;
+          if (l.date < minDateStr) minDateStr = l.date;
+          if (l.date > maxDateStr) maxDateStr = l.date;
         }
       }
     });
@@ -334,8 +348,14 @@ export function mergeMarketplaceData(reportsArray) {
     });
   });
 
-  if (minDate !== '9999-12-31' && maxDate !== '0000-01-01') {
-    merged.metadata.period = `${minDate.replace(/-/g,'')} - ${maxDate.replace(/-/g,'')}`;
+  const formatBr = (dStr) => {
+    const p = dStr.split('-');
+    if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+    return dStr;
+  };
+
+  if (minDateStr !== '9999-12-31' && maxDateStr !== '0000-01-01') {
+    merged.metadata.period = `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}`;
   }
 
   merged.creators = Object.values(creatorMap);
