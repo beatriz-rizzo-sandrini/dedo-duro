@@ -195,3 +195,128 @@ export async function processTikTokFiles(files) {
 
   return finalData;
 }
+
+export function mergeMarketplaceData(reportsArray) {
+  if (!reportsArray || reportsArray.length === 0) return null;
+  if (reportsArray.length === 1) return reportsArray[0].data;
+
+  // 1. Desduplicação por Período
+  // reportsArray contém objetos do Supabase: { created_at, period, data }
+  const latestPerPeriod = {};
+  reportsArray.forEach(row => {
+    const p = row.period || row.data.metadata.period || "unknown";
+    if (!latestPerPeriod[p]) {
+      latestPerPeriod[p] = row.data;
+      latestPerPeriod[p]._created_at = row.created_at;
+    } else if (new Date(row.created_at) > new Date(latestPerPeriod[p]._created_at)) {
+      latestPerPeriod[p] = row.data;
+      latestPerPeriod[p]._created_at = row.created_at;
+    }
+  });
+
+  const validDataList = Object.values(latestPerPeriod);
+
+  // 2. Fundir os dados
+  const merged = {
+    metadata: {
+      generated_at: new Date().toISOString(),
+      period: "Consolidado",
+      total_gmv: 0
+    },
+    creators: [],
+    products: [],
+    videos: [],
+    lives: [],
+    unified_affinity: []
+  };
+
+  const creatorMap = {};
+  const productMap = {};
+  const videoMap = {};
+  const liveMap = {};
+  const affinityMap = {};
+
+  let minDate = '9999-12-31';
+  let maxDate = '0000-01-01';
+
+  validDataList.forEach(data => {
+    merged.metadata.total_gmv += (data.metadata.total_gmv || 0);
+
+    // Creators
+    (data.creators || []).forEach(c => {
+      if (!c.creator_name) return;
+      if (!creatorMap[c.creator_name]) {
+        creatorMap[c.creator_name] = { ...c };
+      } else {
+        const mc = creatorMap[c.creator_name];
+        mc.items_sold = (mc.items_sold || 0) + (c.items_sold || 0);
+        mc.orders = (mc.orders || 0) + (c.orders || 0);
+        mc.gmv = (mc.gmv || 0) + (c.gmv || 0);
+        mc.refunds = (mc.refunds || 0) + (c.refunds || 0);
+        mc.commission = (mc.commission || 0) + (c.commission || 0);
+        mc.video_count = (mc.video_count || 0) + (c.video_count || 0);
+        mc.live_count = (mc.live_count || 0) + (c.live_count || 0);
+        mc.live_duration_seconds = (mc.live_duration_seconds || 0) + (c.live_duration_seconds || 0);
+      }
+    });
+
+    // Products
+    (data.products || []).forEach(p => {
+      if (!p.product_id) return;
+      if (!productMap[p.product_id]) {
+        productMap[p.product_id] = { ...p };
+      } else {
+        const mp = productMap[p.product_id];
+        mp.items_sold = (mp.items_sold || 0) + (p.items_sold || 0);
+        mp.orders = (mp.orders || 0) + (p.orders || 0);
+        mp.gmv = (mp.gmv || 0) + (p.gmv || 0);
+        mp.refunds = (mp.refunds || 0) + (p.refunds || 0);
+        mp.commission = (mp.commission || 0) + (p.commission || 0);
+      }
+    });
+
+    // Videos
+    (data.videos || []).forEach(v => {
+      if (!v.video_id) return;
+      if (!videoMap[v.video_id]) {
+        videoMap[v.video_id] = { ...v };
+        if (v.date && v.date.length >= 10) {
+          if (v.date < minDate) minDate = v.date;
+          if (v.date > maxDate) maxDate = v.date;
+        }
+      }
+    });
+
+    // Lives
+    (data.lives || []).forEach(l => {
+      if (!l.live_id) return;
+      if (!liveMap[l.live_id]) {
+        liveMap[l.live_id] = { ...l };
+        if (l.date && l.date.length >= 10) {
+          if (l.date < minDate) minDate = l.date;
+          if (l.date > maxDate) maxDate = l.date;
+        }
+      }
+    });
+
+    // Affinity
+    (data.unified_affinity || []).forEach(a => {
+      const key = `${a.content_id}_${a.product_id}`;
+      if (!affinityMap[key]) {
+        affinityMap[key] = { ...a };
+      }
+    });
+  });
+
+  if (minDate !== '9999-12-31' && maxDate !== '0000-01-01') {
+    merged.metadata.period = `${minDate.replace(/-/g,'')} - ${maxDate.replace(/-/g,'')}`;
+  }
+
+  merged.creators = Object.values(creatorMap);
+  merged.products = Object.values(productMap);
+  merged.videos = Object.values(videoMap);
+  merged.lives = Object.values(liveMap);
+  merged.unified_affinity = Object.values(affinityMap);
+
+  return merged;
+}

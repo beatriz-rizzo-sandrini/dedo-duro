@@ -18,7 +18,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { supabase } from '../services/supabase';
-import { processTikTokFiles } from '../utils/tiktokProcessor';
+import { processTikTokFiles, mergeMarketplaceData } from '../utils/tiktokProcessor';
 import './Marketplace.css';
 
 ChartJS.register(
@@ -98,18 +98,19 @@ export default function Marketplace() {
   useEffect(() => {
     async function loadData() {
       try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
         const { data, error } = await supabase
           .from('tiktok_reports')
-          .select('data')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .select('created_at, period, data')
+          .gte('created_at', thirtyDaysAgo)
+          .order('created_at', { ascending: false });
         
         if (error) throw error;
-        if (data && data.data) {
-          setMarketplaceData(data.data);
+        if (data && data.length > 0) {
+          const merged = mergeMarketplaceData(data);
+          setMarketplaceData(merged);
         } else {
-          throw new Error("Nenhum dado encontrado.");
+          throw new Error("Nenhum dado encontrado nos últimos 30 dias.");
         }
       } catch (err) {
         console.error("Erro ao buscar dados do Supabase:", err);
