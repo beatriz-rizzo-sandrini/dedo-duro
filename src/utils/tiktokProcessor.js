@@ -252,7 +252,7 @@ export async function processTikTokFiles(files) {
   const fileArray = Object.values(files);
   for (let f of fileArray) {
     if (f && f.name) {
-      const match = f.name.match(/_(\d{8})-(\d{8})\.xlsx/);
+      const match = f.name.match(/(\d{8})[-_](\d{8})/);
       if (match) {
         const start = match[1];
         const end = match[2];
@@ -263,7 +263,7 @@ export async function processTikTokFiles(files) {
     }
   }
   
-  const period = detectedPeriod || (minDateStr !== '9999-12-31' ? `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}` : "Período Desconhecido");
+  const period = detectedPeriod || `Importação_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}_${Math.floor(Math.random() * 10000)}`;
 
   const finalData = {
     metadata: {
