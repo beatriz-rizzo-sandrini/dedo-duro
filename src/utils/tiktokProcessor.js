@@ -20,7 +20,11 @@ export async function processTikTokFiles(files) {
           let headerIndex = -1;
           for (let i = 0; i < Math.min(10, rawData.length); i++) {
             const row = rawData[i];
-            if (row && row.some(cell => typeof cell === 'string' && (cell.includes('Username') || cell.includes('Nome de Usuário') || cell.includes('Product ID') || cell.includes('Video Title') || cell.includes('LIVE Title')))) {
+            if (row && row.some(cell => {
+              if (typeof cell !== 'string') return false;
+              const s = cell.toLowerCase();
+              return s.includes('username') || s.includes('nome de usuário') || s.includes('product id') || s.includes('id do produto') || s.includes('video title') || s.includes('título do vídeo') || s.includes('live title') || s.includes('título da live');
+            })) {
               headerIndex = i;
               break;
             }
@@ -32,7 +36,18 @@ export async function processTikTokFiles(files) {
             raw: false
           });
           
-          resolve(json);
+          // Normaliza todas as chaves para lowercase para evitar problemas de case no Excel do TikTok
+          const normalizedJson = json.map(row => {
+            const newRow = {};
+            for (let key in row) {
+              if (row.hasOwnProperty(key)) {
+                newRow[key.trim().toLowerCase()] = row[key];
+              }
+            }
+            return newRow;
+          });
+          
+          resolve(normalizedJson);
         } catch (err) {
           reject(err);
         }
@@ -56,25 +71,25 @@ export async function processTikTokFiles(files) {
   };
 
   const creators = rawCreator.map(row => ({
-    creator_name: row['Username'] || row['Nome de Usuário'] || row['Criador'] || row['Creator Name'],
-    items_sold: parseNum(row['Items sold'] || row['Itens vendidos'] || row['Itens Vendidos']),
-    orders: parseNum(row['Orders'] || row['Pedidos']),
-    gmv: parseNum(row['GMV']),
-    refunds: parseNum(row['Refunds'] || row['Reembolsos'] || row['Cancelamentos']),
-    commission: parseNum(row['Commission'] || row['Comissão']),
-    video_count: parseNum(row['Number of videos'] || row['Número de vídeos'] || row['Vídeos']),
-    live_count: parseNum(row['Number of LIVEs'] || row['Número de LIVEs'] || row['LIVEs']),
+    creator_name: row['username'] || row['nome de usuário'] || row['criador'] || row['creator name'],
+    items_sold: parseNum(row['items sold'] || row['itens vendidos']),
+    orders: parseNum(row['orders'] || row['pedidos']),
+    gmv: parseNum(row['gmv']),
+    refunds: parseNum(row['refunds'] || row['reembolsos'] || row['cancelamentos']),
+    commission: parseNum(row['commission'] || row['comissão']),
+    video_count: parseNum(row['number of videos'] || row['número de vídeos'] || row['vídeos']),
+    live_count: parseNum(row['number of lives'] || row['número de lives'] || row['lives']),
     live_duration_seconds: 0
   })).filter(c => c.creator_name);
 
   const products = rawProduct.map(row => ({
-    product_name: row['Product Name'] || row['Nome do produto'],
-    product_id: String(row['Product ID'] || row['ID do produto'] || ''),
-    items_sold: parseNum(row['Items sold'] || row['Itens vendidos']),
-    orders: parseNum(row['Orders'] || row['Pedidos']),
-    gmv: parseNum(row['GMV']),
-    refunds: parseNum(row['Refunds'] || row['Reembolsos'] || row['Cancelamentos']),
-    commission: parseNum(row['Commission'] || row['Comissão'])
+    product_name: row['product name'] || row['nome do produto'],
+    product_id: String(row['product id'] || row['id do produto'] || ''),
+    items_sold: parseNum(row['items sold'] || row['itens vendidos']),
+    orders: parseNum(row['orders'] || row['pedidos']),
+    gmv: parseNum(row['gmv']),
+    refunds: parseNum(row['refunds'] || row['reembolsos'] || row['cancelamentos']),
+    commission: parseNum(row['commission'] || row['comissão'])
   })).filter(p => p.product_name);
 
   const extractProductIds = (str) => {
@@ -83,32 +98,32 @@ export async function processTikTokFiles(files) {
   };
 
   const videos = rawVideo.map(row => ({
-    video_title: row['Video Title'] || row['Título do vídeo'],
-    video_id: String(row['Video ID'] || row['ID do vídeo'] || ''),
-    creator_name: row['Username'] || row['Nome de Usuário'],
-    product_ids: extractProductIds(row['Product ID'] || row['ID do produto']),
-    product_names: extractProductIds(row['Product Name'] || row['Nome do produto']),
-    views: parseNum(row['Video views'] || row['Visualizações de vídeo']),
-    clicks: parseNum(row['Product clicks'] || row['Cliques no produto']),
-    orders: parseNum(row['Orders'] || row['Pedidos']),
-    gmv: parseNum(row['GMV']),
-    datetime: row['Video Publish Time'] || row['Horário de Publicação do Vídeo'] || row['Date'] || row['Data'],
-    date: (row['Video Publish Time'] || row['Horário de Publicação do Vídeo'] || row['Date'] || row['Data'] || '').substring(0, 10)
+    video_title: row['video title'] || row['título do vídeo'],
+    video_id: String(row['video id'] || row['id do vídeo'] || ''),
+    creator_name: row['username'] || row['nome de usuário'],
+    product_ids: extractProductIds(row['product id'] || row['id do produto']),
+    product_names: extractProductIds(row['product name'] || row['nome do produto']),
+    views: parseNum(row['video views'] || row['visualizações de vídeo']),
+    clicks: parseNum(row['product clicks'] || row['cliques no produto']),
+    orders: parseNum(row['orders'] || row['pedidos']),
+    gmv: parseNum(row['gmv']),
+    datetime: row['video publish time'] || row['horário de publicação do vídeo'] || row['date'] || row['data'],
+    date: (row['video publish time'] || row['horário de publicação do vídeo'] || row['date'] || row['data'] || '').substring(0, 10)
   })).filter(v => v.video_title);
 
   const lives = rawLive.map(row => ({
-    live_title: row['LIVE Title'] || row['Título da LIVE'],
-    live_id: String(row['LIVE ID'] || row['ID da LIVE'] || ''),
-    creator_name: row['Username'] || row['Nome de Usuário'],
-    product_ids: extractProductIds(row['Product ID'] || row['ID do produto']),
-    product_names: extractProductIds(row['Product Name'] || row['Nome do produto']),
-    duration_seconds: parseNum(row['LIVE Duration'] || row['Duração da LIVE']),
-    views: parseNum(row['LIVE views'] || row['Visualizações da LIVE']),
-    clicks: parseNum(row['Product clicks'] || row['Cliques no produto']),
-    orders: parseNum(row['Orders'] || row['Pedidos']),
-    gmv: parseNum(row['GMV']),
-    datetime: row['LIVE Start Time'] || row['Horário de Início da LIVE'] || row['Date'] || row['Data'],
-    date: (row['LIVE Start Time'] || row['Horário de Início da LIVE'] || row['Date'] || row['Data'] || '').substring(0, 10)
+    live_title: row['live title'] || row['título da live'],
+    live_id: String(row['live id'] || row['id da live'] || ''),
+    creator_name: row['username'] || row['nome de usuário'],
+    product_ids: extractProductIds(row['product id'] || row['id do produto']),
+    product_names: extractProductIds(row['product name'] || row['nome do produto']),
+    duration_seconds: parseNum(row['live duration'] || row['duração da live']),
+    views: parseNum(row['live views'] || row['visualizações da live']),
+    clicks: parseNum(row['product clicks'] || row['cliques no produto']),
+    orders: parseNum(row['orders'] || row['pedidos']),
+    gmv: parseNum(row['gmv']),
+    datetime: row['live start time'] || row['horário de início da live'] || row['date'] || row['data'],
+    date: (row['live start time'] || row['horário de início da live'] || row['date'] || row['data'] || '').substring(0, 10)
   })).filter(l => l.live_title);
 
   // --- Processamento (Afinidade e Agrupamentos) ---
@@ -168,17 +183,28 @@ export async function processTikTokFiles(files) {
   lives.forEach(l => addToAffinity(l, 'live'));
 
   // --- Auto-detect Period ---
-  let minDate = '9999-12-31';
-  let maxDate = '0000-01-01';
+  let minDateMs = Infinity;
+  let maxDateMs = -Infinity;
   
   [...videos, ...lives].forEach(item => {
-    if (item.date && item.date.length >= 10) {
-      if (item.date < minDate) minDate = item.date;
-      if (item.date > maxDate) maxDate = item.date;
+    if (item.date && item.date.length >= 8) {
+      // Data vem como texto (MM/DD/YYYY ou afins)
+      const d = new Date(item.date);
+      if (!isNaN(d.getTime())) {
+        if (d.getTime() < minDateMs) minDateMs = d.getTime();
+        if (d.getTime() > maxDateMs) maxDateMs = d.getTime();
+      }
     }
   });
   
-  const period = minDate !== '9999-12-31' ? `${minDate.replace(/-/g,'')} - ${maxDate.replace(/-/g,'')}` : "Período Desconhecido";
+  let period = "Período Desconhecido";
+  if (minDateMs !== Infinity && maxDateMs !== -Infinity) {
+    const minD = new Date(minDateMs);
+    const maxD = new Date(maxDateMs);
+    // Formata para DD/MM/YYYY
+    const pad = (n) => String(n).padStart(2, '0');
+    period = `${pad(minD.getDate())}/${pad(minD.getMonth()+1)}/${minD.getFullYear()} - ${pad(maxD.getDate())}/${pad(maxD.getMonth()+1)}/${maxD.getFullYear()}`;
+  }
 
   const finalData = {
     metadata: {
