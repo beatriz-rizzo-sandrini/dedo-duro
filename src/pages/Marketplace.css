@@ -45,15 +45,6 @@ html[data-theme="dark"] .mkp-dashboard {
   --mkp-accent-orange: #f59e0b;
 }
 
-  padding: 32px;
-  max-width: 100%;
-  margin: 0 auto;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: var(--mkp-text-primary) !important;
-  background-color: var(--mkp-bg) !important;
-  min-height: 100vh;
-}
-
 /* FORÇAR CORES DE TEXTO CONTRA ESTILOS GLOBAIS */
 .mkp-dashboard h1, 
 .mkp-dashboard h2, 
