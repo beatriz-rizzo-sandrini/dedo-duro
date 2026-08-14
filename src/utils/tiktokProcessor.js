@@ -116,7 +116,7 @@ export async function processTikTokFiles(files) {
   })).filter(c => c.creator_name);
 
   const products = rawProduct.map(row => ({
-    product_name: getCol(row, 'product name', 'nome do produto', 'produto'),
+    product_name: getCol(row, 'product name', 'nome do produto'),
     product_id: String(getCol(row, 'product id', 'id do produto') || ''),
     items_sold: parseNum(getCol(row, 'items sold', 'itens vendidos', 'vendidos')),
     orders: parseNum(getCol(row, 'orders', 'pedido')),
@@ -135,7 +135,7 @@ export async function processTikTokFiles(files) {
     video_id: String(getCol(row, 'video id', 'id do vídeo') || ''),
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
-    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto', 'produto')),
+    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
     views: parseNum(getCol(row, 'video views', 'visualiza')),
     clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'cliques')),
     orders: parseNum(getCol(row, 'orders', 'pedido')),
@@ -165,7 +165,7 @@ export async function processTikTokFiles(files) {
     live_id: String(getCol(row, 'live id', 'id da live') || ''),
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
-    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto', 'produto')),
+    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
     duration_seconds: calculateDuration(row),
     views: parseNum(getCol(row, 'live views', 'visualiza')),
     clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'cliques')),
