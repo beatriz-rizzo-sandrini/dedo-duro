@@ -13,7 +13,25 @@ export async function processTikTokFiles(files) {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          const json = XLSX.utils.sheet_to_json(worksheet);
+          
+          // Converter para array de arrays para descobrir a linha do cabeçalho
+          const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          let headerIndex = -1;
+          for (let i = 0; i < Math.min(10, rawData.length); i++) {
+            const row = rawData[i];
+            if (row && row.some(cell => typeof cell === 'string' && (cell.includes('Username') || cell.includes('Nome de Usuário') || cell.includes('Product ID') || cell.includes('Video Title') || cell.includes('LIVE Title')))) {
+              headerIndex = i;
+              break;
+            }
+          }
+          
+          // Se não encontrou, assume 0. Se encontrou, usa o range. raw: false garante que as datas venham formatadas como string.
+          const json = XLSX.utils.sheet_to_json(worksheet, { 
+            range: headerIndex !== -1 ? headerIndex : 0,
+            raw: false
+          });
+          
           resolve(json);
         } catch (err) {
           reject(err);
