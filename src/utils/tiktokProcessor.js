@@ -144,13 +144,29 @@ export async function processTikTokFiles(files) {
     date: parseToISO(getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'))
   })).filter(v => v.video_title);
 
+  const calculateDuration = (row) => {
+    let dur = parseNum(getCol(row, 'live duration', 'duração da live'));
+    if (dur) return dur;
+    
+    const startStr = getCol(row, 'start time', 'início');
+    const endStr = getCol(row, 'end time', 'término');
+    if (startStr && endStr) {
+      const dStart = new Date(startStr);
+      const dEnd = new Date(endStr);
+      if (!isNaN(dStart) && !isNaN(dEnd)) {
+        return Math.floor((dEnd - dStart) / 1000);
+      }
+    }
+    return 0;
+  };
+
   const lives = rawLive.map(row => ({
     live_title: getCol(row, 'live title', 'título da live', 'transmissão', 'live'),
     live_id: String(getCol(row, 'live id', 'id da live') || ''),
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
     product_names: extractProductIds(getCol(row, 'product name', 'nome do produto', 'produto')),
-    duration_seconds: parseNum(getCol(row, 'live duration', 'duração')),
+    duration_seconds: calculateDuration(row),
     views: parseNum(getCol(row, 'live views', 'visualiza')),
     clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'cliques')),
     orders: parseNum(getCol(row, 'orders', 'pedido')),
