@@ -247,8 +247,23 @@ export async function processTikTokFiles(files) {
     if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
     return dStr;
   };
+
+  let detectedPeriod = null;
+  const fileArray = Object.values(files);
+  for (let f of fileArray) {
+    if (f && f.name) {
+      const match = f.name.match(/_(\d{8})-(\d{8})\.xlsx/);
+      if (match) {
+        const start = match[1];
+        const end = match[2];
+        const formatBrFromCompact = (str) => `${str.slice(6,8)}/${str.slice(4,6)}/${str.slice(0,4)}`;
+        detectedPeriod = `${formatBrFromCompact(start)} - ${formatBrFromCompact(end)}`;
+        break;
+      }
+    }
+  }
   
-  const period = minDateStr !== '9999-12-31' ? `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}` : "Período Desconhecido";
+  const period = detectedPeriod || (minDateStr !== '9999-12-31' ? `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}` : "Período Desconhecido");
 
   const finalData = {
     metadata: {
