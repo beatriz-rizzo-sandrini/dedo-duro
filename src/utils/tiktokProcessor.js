@@ -321,11 +321,32 @@ export function mergeMarketplaceData(reportsArray) {
   const liveMap = {};
   const affinityMap = {};
 
-  let minDateStr = '9999-12-31';
-  let maxDateStr = '0000-01-01';
+  let periodMinDate = null;
+  let periodMaxDate = null;
 
   validDataList.forEach(data => {
     merged.metadata.total_gmv += (data.metadata.total_gmv || 0);
+
+    if (data.metadata && data.metadata.period && data.metadata.period.includes('-')) {
+      const parts = data.metadata.period.split('-');
+      if (parts.length === 2) {
+        const parseDate = (dStr) => {
+          const p = dStr.trim().split('/');
+          if (p.length === 3) return new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00Z`);
+          return new Date(dStr.trim());
+        };
+        const d1 = parseDate(parts[0]);
+        const d2 = parseDate(parts[1]);
+        if (!isNaN(d1)) {
+          if (!periodMinDate || d1 < periodMinDate) periodMinDate = d1;
+          if (!periodMaxDate || d1 > periodMaxDate) periodMaxDate = d1;
+        }
+        if (!isNaN(d2)) {
+          if (!periodMinDate || d2 < periodMinDate) periodMinDate = d2;
+          if (!periodMaxDate || d2 > periodMaxDate) periodMaxDate = d2;
+        }
+      }
+    }
 
     // Creators
     (data.creators || []).forEach(c => {
@@ -365,10 +386,6 @@ export function mergeMarketplaceData(reportsArray) {
       if (!v.video_id) return;
       if (!videoMap[v.video_id]) {
         videoMap[v.video_id] = { ...v };
-        if (v.date && v.date.length >= 10) {
-          if (v.date < minDateStr) minDateStr = v.date;
-          if (v.date > maxDateStr) maxDateStr = v.date;
-        }
       }
     });
 
@@ -377,10 +394,6 @@ export function mergeMarketplaceData(reportsArray) {
       if (!l.live_id) return;
       if (!liveMap[l.live_id]) {
         liveMap[l.live_id] = { ...l };
-        if (l.date && l.date.length >= 10) {
-          if (l.date < minDateStr) minDateStr = l.date;
-          if (l.date > maxDateStr) maxDateStr = l.date;
-        }
       }
     });
 
@@ -393,14 +406,9 @@ export function mergeMarketplaceData(reportsArray) {
     });
   });
 
-  const formatBr = (dStr) => {
-    const p = dStr.split('-');
-    if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
-    return dStr;
-  };
-
-  if (minDateStr !== '9999-12-31' && maxDateStr !== '0000-01-01') {
-    merged.metadata.period = `${formatBr(minDateStr)} - ${formatBr(maxDateStr)}`;
+  if (periodMinDate && periodMaxDate) {
+    const fmt = (d) => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+    merged.metadata.period = `${fmt(periodMinDate)} - ${fmt(periodMaxDate)}`;
   }
 
   merged.creators = Object.values(creatorMap);
