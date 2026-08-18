@@ -928,11 +928,12 @@ export default function Estoque() {
 
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
-      const headers = ["Descrição", "Marca", "Estoque Plataforma", "Estoque Casa", " Estoque Expedição", "Estoque Total", "Custo Total"];
+      const headers = ["Descrição", "Marca", "Plataforma", "Estoque Plataforma", "Estoque Casa", " Estoque Expedição", "Estoque Total", "Custo Total"];
       const exportData = dadosProcessados.linhas.map(item => {
         return [
           item.descricao,
           item.marca,
+          selectedCompany,
           item.estoquePlataforma,
           item.estoqueCasa,
           item.expedicao,

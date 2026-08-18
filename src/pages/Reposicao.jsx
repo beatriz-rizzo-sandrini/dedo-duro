@@ -374,7 +374,7 @@ export default function Reposicao() {
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
       if (visao === 'envio') {
-        const headers = ["Local de Destino", "Envio (NF)", "Status", "Previsão", "Quantidade Total"];
+        const headers = ["Plataforma (Local)", "Envio (NF)", "Status", "Previsão", "Quantidade Total"];
         const exportData = dadosProcessados.envios.map(item => [
           item.local,
           item.envio,
@@ -384,7 +384,7 @@ export default function Reposicao() {
         ]);
         handleExport(type, "Relatorio_Reposicao_Resumido_Lotes", headers, exportData);
       } else {
-        const headers = ["Descrição do Produto", "Local de Destino", "Envio (NFs)", "Status Geral", "Previsão Geral", "Quantidade A Caminho"];
+        const headers = ["Descrição do Produto", "Plataforma (Local)", "Envio (NFs)", "Status Geral", "Previsão Geral", "Quantidade A Caminho"];
         const exportData = dadosProcessados.produtos.map(item => [
           item.descricao,
           item.local,

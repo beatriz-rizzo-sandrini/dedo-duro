@@ -399,28 +399,6 @@ export default function Vendas() {
         filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.value).join(', ')}`,
         filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.value).join(', ')}`
       ].filter(Boolean) : [],
-      kpis: [
-        { label: "TOTAL VENDIDO", value: totalExportVal.toLocaleString('pt-BR'), sub: "peças no período" }
-      ]
-    };
-
-    const isSingleLocal = useFilters && filtroLocal.length === 1;
-    
-    if (mode === 'resumido') {
-      const headers = isSingleLocal ? ["Descrição", "Total Vendido"] : ["Descrição", "Local", "Total Vendido"];
-      const exportData = rowsToExport.map(item => {
-        if (isSingleLocal) {
-          return [item.descricao, item.total];
-        } else {
-          return [item.descricao, item.local, item.total];
-        }
-      });
-      handleExport(type, reportTitle, headers, exportData, options);
-    } else {
-      const headers = isSingleLocal ? ["SKU Sênior", "Descrição", "Total Vendido"] : ["SKU Sênior", "Descrição", "Local", "Total Vendido"];
-      const exportData = [];
-      rowsToExport.forEach(item => {
-        Object.values(item.cores).forEach(corObj => {
           Object.values(corObj.variacoes).forEach(v => {
             const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
             const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';

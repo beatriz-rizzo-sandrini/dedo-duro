@@ -362,7 +362,7 @@ export default function Cobertura() {
 
   const handleExportData = (type, mode = 'detalhado') => {
     if (mode === 'resumido') {
-      const headers = ["Descrição", "Local", "Vendas", "Média/Dia", "Estoque", "A Caminho", "Dias Cobertos", "Status"];
+      const headers = ["Descrição", "Plataforma", "Vendas", "Média/Dia", "Estoque", "A Caminho", "Dias Cobertos", "Status"];
       const exportData = dadosProcessados.linhas.map(item => {
         let statusStr = "Saudável";
         if (item.dias <= 29) statusStr = "Ruptura";
@@ -371,7 +371,7 @@ export default function Cobertura() {
 
         return [
           item.descricao,
-          item.local,
+          item.local || selectedCompany,
           item.total,
           item.media.toFixed(2),
           item.estoqueTotal,

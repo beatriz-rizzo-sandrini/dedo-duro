@@ -957,13 +957,14 @@ export default function Sellout() {
     let exportData = [];
 
     if (mode === 'resumido') {
-      headers = ["Descrição", "Marca", "Vendas (Período)", "Estoque", "Share %"];
+      headers = ["Descrição", "Marca", "Plataforma", "Vendas (Período)", "Estoque", "Share %"];
       exportData = rowsToExport.map(item => {
         const sales = useFilters ? item.vendasFiltradas : (item.vendasPeriodo || 0);
         const share = totalSalesVal > 0 ? ((sales / totalSalesVal) * 100).toFixed(1) : 0;
         return [
           item.descricao,
           item.marca,
+          item.local || selectedCompany,
           sales,
           item.totalEstoque,
           share + "%"
