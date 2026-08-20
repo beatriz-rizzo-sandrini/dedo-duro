@@ -613,6 +613,23 @@ html[data-theme="dark"] .mkp-dashboard {
   color: var(--mkp-text-secondary);
 }
 
+/* STATS GRID */
+.mkp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.data-table tfoot td {
+  background: var(--mkp-surface-hover) !important;
+  color: var(--mkp-text-primary) !important;
+  font-weight: 700 !important;
+  border-top: 2px solid var(--mkp-border) !important;
+  border-bottom: none !important;
+  padding: 18px 32px !important;
+}
+
 /* ANIMAÇÕES */
 .animated-fade-in {
   animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;

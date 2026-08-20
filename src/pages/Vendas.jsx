@@ -368,6 +368,7 @@ export default function Vendas() {
 
     return { linhas, linhasTudo, totalItens, chartData, chartLocalData, chartProdutosData, dataEstoque, dataVendas };
   }, [parsedVendas, estoqueRows, vendasRows, filtroLocal, filtroMarca, dataIni, dataFim, busca, sortConfig, selectedCompany]);
+
   // Paginação
   const totalPaginas = Math.ceil(dadosProcessados.linhas.length / itensPorPagina);
   const linhasPaginadas = dadosProcessados.linhas.slice((currentPage - 1) * itensPorPagina, currentPage * itensPorPagina);
@@ -399,6 +400,24 @@ export default function Vendas() {
         filtroLocal.length > 0 && `Locais: ${filtroLocal.map(l => l.value).join(', ')}`,
         filtroMarca.length > 0 && `Marcas: ${filtroMarca.map(m => m.value).join(', ')}`
       ].filter(Boolean) : [],
+      kpis: [
+        { label: "TOTAL VENDIDO", value: totalExportVal.toLocaleString('pt-BR'), sub: "peças no período" }
+      ]
+    };
+
+    const isSingleLocal = useFilters && filtroLocal.length === 1;
+    
+    if (mode === 'resumido') {
+      const headers = ["Descrição", "Plataforma", "Total Vendido"];
+      const exportData = rowsToExport.map(item => {
+        return [item.descricao, item.local || selectedCompany, item.total];
+      });
+      handleExport(type, reportTitle, headers, exportData, options);
+    } else {
+      const headers = isSingleLocal ? ["SKU Sênior", "Descrição", "Total Vendido"] : ["SKU Sênior", "Descrição", "Plataforma", "Total Vendido"];
+      const exportData = [];
+      rowsToExport.forEach(item => {
+        Object.values(item.cores).forEach(corObj => {
           Object.values(corObj.variacoes).forEach(v => {
             const colorPart = corObj.cor && corObj.cor !== 'SEM COR' ? ` ${corObj.cor}` : '';
             const sizePart = v.size && v.size !== 'U' ? ` Tam ${v.size}` : '';
@@ -407,7 +426,7 @@ export default function Vendas() {
             if (isSingleLocal) {
               exportData.push([v.sku, fullDesc, v.total]);
             } else {
-              exportData.push([v.sku, fullDesc, item.local, v.total]);
+              exportData.push([v.sku, fullDesc, item.local || selectedCompany, v.total]);
             }
           });
         });

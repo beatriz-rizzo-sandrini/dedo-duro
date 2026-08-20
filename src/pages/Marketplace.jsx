@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import {
   Trophy, TrendingUp, Search, UserCheck, CalendarDays, ChevronLeft, ChevronRight,
   Video, Radio, ShoppingBag, Filter, ArrowRightLeft, Percent, AlertCircle, PieChart,
-  Info, UploadCloud, CheckCircle
+  Info, UploadCloud, CheckCircle, Users
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -121,6 +121,14 @@ export default function Marketplace() {
     }
     loadData();
   }, []);
+
+  const [creatorsPage, setCreatorsPage] = useState(1);
+  const [creatorsPerPage, setCreatorsPerPage] = useState(15);
+
+  useEffect(() => {
+    // Resetar página de criadores quando mudar filtros ou ordenação
+    setCreatorsPage(1);
+  }, [searchTerm, startDate, endDate, sortConfig]);
 
   // Configurador de ordenação (Resetado ao mudar de aba)
   const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
@@ -259,6 +267,31 @@ export default function Marketplace() {
     
   const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
   const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
+
+  // Totais Gerais específicos da Performance por Criador (atualizam dinamicamente com filtros)
+  const creatorSummaryTotals = useMemo(() => {
+    const totalCount = sortedCreators.length;
+    const totalGmv = sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
+    const totalOrders = sortedCreators.reduce((acc, c) => acc + (c.orders || 0), 0);
+    const totalItems = sortedCreators.reduce((acc, c) => acc + (c.items_sold || 0), 0);
+    const totalVideos = sortedCreators.reduce((acc, c) => acc + (c.video_count || 0), 0);
+    const totalLives = sortedCreators.reduce((acc, c) => acc + (c.live_count || 0), 0);
+    const totalLiveDuration = sortedCreators.reduce((acc, c) => acc + (c.live_duration_seconds || 0), 0);
+    const avgGmvPerCreator = totalCount > 0 ? totalGmv / totalCount : 0;
+    const avgTicket = totalOrders > 0 ? totalGmv / totalOrders : 0;
+
+    return {
+      totalCount,
+      totalGmv,
+      totalOrders,
+      totalItems,
+      totalVideos,
+      totalLives,
+      totalLiveDuration,
+      avgGmvPerCreator,
+      avgTicket
+    };
+  }, [sortedCreators]);
 
   const videoStats = useMemo(() => {
     return filteredVideos.reduce((acc, v) => ({
@@ -419,60 +452,243 @@ export default function Marketplace() {
     </div>
   );
 
-  const renderTab1 = () => (
-    <div className="animated-fade-in">
-      <div className="mkp-top-creators">
-        <h2><Trophy className="icon-title" size={24} /> Top 3 Criadores (Performance Geral)</h2>
-        <div className="cards-grid">
-          {top3Creators.map((creator, index) => (
-            <div key={index} className={`creator-card rank-${index + 1}`}>
-              <div className="rank-badge">#{index + 1}</div>
-              <h3 style={{ marginBottom: '16px' }}>{creator.creator_name}</h3>
-              <p className="creator-total">{formatCurrency(creator.gmv)}</p>
-              <div className="creator-split">
-                <span title="Pedidos" style={{ marginRight: '8px' }}>📦 {formatNumber(creator.orders)} pedidos</span>
-                <span title="Itens Vendidos">👕 {formatNumber(creator.items_sold)} itens</span>
+  const renderTab1 = () => {
+    const totalPages = Math.ceil(sortedCreators.length / (creatorsPerPage === 'all' ? sortedCreators.length || 1 : creatorsPerPage));
+    const paginatedCreators = creatorsPerPage === 'all' 
+      ? sortedCreators 
+      : sortedCreators.slice((creatorsPage - 1) * creatorsPerPage, creatorsPage * creatorsPerPage);
+
+    return (
+      <div className="animated-fade-in">
+        {/* KPI Cards de Totais Gerais dos Criadores */}
+        <div className="mkp-stats-grid">
+          <div className="mkp-kpi-card">
+            <div className="kpi-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+              <Users size={24} />
+            </div>
+            <div>
+              <h3>Total de Criadores</h3>
+              <p className="kpi-value">{formatNumber(creatorSummaryTotals.totalCount)}</p>
+              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+                {creatorSummaryTotals.totalCount === 1 ? '1 criador ativo' : `${formatNumber(creatorSummaryTotals.totalCount)} criadores ativos no filtro`}
+              </p>
+            </div>
+          </div>
+
+          <div className="mkp-kpi-card" style={{ border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.05)' }}>
+            <div className="kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+              <TrendingUp size={24} />
+            </div>
+            <div>
+              <h3 style={{ color: '#10b981' }}>Receita Total (GMV)</h3>
+              <p className="kpi-value" style={{ color: '#10b981' }}>{formatCurrency(creatorSummaryTotals.totalGmv)}</p>
+              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+                Média: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatCurrency(creatorSummaryTotals.avgGmvPerCreator)}</strong> / criador
+              </p>
+            </div>
+          </div>
+
+          <div className="mkp-kpi-card">
+            <div className="kpi-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+              <ShoppingBag size={24} />
+            </div>
+            <div>
+              <h3>Pedidos & Vendas</h3>
+              <p className="kpi-value">{formatNumber(creatorSummaryTotals.totalOrders)}</p>
+              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+                {formatNumber(creatorSummaryTotals.totalItems)} itens • Ticket Médio: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatCurrency(creatorSummaryTotals.avgTicket)}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="mkp-kpi-card">
+            <div className="kpi-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>
+              <Video size={24} />
+            </div>
+            <div>
+              <h3>Conteúdos (Vídeo / Live)</h3>
+              <p className="kpi-value" style={{ fontSize: '24px' }}>
+                {formatNumber(creatorSummaryTotals.totalVideos)} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>vídeos</span> • {formatNumber(creatorSummaryTotals.totalLives)} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>lives</span>
+              </p>
+              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+                Tempo em Live: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatDuration(creatorSummaryTotals.totalLiveDuration)}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Top 3 Criadores */}
+        <div className="mkp-top-creators">
+          <h2><Trophy className="icon-title" size={24} /> Top 3 Criadores (Performance Geral)</h2>
+          <div className="cards-grid">
+            {top3Creators.map((creator, index) => (
+              <div key={index} className={`creator-card rank-${index + 1}`}>
+                <div className="rank-badge">#{index + 1}</div>
+                <h3 style={{ marginBottom: '16px' }}>{creator.creator_name}</h3>
+                <p className="creator-total">{formatCurrency(creator.gmv)}</p>
+                <div className="creator-split">
+                  <span title="Pedidos" style={{ marginRight: '8px' }}>📦 {formatNumber(creator.orders)} pedidos</span>
+                  <span title="Itens Vendidos">👕 {formatNumber(creator.items_sold)} itens</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabela de Criadores com Linha de Total Geral */}
+        <div className="mkp-table-section">
+          <div className="table-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h2>Lista de Criadores ({formatNumber(sortedCreators.length)})</h2>
+              <p style={{ fontSize: '12px', color: 'var(--mkp-text-secondary)', margin: '4px 0 0 0' }}>
+                Ordenado por <strong>{sortConfig.key}</strong> ({sortConfig.direction === 'desc' ? 'Decrescente' : 'Crescente'})
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--mkp-text-secondary)' }}>Mostrar:</span>
+              <select
+                value={creatorsPerPage}
+                onChange={(e) => {
+                  const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                  setCreatorsPerPage(val);
+                  setCreatorsPage(1);
+                }}
+                style={{
+                  background: 'var(--mkp-surface)',
+                  color: 'var(--mkp-text-primary)',
+                  border: '1px solid var(--mkp-border)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value={15}>15 criadores</option>
+                <option value={30}>30 criadores</option>
+                <option value={50}>50 criadores</option>
+                <option value={100}>100 criadores</option>
+                <option value="all">Todos ({sortedCreators.length})</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
+                  <th className="text-right" onClick={() => handleSort('items_sold')} style={{ cursor: 'pointer' }}>Itens Vend.{renderSortIcon('items_sold')}</th>
+                  <th className="text-right" onClick={() => handleSort('orders')} style={{ cursor: 'pointer' }}>Pedidos{renderSortIcon('orders')}</th>
+                  <th className="text-right" onClick={() => handleSort('video_count')} style={{ cursor: 'pointer' }}>Vídeos{renderSortIcon('video_count')}</th>
+                  <th className="text-right" onClick={() => handleSort('live_count')} style={{ cursor: 'pointer' }}>LIVES{renderSortIcon('live_count')}</th>
+                  <th className="text-right" onClick={() => handleSort('live_duration_seconds')} style={{ cursor: 'pointer' }}>Tempo de Live{renderSortIcon('live_duration_seconds')}</th>
+                  <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV Total{renderSortIcon('gmv')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedCreators.length > 0 ? (
+                  paginatedCreators.map((row, i) => (
+                    <tr key={i}>
+                      <td className="td-creator"><UserCheck size={16} className="table-row-icon" /> {row.creator_name}</td>
+                      <td className="text-right">{formatNumber(row.items_sold)}</td>
+                      <td className="text-right">{formatNumber(row.orders)}</td>
+                      <td className="text-right">{formatNumber(row.video_count)}</td>
+                      <td className="text-right">{formatNumber(row.live_count)}</td>
+                      <td className="text-right">{formatDuration(row.live_duration_seconds)}</td>
+                      <td className="td-total text-right"><span className="badge-total">{formatCurrency(row.gmv)}</span></td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="text-center" style={{ padding: '32px', color: '#94a3b8' }}>
+                      Nenhum criador encontrado com os filtros selecionados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {sortedCreators.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td style={{ fontWeight: 'bold' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <Users size={16} style={{ color: 'var(--mkp-accent-blue)' }} /> 
+                        TOTAL GERAL ({formatNumber(creatorSummaryTotals.totalCount)} criadores)
+                      </span>
+                    </td>
+                    <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalItems)}</td>
+                    <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalOrders)}</td>
+                    <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalVideos)}</td>
+                    <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalLives)}</td>
+                    <td className="text-right" style={{ fontWeight: 'bold' }}>{formatDuration(creatorSummaryTotals.totalLiveDuration)}</td>
+                    <td className="text-right td-total" style={{ fontWeight: 'bold' }}>
+                      <span className="badge-total" style={{ background: 'var(--mkp-accent-blue)', color: '#fff', boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)' }}>
+                        {formatCurrency(creatorSummaryTotals.totalGmv)}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {/* Paginação */}
+          {creatorsPerPage !== 'all' && totalPages > 1 && (
+            <div style={{
+              padding: '16px 32px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderTop: '1px solid var(--mkp-border)',
+              background: 'var(--mkp-surface)'
+            }}>
+              <span style={{ fontSize: '13px', color: 'var(--mkp-text-secondary)' }}>
+                Página {creatorsPage} de {totalPages} ({formatNumber(sortedCreators.length)} criadores filtrados)
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setCreatorsPage(p => Math.max(1, p - 1))}
+                  disabled={creatorsPage === 1}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--mkp-border)',
+                    background: creatorsPage === 1 ? 'transparent' : 'var(--mkp-surface-hover)',
+                    color: creatorsPage === 1 ? 'var(--mkp-text-secondary)' : 'var(--mkp-text-primary)',
+                    cursor: creatorsPage === 1 ? 'not-allowed' : 'pointer',
+                    opacity: creatorsPage === 1 ? 0.5 : 1
+                  }}
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
+                <button
+                  onClick={() => setCreatorsPage(p => Math.min(totalPages, p + 1))}
+                  disabled={creatorsPage === totalPages}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--mkp-border)',
+                    background: creatorsPage === totalPages ? 'transparent' : 'var(--mkp-surface-hover)',
+                    color: creatorsPage === totalPages ? 'var(--mkp-text-secondary)' : 'var(--mkp-text-primary)',
+                    cursor: creatorsPage === totalPages ? 'not-allowed' : 'pointer',
+                    opacity: creatorsPage === totalPages ? 0.5 : 1
+                  }}
+                >
+                  Próxima <ChevronRight size={16} />
+                </button>
               </div>
             </div>
-          ))}
+          )}
         </div>
       </div>
-
-      <div className="mkp-table-section">
-        <div className="table-header">
-          <h2>Lista de Criadores</h2>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
-                <th className="text-right" onClick={() => handleSort('items_sold')} style={{ cursor: 'pointer' }}>Itens Vend.{renderSortIcon('items_sold')}</th>
-                <th className="text-right" onClick={() => handleSort('orders')} style={{ cursor: 'pointer' }}>Pedidos{renderSortIcon('orders')}</th>
-                <th className="text-right" onClick={() => handleSort('video_count')} style={{ cursor: 'pointer' }}>Vídeos{renderSortIcon('video_count')}</th>
-                <th className="text-right" onClick={() => handleSort('live_count')} style={{ cursor: 'pointer' }}>LIVES{renderSortIcon('live_count')}</th>
-                <th className="text-right" onClick={() => handleSort('live_duration_seconds')} style={{ cursor: 'pointer' }}>Tempo de Live{renderSortIcon('live_duration_seconds')}</th>
-                <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV Total{renderSortIcon('gmv')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedCreators.slice(0, 15).map((row, i) => (
-                <tr key={i}>
-                  <td className="td-creator"><UserCheck size={16} className="table-row-icon" /> {row.creator_name}</td>
-                  <td className="text-right">{formatNumber(row.items_sold)}</td>
-                  <td className="text-right">{formatNumber(row.orders)}</td>
-                  <td className="text-right">{formatNumber(row.video_count)}</td>
-                  <td className="text-right">{formatNumber(row.live_count)}</td>
-                  <td className="text-right">{formatDuration(row.live_duration_seconds)}</td>
-                  <td className="td-total text-right"><span className="badge-total">{formatCurrency(row.gmv)}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderTab2 = () => (
     <div className="animated-fade-in">
