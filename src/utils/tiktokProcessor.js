@@ -40,7 +40,7 @@ export async function processTikTokFiles(files) {
           const normalizedJson = json.map(row => {
             const newRow = {};
             for (let key in row) {
-              if (row.hasOwnProperty(key)) {
+              if (Object.prototype.hasOwnProperty.call(row, key)) {
                 newRow[key.trim().toLowerCase()] = row[key];
               }
             }

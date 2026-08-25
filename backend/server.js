@@ -26,7 +26,7 @@ app.get('/api/vendas', async (req, res) => {
       LEFT JOIN silver_mapeamento_sku m ON v.sku_produto = m.sku_plataforma AND v.local_venda = m.plataforma
       ORDER BY v.data_venda DESC
     `);
-    
+
     // Convert to Google Sheets API mock format to easily adapt frontend temporarily
     // Later we can fully refactor the frontend, but this minimizes immediate breakage
     const fakeGoogleFormat = {
@@ -65,7 +65,7 @@ app.get('/api/estoque', async (req, res) => {
       FROM silver_estoque e
       LEFT JOIN silver_mapeamento_sku m ON e.sku_produto = m.sku_plataforma AND e.local_estoque = m.plataforma
     `);
-    
+
     const fakeGoogleFormat = {
       table: {
         rows: rows.map(r => ({
@@ -104,7 +104,7 @@ app.get('/api/caminho', async (req, res) => {
       FROM silver_reposicao r
       LEFT JOIN silver_mapeamento_sku m ON r.sku_produto = m.sku_plataforma AND r.local_destino = m.plataforma
     `);
-    
+
     const fakeGoogleFormat = {
       table: {
         rows: rows.map(r => ({
@@ -139,7 +139,7 @@ app.get('/api/badstock', async (req, res) => {
       FROM silver_badstock b
       LEFT JOIN silver_mapeamento_sku m ON b.sku_produto = m.sku_plataforma AND b.local_badstock = m.plataforma
     `);
-    
+
     const fakeGoogleFormat = {
       table: {
         rows: rows.map(r => ({

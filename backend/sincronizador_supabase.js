@@ -283,7 +283,7 @@ async function syncVendas() {
 
 
 
-  await apagarDeletadosNaPlanilhaPorData('silver_vendas', dadosUnicos, 'data_venda', ['data_venda', 'local_venda', 'sku_produto']);
+  // await apagarDeletadosNaPlanilhaPorData('silver_vendas', dadosUnicos, 'data_venda', ['data_venda', 'local_venda', 'sku_produto']);
   await upsertEmLotes('silver_vendas', dadosUnicos, 'data_venda, local_venda, sku_produto');
   console.log(`Vendas sincronizadas com sucesso (${dadosUnicos.length} registros).`);
 }
@@ -497,7 +497,7 @@ async function syncEstoque() {
 
 
 
-  await apagarDeletadosNaPlanilhaPorData('silver_estoque', dadosUnicosEstoque, 'data_atualizacao', ['data_atualizacao', 'sku_produto', 'local_estoque']);
+  // await apagarDeletadosNaPlanilhaPorData('silver_estoque', dadosUnicosEstoque, 'data_atualizacao', ['data_atualizacao', 'sku_produto', 'local_estoque']);
   await upsertEmLotes('silver_estoque', dadosUnicosEstoque, 'data_atualizacao, sku_produto, local_estoque');
   console.log(`Estoque sincronizado com sucesso (${dadosUnicosEstoque.length} registros).`);
 }
@@ -543,7 +543,7 @@ async function syncReposicao() {
   }
   const dadosUnicosReposicao = Object.values(mapaReposicao);
 
-  await apagarDeletadosNaPlanilhaSemData('silver_reposicao', dadosUnicosReposicao, ['sku_produto', 'numero_nota_fiscal', 'local_destino']);
+  // await apagarDeletadosNaPlanilhaSemData('silver_reposicao', dadosUnicosReposicao, ['sku_produto', 'numero_nota_fiscal', 'local_destino']);
   await upsertEmLotes('silver_reposicao', dadosUnicosReposicao, 'sku_produto, numero_nota_fiscal, local_destino');
   console.log(`Reposições sincronizadas com sucesso (${dadosUnicosReposicao.length} registros).`);
 }
@@ -579,7 +579,7 @@ async function syncBadstock() {
   }
   const dadosUnicosBadstock = Object.values(mapaBadstock);
 
-  await apagarDeletadosNaPlanilhaSemData('silver_badstock', dadosUnicosBadstock, ['sku_produto', 'local_badstock']);
+  // await apagarDeletadosNaPlanilhaSemData('silver_badstock', dadosUnicosBadstock, ['sku_produto', 'local_badstock']);
   await upsertEmLotes('silver_badstock', dadosUnicosBadstock, 'sku_produto, local_badstock');
   console.log(`Badstock sincronizado com sucesso (${dadosUnicosBadstock.length} registros).`);
 }

@@ -84,6 +84,32 @@ const sortArray = (array, config, defaultKey = 'gmv') => {
   });
 };
 
+// ChartJS Options definidas no escopo do módulo para evitar recriação e problemas de escopo
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
+};
+
+const barOptions = {
+  ...chartOptions,
+  scales: {
+    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+  }
+};
+
+const tabs = [
+  { id: 0, label: 'Visão Geral', icon: PieChart },
+  { id: 1, label: 'Performance por Criador', icon: UserCheck },
+  { id: 2, label: 'Produto x Criador', icon: ArrowRightLeft },
+  { id: 3, label: 'Vídeo x Live', icon: Video },
+  { id: 4, label: 'Funil de Conversão', icon: Filter },
+  { id: 5, label: 'Cancelamentos', icon: AlertCircle },
+  { id: 6, label: 'Concentração de Receita', icon: Trophy },
+  { id: 7, label: 'Comissão e Margem', icon: Percent },
+];
+
 export default function Marketplace() {
   const [activeTab, setActiveTab] = useState(0);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
@@ -94,6 +120,20 @@ export default function Marketplace() {
   const [marketplaceData, setMarketplaceData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
+
+  // Configurador de ordenação (Resetado ao mudar de aba)
+  const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
+  const [creatorsPage, setCreatorsPage] = useState(1);
+  const [creatorsPerPage, setCreatorsPerPage] = useState(15);
+
+  const [uploadFiles, setUploadFiles] = useState({
+    creators: null,
+    products: null,
+    videos: null,
+    lives: null
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState(null);
 
   useEffect(() => {
     async function loadData() {
@@ -122,16 +162,10 @@ export default function Marketplace() {
     loadData();
   }, []);
 
-  const [creatorsPage, setCreatorsPage] = useState(1);
-  const [creatorsPerPage, setCreatorsPerPage] = useState(15);
-
   useEffect(() => {
     // Resetar página de criadores quando mudar filtros ou ordenação
     setCreatorsPage(1);
   }, [searchTerm, startDate, endDate, sortConfig]);
-
-  // Configurador de ordenação (Resetado ao mudar de aba)
-  const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
 
   useEffect(() => {
     // Reset sort when changing tabs
@@ -150,18 +184,6 @@ export default function Marketplace() {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
   };
-
-  // TABS DEFINITION
-  const tabs = [
-    { id: 0, label: 'Visão Geral', icon: PieChart },
-    { id: 1, label: 'Performance por Criador', icon: UserCheck },
-    { id: 2, label: 'Produto x Criador', icon: ArrowRightLeft },
-    { id: 3, label: 'Vídeo x Live', icon: Video },
-    { id: 4, label: 'Funil de Conversão', icon: Filter },
-    { id: 5, label: 'Cancelamentos', icon: AlertCircle },
-    { id: 6, label: 'Concentração de Receita', icon: Trophy },
-    { id: 7, label: 'Comissão e Margem', icon: Percent },
-  ];
 
   // ==========================================
   // DATA FILTERING & AGGREGATIONS
@@ -224,7 +246,7 @@ export default function Marketplace() {
   const sortedCreators = useMemo(() => {
     if (!marketplaceData?.creators) return [];
     
-    const isFiltered = startDate || endDate;
+    const isFiltered = Boolean(startDate || endDate);
     let list = [];
 
     if (isFiltered) {
@@ -239,22 +261,22 @@ export default function Marketplace() {
 
       filteredVideos.forEach(v => {
         addDyn(v.creator_name, v.gmv || 0, v.orders || 0);
-        if (v.creator_name) dynMap[v.creator_name].video_count += 1;
+        if (v.creator_name && dynMap[v.creator_name]) dynMap[v.creator_name].video_count += 1;
       });
 
       filteredLives.forEach(l => {
         addDyn(l.creator_name, l.gmv || 0, l.orders || 0);
-        if (l.creator_name) {
+        if (l.creator_name && dynMap[l.creator_name]) {
           dynMap[l.creator_name].live_count += 1;
           dynMap[l.creator_name].live_duration_seconds += (l.duration_seconds || 0);
         }
       });
       list = Object.values(dynMap);
     } else {
-      list = [...marketplaceData.creators];
+      list = [...(marketplaceData.creators || [])];
     }
 
-    list = list.filter(c => c.creator_name && c.creator_name.trim() !== '');
+    list = list.filter(c => c && c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
       list = list.filter(c => c.creator_name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
@@ -263,7 +285,7 @@ export default function Marketplace() {
 
   const totalGMV = (startDate || endDate) 
     ? sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0)
-    : (marketplaceData?.metadata?.total_gmv || marketplaceData?.videos?.reduce((acc, v) => acc + (v.gmv || 0), 0) + marketplaceData?.lives?.reduce((acc, l) => acc + (l.gmv || 0), 0) || 0);
+    : (marketplaceData?.metadata?.total_gmv || ((marketplaceData?.videos?.reduce((acc, v) => acc + (v.gmv || 0), 0) || 0) + (marketplaceData?.lives?.reduce((acc, l) => acc + (l.gmv || 0), 0) || 0)) || 0);
     
   const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
   const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
@@ -317,7 +339,7 @@ export default function Marketplace() {
   const sortedProducts = useMemo(() => {
     if (!marketplaceData?.products) return [];
     
-    const isFiltered = startDate || endDate;
+    const isFiltered = Boolean(startDate || endDate);
     let list = [];
 
     if (isFiltered) {
@@ -333,9 +355,10 @@ export default function Marketplace() {
       });
       list = Object.values(dynMap);
     } else {
-      list = [...marketplaceData.products];
+      list = [...(marketplaceData.products || [])];
     }
 
+    list = list.filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) {
       list = list.filter(p => p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()));
     }
@@ -361,9 +384,11 @@ export default function Marketplace() {
   }, [filteredAffinity, sortConfig]);
 
   // Chart Data
-  const top3Creators = [...sortedCreators].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 3);
+  const top3Creators = useMemo(() => {
+    return [...sortedCreators].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 3);
+  }, [sortedCreators]);
 
-  const formatChartData = {
+  const formatChartData = useMemo(() => ({
     labels: ['Vídeos Curtos', 'LIVEs'],
     datasets: [{
       data: [videoStats.gmv, liveStats.gmv],
@@ -371,30 +396,16 @@ export default function Marketplace() {
       borderColor: ['#2563eb', '#dc2626'],
       borderWidth: 1,
     }],
-  };
+  }), [videoStats.gmv, liveStats.gmv]);
 
-  const topCreatorsChartData = {
-    labels: top3Creators.map(c => c.creator_name.substring(0, 15)),
+  const topCreatorsChartData = useMemo(() => ({
+    labels: top3Creators.map(c => (c.creator_name || '').substring(0, 15)),
     datasets: [{
       label: 'GMV (R$)',
-      data: top3Creators.map(c => c.gmv),
+      data: top3Creators.map(c => c.gmv || 0),
       backgroundColor: '#10b981',
     }],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
-  };
-
-  const barOptions = {
-    ...chartOptions,
-    scales: {
-      y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
-    }
-  };
+  }), [top3Creators]);
 
   // ==========================================
   // RENDERS
@@ -931,7 +942,7 @@ export default function Marketplace() {
     </div>
   );
   const renderTab5 = () => {
-    let sortedByRefunds = [...marketplaceData.products].filter(p => p.product_name && p.product_name.trim() !== '');
+    let sortedByRefunds = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) sortedByRefunds = sortedByRefunds.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
     sortedByRefunds = sortArray(sortedByRefunds, sortConfig).slice(0, 10);
 
@@ -1117,7 +1128,7 @@ export default function Marketplace() {
   };
 
   const renderTab7 = () => {
-    let sortedProdsComm = [...marketplaceData.products].filter(p => p.product_name && p.product_name.trim() !== '');
+    let sortedProdsComm = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) sortedProdsComm = sortedProdsComm.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
     sortedProdsComm = sortArray(sortedProdsComm, sortConfig).slice(0, 10);
 
@@ -1223,15 +1234,6 @@ export default function Marketplace() {
   // ==========================================
   // TAB 8: UPLOAD / IMPORT
   // ==========================================
-  const [uploadFiles, setUploadFiles] = useState({
-    creators: null,
-    products: null,
-    videos: null,
-    lives: null
-  });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState(null);
-
   const handleFileChange = (e, type) => {
     if (e.target.files && e.target.files[0]) {
       setUploadFiles(prev => ({ ...prev, [type]: e.target.files[0] }));
