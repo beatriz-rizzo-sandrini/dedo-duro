@@ -386,6 +386,12 @@ export function mergeMarketplaceData(reportsArray) {
       if (!v.video_id) return;
       if (!videoMap[v.video_id]) {
         videoMap[v.video_id] = { ...v };
+      } else {
+        const mv = videoMap[v.video_id];
+        mv.gmv = (mv.gmv || 0) + (v.gmv || 0);
+        mv.orders = (mv.orders || 0) + (v.orders || 0);
+        mv.views = (mv.views || 0) + (v.views || 0);
+        mv.clicks = (mv.clicks || 0) + (v.clicks || 0);
       }
     });
 
@@ -394,6 +400,13 @@ export function mergeMarketplaceData(reportsArray) {
       if (!l.live_id) return;
       if (!liveMap[l.live_id]) {
         liveMap[l.live_id] = { ...l };
+      } else {
+        const ml = liveMap[l.live_id];
+        ml.gmv = (ml.gmv || 0) + (l.gmv || 0);
+        ml.orders = (ml.orders || 0) + (l.orders || 0);
+        ml.views = (ml.views || 0) + (l.views || 0);
+        ml.clicks = (ml.clicks || 0) + (l.clicks || 0);
+        ml.duration_seconds = (ml.duration_seconds || 0) + (l.duration_seconds || 0);
       }
     });
 
@@ -402,6 +415,12 @@ export function mergeMarketplaceData(reportsArray) {
       const key = `${a.content_id}_${a.product_id}`;
       if (!affinityMap[key]) {
         affinityMap[key] = { ...a };
+      } else {
+        const ma = affinityMap[key];
+        ma.gmv_presence = (ma.gmv_presence || 0) + (a.gmv_presence || 0);
+        ma.orders_presence = (ma.orders_presence || 0) + (a.orders_presence || 0);
+        ma.views = (ma.views || 0) + (a.views || 0);
+        ma.clicks = (ma.clicks || 0) + (a.clicks || 0);
       }
     });
   });

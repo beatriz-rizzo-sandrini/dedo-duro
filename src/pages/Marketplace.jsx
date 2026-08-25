@@ -114,10 +114,9 @@ export default function Marketplace() {
   const [activeTab, setActiveTab] = useState(0);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
   const searchTerm = useDeferredValue(rawSearchTerm);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   
-  const [marketplaceData, setMarketplaceData] = useState(null);
+  const [rawReports, setRawReports] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
 
@@ -138,19 +137,18 @@ export default function Marketplace() {
   useEffect(() => {
     async function loadData() {
       try {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const thirtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
         const { data, error } = await supabase
           .from('tiktok_reports')
-          .select('created_at, period, data')
+          .select('id, created_at, period, data')
           .gte('created_at', thirtyDaysAgo)
           .order('created_at', { ascending: false });
         
         if (error) throw error;
         if (data && data.length > 0) {
-          const merged = mergeMarketplaceData(data);
-          setMarketplaceData(merged);
+          setRawReports(data);
         } else {
-          throw new Error("Nenhum dado encontrado nos últimos 30 dias.");
+          throw new Error("Nenhum dado encontrado nos relatórios do TikTok.");
         }
       } catch (err) {
         console.error("Erro ao buscar dados do Supabase:", err);
@@ -162,10 +160,33 @@ export default function Marketplace() {
     loadData();
   }, []);
 
+  // Lista de períodos únicos disponíveis no banco
+  const availablePeriods = useMemo(() => {
+    if (!rawReports || rawReports.length === 0) return [];
+    const map = new Map();
+    rawReports.forEach(r => {
+      const p = r.period || r.data?.metadata?.period;
+      if (p && !map.has(p)) {
+        map.set(p, r.created_at);
+      }
+    });
+    return Array.from(map.keys());
+  }, [rawReports]);
+
+  // Dados consolidados de acordo com o período selecionado
+  const marketplaceData = useMemo(() => {
+    if (!rawReports || rawReports.length === 0) return null;
+    if (selectedPeriod === 'all') {
+      return mergeMarketplaceData(rawReports);
+    }
+    const filtered = rawReports.filter(r => (r.period || r.data?.metadata?.period) === selectedPeriod);
+    return mergeMarketplaceData(filtered);
+  }, [rawReports, selectedPeriod]);
+
   useEffect(() => {
     // Resetar página de criadores quando mudar filtros ou ordenação
     setCreatorsPage(1);
-  }, [searchTerm, startDate, endDate, sortConfig]);
+  }, [searchTerm, selectedPeriod, sortConfig]);
 
   useEffect(() => {
     // Reset sort when changing tabs
@@ -191,106 +212,59 @@ export default function Marketplace() {
 
   const filteredVideos = useMemo(() => {
     if (!marketplaceData?.videos) return [];
-    return marketplaceData.videos.filter(v => {
-      if (startDate && v.date && v.date < startDate) return false;
-      if (endDate && v.date && v.date > endDate) return false;
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        if (
-          !v.creator_name?.toLowerCase().includes(term) &&
-          !v.video_title?.toLowerCase().includes(term) &&
-          (!v.product_names || !v.product_names.some(pn => pn.toLowerCase().includes(term)))
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [startDate, endDate, searchTerm, marketplaceData]);
+    if (!searchTerm) return marketplaceData.videos;
+    const term = searchTerm.toLowerCase();
+    return marketplaceData.videos.filter(v => 
+      v.creator_name?.toLowerCase().includes(term) ||
+      v.video_title?.toLowerCase().includes(term) ||
+      (v.product_names && v.product_names.some(pn => pn.toLowerCase().includes(term)))
+    );
+  }, [searchTerm, marketplaceData]);
 
   const filteredLives = useMemo(() => {
     if (!marketplaceData?.lives) return [];
-    return marketplaceData.lives.filter(l => {
-      if (startDate && l.date && l.date < startDate) return false;
-      if (endDate && l.date && l.date > endDate) return false;
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        if (
-          !l.creator_name?.toLowerCase().includes(term) &&
-          !l.live_title?.toLowerCase().includes(term) &&
-          (!l.product_names || !l.product_names.some(pn => pn.toLowerCase().includes(term)))
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [startDate, endDate, searchTerm, marketplaceData]);
+    if (!searchTerm) return marketplaceData.lives;
+    const term = searchTerm.toLowerCase();
+    return marketplaceData.lives.filter(l => 
+      l.creator_name?.toLowerCase().includes(term) ||
+      l.live_title?.toLowerCase().includes(term) ||
+      (l.product_names && l.product_names.some(pn => pn.toLowerCase().includes(term)))
+    );
+  }, [searchTerm, marketplaceData]);
 
   const filteredAffinity = useMemo(() => {
     if (!marketplaceData?.unified_affinity) return [];
-    return marketplaceData.unified_affinity.filter(item => {
-      if (startDate && item.date && item.date < startDate) return false;
-      if (endDate && item.date && item.date > endDate) return false;
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        if (!item.creator_name?.toLowerCase().includes(term) && !item.product_name?.toLowerCase().includes(term)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [startDate, endDate, searchTerm, marketplaceData]);
+    if (!searchTerm) return marketplaceData.unified_affinity;
+    const term = searchTerm.toLowerCase();
+    return marketplaceData.unified_affinity.filter(item => 
+      item.creator_name?.toLowerCase().includes(term) ||
+      item.product_name?.toLowerCase().includes(term)
+    );
+  }, [searchTerm, marketplaceData]);
 
-  // Totais Globais
+  // Lista Oficial de Criadores (Métricas 100% idênticas ao TikTok)
   const sortedCreators = useMemo(() => {
     if (!marketplaceData?.creators) return [];
-    
-    const isFiltered = Boolean(startDate || endDate);
-    let list = [];
-
-    if (isFiltered) {
-      const dynMap = {};
-      const addDyn = (creator, gmv, orders) => {
-        if (!creator) return;
-        if (!dynMap[creator]) dynMap[creator] = { creator_name: creator, gmv: 0, orders: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, items_sold: 0, commission: 0, refunds: 0 };
-        dynMap[creator].gmv += gmv;
-        dynMap[creator].orders += orders;
-        dynMap[creator].items_sold += orders; // aproximação
-      };
-
-      filteredVideos.forEach(v => {
-        addDyn(v.creator_name, v.gmv || 0, v.orders || 0);
-        if (v.creator_name && dynMap[v.creator_name]) dynMap[v.creator_name].video_count += 1;
-      });
-
-      filteredLives.forEach(l => {
-        addDyn(l.creator_name, l.gmv || 0, l.orders || 0);
-        if (l.creator_name && dynMap[l.creator_name]) {
-          dynMap[l.creator_name].live_count += 1;
-          dynMap[l.creator_name].live_duration_seconds += (l.duration_seconds || 0);
-        }
-      });
-      list = Object.values(dynMap);
-    } else {
-      list = [...(marketplaceData.creators || [])];
-    }
-
+    let list = [...(marketplaceData.creators || [])];
     list = list.filter(c => c && c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
-      list = list.filter(c => c.creator_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const term = searchTerm.toLowerCase();
+      list = list.filter(c => c.creator_name.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig);
-  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredVideos, filteredLives]);
+  }, [searchTerm, sortConfig, marketplaceData]);
 
-  const totalGMV = (startDate || endDate) 
-    ? sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0)
-    : (marketplaceData?.metadata?.total_gmv || ((marketplaceData?.videos?.reduce((acc, v) => acc + (v.gmv || 0), 0) || 0) + (marketplaceData?.lives?.reduce((acc, l) => acc + (l.gmv || 0), 0) || 0)) || 0);
+  const totalGMV = useMemo(() => {
+    if (searchTerm) {
+      return sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
+    }
+    return marketplaceData?.metadata?.total_gmv || marketplaceData?.creators?.reduce((acc, c) => acc + (c.gmv || 0), 0) || 0;
+  }, [marketplaceData, searchTerm, sortedCreators]);
     
   const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
   const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
 
-  // Totais Gerais específicos da Performance por Criador (atualizam dinamicamente com filtros)
+  // Totais Gerais específicos da Performance por Criador
   const creatorSummaryTotals = useMemo(() => {
     const totalCount = sortedCreators.length;
     const totalGmv = sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
@@ -335,35 +309,17 @@ export default function Marketplace() {
     }), { gmv: 0, views: 0, clicks: 0, orders: 0, count: 0 });
   }, [filteredLives]);
 
-  // Top Products
+  // Lista Oficial de Produtos
   const sortedProducts = useMemo(() => {
     if (!marketplaceData?.products) return [];
-    
-    const isFiltered = Boolean(startDate || endDate);
-    let list = [];
-
-    if (isFiltered) {
-      const dynMap = {};
-      filteredAffinity.forEach(a => {
-        if (!a.product_name) return;
-        if (!dynMap[a.product_name]) {
-          dynMap[a.product_name] = { product_name: a.product_name, gmv: 0, orders: 0, items_sold: 0, refunds: 0, commission: 0 };
-        }
-        dynMap[a.product_name].gmv += (a.gmv_presence || 0);
-        dynMap[a.product_name].orders += (a.orders_presence || 0);
-        dynMap[a.product_name].items_sold += (a.orders_presence || 0);
-      });
-      list = Object.values(dynMap);
-    } else {
-      list = [...(marketplaceData.products || [])];
-    }
-
+    let list = [...(marketplaceData.products || [])];
     list = list.filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) {
-      list = list.filter(p => p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+      const term = searchTerm.toLowerCase();
+      list = list.filter(p => p.product_name?.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig).slice(0, 10);
-  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredAffinity]);
+  }, [searchTerm, sortConfig, marketplaceData]);
 
   // Affinity Data
   const affinityList = useMemo(() => {
@@ -1411,26 +1367,28 @@ export default function Marketplace() {
 
           <div className="filter-group">
             <CalendarDays size={18} className="filter-icon" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="filter-input date-input"
-              title="Data Inicial"
-            />
-          </div>
-          <div className="filter-group" style={{ marginLeft: '-12px' }}>
-            <span style={{ color: 'var(--mkp-text-secondary)', fontWeight: 'bold' }}>-</span>
-          </div>
-          <div className="filter-group">
-            <CalendarDays size={18} className="filter-icon" />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="filter-input date-input"
-              title="Data Final"
-            />
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="filter-input"
+              style={{
+                cursor: 'pointer',
+                minWidth: '240px',
+                appearance: 'auto',
+                background: 'var(--mkp-surface)',
+                color: 'var(--mkp-text-primary)'
+              }}
+              title="Selecionar Período do Relatório"
+            >
+              <option value="all">
+                Consolidado ({formatPeriod(marketplaceData?.metadata?.period) || 'Todos'})
+              </option>
+              {availablePeriods.map(p => (
+                <option key={p} value={p}>
+                  {formatPeriod(p)}
+                </option>
+              ))}
+            </select>
           </div>
           <button 
             onClick={() => setActiveTab(8)}
