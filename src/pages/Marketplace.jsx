@@ -110,13 +110,29 @@ const tabs = [
   { id: 7, label: 'Comissão e Margem', icon: Percent },
 ];
 
+const parseReportPeriod = (periodStr) => {
+  if (!periodStr || !periodStr.includes('-')) return null;
+  const parts = periodStr.split('-');
+  if (parts.length !== 2) return null;
+  const toISO = (dStr) => {
+    const p = dStr.trim().split(/[\/]/);
+    if (p.length === 3) return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    return dStr.trim();
+  };
+  return {
+    start: toISO(parts[0]),
+    end: toISO(parts[1])
+  };
+};
+
 export default function Marketplace() {
   const [activeTab, setActiveTab] = useState(0);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
   const searchTerm = useDeferredValue(rawSearchTerm);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [rawReports, setRawReports] = useState([]);
-  const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
 
@@ -137,11 +153,11 @@ export default function Marketplace() {
   useEffect(() => {
     async function loadData() {
       try {
-        const thirtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+        const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
         const { data, error } = await supabase
           .from('tiktok_reports')
           .select('id, created_at, period, data')
-          .gte('created_at', thirtyDaysAgo)
+          .gte('created_at', sixtyDaysAgo)
           .order('created_at', { ascending: false });
         
         if (error) throw error;
@@ -160,33 +176,29 @@ export default function Marketplace() {
     loadData();
   }, []);
 
-  // Lista de períodos únicos disponíveis no banco
-  const availablePeriods = useMemo(() => {
-    if (!rawReports || rawReports.length === 0) return [];
-    const map = new Map();
-    rawReports.forEach(r => {
-      const p = r.period || r.data?.metadata?.period;
-      if (p && !map.has(p)) {
-        map.set(p, r.created_at);
-      }
-    });
-    return Array.from(map.keys());
-  }, [rawReports]);
-
-  // Dados consolidados de acordo com o período selecionado
+  // Dados consolidados filtrados pelo intervalo de datas selecionado no calendário
   const marketplaceData = useMemo(() => {
     if (!rawReports || rawReports.length === 0) return null;
-    if (selectedPeriod === 'all') {
-      return mergeMarketplaceData(rawReports);
+    
+    let filtered = rawReports;
+    if (startDate || endDate) {
+      filtered = rawReports.filter(r => {
+        const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+        if (!p) return true;
+        if (startDate && p.end < startDate) return false;
+        if (endDate && p.start > endDate) return false;
+        return true;
+      });
     }
-    const filtered = rawReports.filter(r => (r.period || r.data?.metadata?.period) === selectedPeriod);
+    
+    if (filtered.length === 0) return null;
     return mergeMarketplaceData(filtered);
-  }, [rawReports, selectedPeriod]);
+  }, [rawReports, startDate, endDate]);
 
   useEffect(() => {
     // Resetar página de criadores quando mudar filtros ou ordenação
     setCreatorsPage(1);
-  }, [searchTerm, selectedPeriod, sortConfig]);
+  }, [searchTerm, startDate, endDate, sortConfig]);
 
   useEffect(() => {
     // Reset sort when changing tabs
@@ -1367,28 +1379,26 @@ export default function Marketplace() {
 
           <div className="filter-group">
             <CalendarDays size={18} className="filter-icon" />
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="filter-input"
-              style={{
-                cursor: 'pointer',
-                minWidth: '240px',
-                appearance: 'auto',
-                background: 'var(--mkp-surface)',
-                color: 'var(--mkp-text-primary)'
-              }}
-              title="Selecionar Período do Relatório"
-            >
-              <option value="all">
-                Consolidado ({formatPeriod(marketplaceData?.metadata?.period) || 'Todos'})
-              </option>
-              {availablePeriods.map(p => (
-                <option key={p} value={p}>
-                  {formatPeriod(p)}
-                </option>
-              ))}
-            </select>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="filter-input date-input"
+              title="Data Inicial"
+            />
+          </div>
+          <div className="filter-group" style={{ marginLeft: '-12px' }}>
+            <span style={{ color: 'var(--mkp-text-secondary)', fontWeight: 'bold' }}>-</span>
+          </div>
+          <div className="filter-group">
+            <CalendarDays size={18} className="filter-icon" />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="filter-input date-input"
+              title="Data Final"
+            />
           </div>
           <button 
             onClick={() => setActiveTab(8)}
