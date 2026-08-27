@@ -89,14 +89,29 @@ export async function processTikTokFiles(files) {
     return datePart;
   };
 
+  const cleanStr = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
   const getCol = (row, ...possibleKeys) => {
-    for (let key in row) {
-      if (typeof key === 'string') {
-        const lowerKey = key.toLowerCase();
-        for (let pk of possibleKeys) {
-          if (lowerKey.includes(pk.toLowerCase())) {
-            return row[key];
-          }
+    // 1. Busca exata de prioridade (ignorando maiúsculas e acentos)
+    for (let pk of possibleKeys) {
+      const cleanPk = cleanStr(pk);
+      for (let key in row) {
+        if (cleanStr(key) === cleanPk) {
+          return row[key];
+        }
+      }
+    }
+
+    // 2. Busca por substring, ignorando colunas de duração e taxa quando não solicitadas
+    for (let pk of possibleKeys) {
+      const cleanPk = cleanStr(pk);
+      for (let key in row) {
+        const cleanKey = cleanStr(key);
+        if (!cleanPk.includes('duracao') && !cleanPk.includes('tempo') && (cleanKey.includes('duracao') || cleanKey.includes('taxa') || cleanKey.includes('tempo medio') || cleanKey.includes('aov') || cleanKey.includes('gpm'))) {
+          continue;
+        }
+        if (cleanKey.includes(cleanPk)) {
+          return row[key];
         }
       }
     }
@@ -104,25 +119,25 @@ export async function processTikTokFiles(files) {
   };
 
   const creators = rawCreator.map(row => ({
-    creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
-    items_sold: parseNum(getCol(row, 'items sold', 'itens vendidos', 'vendidos')),
-    orders: parseNum(getCol(row, 'orders', 'pedido')),
-    gmv: parseNum(getCol(row, 'gmv')),
-    refunds: parseNum(getCol(row, 'refunds', 'reembolso', 'cancelamento')),
-    commission: parseNum(getCol(row, 'commission', 'comissão')),
-    video_count: parseNum(getCol(row, 'number of videos', 'número de vídeos', 'vídeos')),
-    live_count: parseNum(getCol(row, 'number of lives', 'número de lives', 'transmissões ao vivo', 'lives')),
+    creator_name: getCol(row, 'nome do criador', 'username', 'usuário', 'criador', 'creator'),
+    items_sold: parseNum(getCol(row, 'itens vendidos atribuídos ao criador', 'itens vendidos', 'items sold', 'vendidos')),
+    orders: parseNum(getCol(row, 'pedidos atribuídos', 'orders', 'pedido')),
+    gmv: parseNum(getCol(row, 'gmv atribuído ao criador', 'gmv', 'receita')),
+    refunds: parseNum(getCol(row, 'reembolsos', 'refunds', 'cancelamento')),
+    commission: parseNum(getCol(row, 'comissão estimada', 'comissão', 'commission')),
+    video_count: parseNum(getCol(row, 'vídeos', 'number of videos', 'número de vídeos')),
+    live_count: parseNum(getCol(row, 'transmissões ao vivo', 'number of lives', 'número de lives', 'lives')),
     live_duration_seconds: 0
   })).filter(c => c.creator_name);
 
   const products = rawProduct.map(row => ({
-    product_name: getCol(row, 'product name', 'nome do produto'),
-    product_id: String(getCol(row, 'product id', 'id do produto') || ''),
-    items_sold: parseNum(getCol(row, 'items sold', 'itens vendidos', 'vendidos')),
-    orders: parseNum(getCol(row, 'orders', 'pedido')),
-    gmv: parseNum(getCol(row, 'gmv')),
-    refunds: parseNum(getCol(row, 'refunds', 'reembolso', 'cancelamento')),
-    commission: parseNum(getCol(row, 'commission', 'comissão'))
+    product_name: getCol(row, 'nome do produto', 'product name'),
+    product_id: String(getCol(row, 'id do produto', 'product id') || ''),
+    items_sold: parseNum(getCol(row, 'itens vendidos atribuídos ao criador', 'itens vendidos', 'items sold', 'vendidos')),
+    orders: parseNum(getCol(row, 'pedidos atribuídos', 'orders', 'pedido')),
+    gmv: parseNum(getCol(row, 'gmv atribuído ao criador', 'gmv', 'receita')),
+    refunds: parseNum(getCol(row, 'reembolsos', 'refunds', 'cancelamento')),
+    commission: parseNum(getCol(row, 'comissão estimada', 'comissão', 'commission'))
   })).filter(p => p.product_name);
 
   const extractProductIds = (str) => {
@@ -131,25 +146,25 @@ export async function processTikTokFiles(files) {
   };
 
   const videos = rawVideo.map(row => ({
-    video_title: getCol(row, 'video title', 'título do vídeo', 'vídeo', 'video') || 'Vídeo sem título',
-    video_id: String(getCol(row, 'video id', 'id do vídeo') || ''),
-    creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
-    product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
-    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
-    views: parseNum(getCol(row, 'video views', 'visualiza', 'views', 'view', 'reproduç', 'reproduz', 'impress')),
-    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'clique', 'clicks', 'click')),
-    orders: parseNum(getCol(row, 'orders', 'pedido', 'compras', 'vendas')),
-    gmv: parseNum(getCol(row, 'gmv', 'receita', 'faturamento', 'valor')),
-    datetime: getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'),
-    date: parseToISO(getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'))
+    video_title: getCol(row, 'título do vídeo', 'título', 'video title', 'vídeo', 'video') || 'Vídeo sem título',
+    video_id: String(getCol(row, 'id do vídeo', 'video id') || ''),
+    creator_name: getCol(row, 'nome do criador', 'username', 'usuário', 'criador', 'creator'),
+    product_ids: extractProductIds(getCol(row, 'id do produto', 'product id')),
+    product_names: extractProductIds(getCol(row, 'nome do produto', 'product name')),
+    views: parseNum(getCol(row, 'visualizações de vídeo', 'visualizações', 'video views', 'impressões do produto em vídeos', 'impressões', 'views', 'view')),
+    clicks: parseNum(getCol(row, 'cliques no produto do vídeo', 'cliques no produto', 'cliques', 'product clicks', 'click')),
+    orders: parseNum(getCol(row, 'pedidos atribuídos a vídeos', 'pedidos atribuídos', 'pedidos', 'orders', 'pedido')),
+    gmv: parseNum(getCol(row, 'gmv atribuído a vídeo de afiliados', 'gmv atribuído', 'gmv', 'receita', 'faturamento')),
+    datetime: getCol(row, 'data de publicação', 'publicação', 'publish time', 'date', 'data', 'horário'),
+    date: parseToISO(getCol(row, 'data de publicação', 'publicação', 'publish time', 'date', 'data', 'horário'))
   })).filter(v => v.video_id || v.creator_name);
 
   const calculateDuration = (row) => {
-    let dur = parseNum(getCol(row, 'live duration', 'duração da live', 'duração', 'duracao'));
+    let dur = parseNum(getCol(row, 'duração da live', 'live duration', 'duração', 'duracao'));
     if (dur) return dur;
     
-    const startStr = getCol(row, 'start time', 'início', 'inicio');
-    const endStr = getCol(row, 'end time', 'término', 'termino', 'fim');
+    const startStr = getCol(row, 'horário de início da live', 'início', 'inicio', 'start time');
+    const endStr = getCol(row, 'horário de término da live', 'término', 'termino', 'fim', 'end time');
     if (startStr && endStr) {
       const dStart = new Date(startStr);
       const dEnd = new Date(endStr);
@@ -161,18 +176,18 @@ export async function processTikTokFiles(files) {
   };
 
   const lives = rawLive.map(row => ({
-    live_title: getCol(row, 'live title', 'título da live', 'transmissão', 'live') || 'Live sem título',
-    live_id: String(getCol(row, 'live id', 'id da live') || ''),
-    creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
-    product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
-    product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
+    live_title: getCol(row, 'título da live', 'título', 'live title', 'transmissão', 'live') || 'Live sem título',
+    live_id: String(getCol(row, 'id da live', 'live id') || ''),
+    creator_name: getCol(row, 'nome do criador', 'username', 'usuário', 'criador', 'creator'),
+    product_ids: extractProductIds(getCol(row, 'id do produto', 'product id')),
+    product_names: extractProductIds(getCol(row, 'nome do produto', 'product name')),
     duration_seconds: calculateDuration(row),
-    views: parseNum(getCol(row, 'live views', 'visualiza', 'espectador', 'viewer', 'audiência', 'audiencia', 'público', 'publico', 'impress', 'views', 'view', 'watch')),
-    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'clique', 'clicks', 'click')),
-    orders: parseNum(getCol(row, 'orders', 'pedido', 'compras', 'vendas')),
-    gmv: parseNum(getCol(row, 'gmv', 'receita', 'faturamento', 'valor')),
-    datetime: getCol(row, 'start time', 'início', 'inicio', 'date', 'data', 'horário'),
-    date: parseToISO(getCol(row, 'start time', 'início', 'inicio', 'date', 'data', 'horário'))
+    views: parseNum(getCol(row, 'impressões', 'impressões de produtos em lives', 'espectadores', 'visualizações de vídeo', 'visualizações', 'live views', 'views')),
+    clicks: parseNum(getCol(row, 'cliques no produto', 'cliques', 'product clicks', 'click')),
+    orders: parseNum(getCol(row, 'pedidos atribuídos à live', 'pedidos atribuídos', 'pedidos', 'orders', 'pedido')),
+    gmv: parseNum(getCol(row, 'gmv atribuído à live do criador', 'gmv atribuído', 'gmv', 'receita', 'faturamento')),
+    datetime: getCol(row, 'horário de início da live', 'início', 'inicio', 'start time', 'date', 'data', 'horário'),
+    date: parseToISO(getCol(row, 'horário de início da live', 'início', 'inicio', 'start time', 'date', 'data', 'horário'))
   })).filter(l => l.live_id || l.creator_name);
 
   // --- Processamento (Afinidade e Agrupamentos) ---
