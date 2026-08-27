@@ -60,7 +60,7 @@ function convertISODateToBR(isoDate) {
 }
 
 export default function Estoque() {
-  const { data, loading, error, availableDates, selectedStockDate, requestedStockDate, changeStockDate } = useData();
+  const { data, loading, stockLoading, error, availableDates, selectedStockDate, requestedStockDate, changeStockDate } = useData();
   const { selectedCompany } = useCompany();
   const estoqueRows = data.estoque || [];
   const vendasRows = data.vendas || [];
@@ -78,6 +78,28 @@ export default function Estoque() {
     }, 250);
     return () => clearTimeout(handler);
   }, [buscaInput]);
+
+  const [localDateISO, setLocalDateISO] = useState('');
+  const hasLoadedOnce = React.useRef(false);
+
+  React.useEffect(() => {
+    if (estoqueRows && estoqueRows.length > 0) {
+      hasLoadedOnce.current = true;
+    }
+  }, [estoqueRows]);
+
+  React.useEffect(() => {
+    const currentISO = convertBRDateToISO(requestedStockDate) || convertBRDateToISO(selectedStockDate) || '';
+    setLocalDateISO(currentISO);
+  }, [requestedStockDate, selectedStockDate]);
+
+  const handleApplyDate = (iso) => {
+    const targetISO = iso || localDateISO;
+    if (targetISO && targetISO.length === 10 && !isNaN(new Date(targetISO).getTime())) {
+      const brDate = convertISODateToBR(targetISO);
+      changeStockDate(brDate);
+    }
+  };
 
   const [expandedId, setExpandedId] = useState(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -974,7 +996,7 @@ export default function Estoque() {
     setCurrentPage(1);
   }, [filtroLocal, filtroMarca, busca, selectedCompany]);
 
-  if (loading) {
+  if (loading && !hasLoadedOnce.current && (!estoqueRows || estoqueRows.length === 0)) {
     return (
       <div className="header-main">
         <h1>Estoque Consolidado</h1>
@@ -1036,30 +1058,58 @@ export default function Estoque() {
       <div className="filters-container">
         <CompanySelector />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', letterSpacing: '0.5px' }}>DATA DO ESTOQUE</label>
-          <input
-            type="date"
-            className="input-padrao"
-            style={{ 
-              minHeight: '42px', 
-              borderRadius: '10px', 
-              border: '1px solid #e2e8f0', 
-              cursor: 'pointer', 
-              background: 'white', 
-              fontWeight: 600, 
-              color: '#334155',
-              padding: '8px 12px'
-            }}
-            value={convertBRDateToISO(requestedStockDate) || convertBRDateToISO(selectedStockDate) || ''}
-            onChange={e => {
-              const selectedISO = e.target.value;
-              if (selectedISO) {
-                const brDate = convertISODateToBR(selectedISO);
-                changeStockDate(brDate);
-              }
-            }}
-          />
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="date"
+                className="input-padrao"
+                style={{ 
+                  minHeight: '42px', 
+                  borderRadius: '10px', 
+                  border: '1px solid #e2e8f0', 
+                  cursor: 'pointer', 
+                  background: 'white', 
+                  fontWeight: 600, 
+                  color: '#334155',
+                  padding: '8px 12px',
+                  width: '100%'
+                }}
+                value={localDateISO}
+                onChange={e => {
+                  setLocalDateISO(e.target.value);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    handleApplyDate(e.target.value);
+                  }
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-padrao"
+              onClick={() => handleApplyDate(localDateISO)}
+              disabled={stockLoading}
+              title="Carregar estoque da data selecionada"
+              style={{
+                minHeight: '42px',
+                padding: '0 14px',
+                borderRadius: '10px',
+                background: '#0284c7',
+                color: 'white',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              {stockLoading ? '...' : 'Filtrar'}
+            </button>
+          </div>
           {requestedStockDate && selectedStockDate && normalizeDateStr(requestedStockDate) !== normalizeDateStr(selectedStockDate) && (
             <span style={{ 
               fontSize: '10px', 
@@ -1068,7 +1118,7 @@ export default function Estoque() {
               background: '#e0f2fe', 
               padding: '4px 8px', 
               borderRadius: '6px', 
-              marginTop: '4px',
+              marginTop: '4px', 
               display: 'inline-block',
               textAlign: 'center'
             }}>

@@ -417,7 +417,16 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     color = originalCorMatch[1].toUpperCase().trim();
   }
 
+  // Detect Sort variant early, e.g. "SORT 1", "SORT 2", "SORT 3", "SORTIDO 1", "SORT1"
+  const sortVariantMatch = desc.match(/\b(?:SORT|SORTIDO)\s*(\d+)\b/i) || desc.match(/\bSORT(\d+)\b/i) || skuUpper.match(/SORT(\d+)/i);
+  const sortVariant = sortVariantMatch ? ('SORT ' + sortVariantMatch[1]).toUpperCase() : null;
+
   let cleanDesc = desc.trim();
+
+  // Strip sort variations early from cleanDesc so numbers are not left in title
+  cleanDesc = cleanDesc
+    .replace(/\s*-\s*(?:SORT|SORTIDO)\s*\d+\b/gi, '')
+    .replace(/\b(?:SORT|SORTIDO)\s*\d+\b/gi, '');
 
   // Normalize common color spelling typos early
   cleanDesc = cleanDesc.replace(/\bOFF\s+WHIT\s+E\b/gi, 'OFF WHITE');
@@ -746,7 +755,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   }
 
   if (isSeniorSKU) {
-    color = skuColor;
+    if (sortVariant && (skuColor === 'SORT' || !skuColor || skuColor === 'SEM COR')) {
+      color = sortVariant;
+    } else {
+      color = skuColor;
+    }
     
     if (skuSize.startsWith('0') && skuSize.length === 2) {
       size = skuSize.substring(1).toUpperCase();
@@ -757,6 +770,11 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       size = 'U';
     }
 
+
+    baseTitle = baseTitle
+      .replace(/\s*-\s*(?:SORT|SORTIDO)\s*\d+\b/gi, '')
+      .replace(/\b(?:SORT|SORTIDO)\s*\d+\b/gi, '')
+      .trim();
 
     const sizeRegex = /\s*(?:TAM\.?|Tam:?|tam\.?|tamanho|Tamanho|CORL)\s*(GG|XG|EGG|EG|XXG|XGG|XP|XM|G\d|[GPM]|\d+(?:\/\d+)?)/i;
     baseTitle = baseTitle.replace(sizeRegex, '');
@@ -825,20 +843,24 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
 
 
 
-    if (!color || color === 'SEM COR') {
-      const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
-      const slashMatch = baseTitle.match(colorSlashRegex);
-      if (slashMatch) {
-        color = slashMatch[1].trim();
-        baseTitle = baseTitle.replace(colorSlashRegex, '').trim();
+    if (!color || color === 'SEM COR' || color === 'SORT' || color === 'SORTIDO') {
+      if (sortVariant) {
+        color = sortVariant;
       } else {
-        const commonColors = Object.keys(COLOR_ABBR_MAP);
-        for (const c of commonColors) {
-          const colorWordRegex = new RegExp(`\\b${c}\\b`, 'i');
-          if (colorWordRegex.test(baseTitle)) {
-            color = c;
-            baseTitle = baseTitle.replace(colorWordRegex, '').trim();
-            break;
+        const colorSlashRegex = /\b([A-Z]{2,}(?:\/[A-Z0-9]{2,})+|[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+\/[A-ZÃÕÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛa-zãõáéíóúàèìòùâêîôû]+)\b/;
+        const slashMatch = baseTitle.match(colorSlashRegex);
+        if (slashMatch) {
+          color = slashMatch[1].trim();
+          baseTitle = baseTitle.replace(colorSlashRegex, '').trim();
+        } else {
+          const commonColors = Object.keys(COLOR_ABBR_MAP);
+          for (const c of commonColors) {
+            const colorWordRegex = new RegExp(`\\b${c}\\b`, 'i');
+            if (colorWordRegex.test(baseTitle)) {
+              color = c;
+              baseTitle = baseTitle.replace(colorWordRegex, '').trim();
+              break;
+            }
           }
         }
       }
@@ -874,13 +896,18 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       .replace(/\s*-\s*B\d+/g, '') // remove - B200 etc
       .replace(/\s+-\s+.*/g, '');  // remove any trailing text after space-hyphen-space
     
-    const parts = cleanColor.split(/[\s/-]+/);
-    const normalizedParts = parts
-      .map(p => COLOR_ABBR_MAP[p] || p)
-      .filter(p => p && p !== 'SEM COR' && p !== 'E' && p !== 'AND' && p !== 'COM' && p !== 'WITH');
-    
-    // Ordenação alfabética removida para manter a ordem original do Senior/SKU
-    color = normalizedParts.length > 0 ? normalizedParts.join('/') : 'SEM COR';
+    const sortMatch = cleanColor.match(/^SORT\s*(\d+)$/i) || cleanColor.match(/^SORTIDO\s*(\d+)$/i);
+    if (sortMatch) {
+      color = `SORT ${sortMatch[1]}`;
+    } else {
+      const parts = cleanColor.split(/[\s/-]+/);
+      const normalizedParts = parts
+        .map(p => COLOR_ABBR_MAP[p] || p)
+        .filter(p => p && p !== 'SEM COR' && p !== 'E' && p !== 'AND' && p !== 'COM' && p !== 'WITH');
+      
+      // Ordenação alfabética removida para manter a ordem original do Senior/SKU
+      color = normalizedParts.length > 0 ? normalizedParts.join('/') : 'SEM COR';
+    }
   } else {
     color = 'SEM COR';
   }

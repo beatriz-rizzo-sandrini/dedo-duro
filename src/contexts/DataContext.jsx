@@ -13,7 +13,7 @@ const SHEETS_FROM_GS = [];
 const VENDAS_CUTOFF = '2026-03-29';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-const CACHE_KEY = '__dedo_duro_data_hybrid4__';
+const CACHE_KEY = '__dedo_duro_data_hybrid7__';
 
 // ── Google Sheets ─────────────────────────────────────────────────────────────
 
@@ -143,18 +143,27 @@ async function fetchVendasSupabase() {
 
 async function fetchAvailableStockDates() {
   try {
-    const promises = [];
-    for (let i = 0; i < 20; i++) {
-      promises.push(
-        supabase
-          .from('silver_estoque')
-          .select('data_atualizacao')
-          .order('id', { ascending: false })
-          .range(i * 1000, (i + 1) * 1000 - 1)
-      );
+    let allDates = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('v_resumo_estoque_diario')
+        .select('data_atualizacao')
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allDates = allDates.concat(data.map(r => r.data_atualizacao));
+        if (data.length < PAGE_SIZE) hasMore = false;
+      } else {
+        hasMore = false;
+      }
+      from += PAGE_SIZE;
     }
-    const results = await Promise.all(promises);
-    const allDates = results.flatMap(r => r.data || []).map(r => r.data_atualizacao);
+
     const uniqueNormalized = [...new Set(allDates.filter(Boolean).map(normalizeDateStr))];
     uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
     return uniqueNormalized;
@@ -214,63 +223,37 @@ async function fetchEstoqueSupabase(targetDate = null) {
         possibleDbValues.push(`${parts[0]}/${parts[1]}`);
         possibleDbValues.push(targetNormalizedDate);
         possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
+        possibleDbValues.push(`${parts[0]}/${parts[1]}/${parts[2].slice(2)}`); // DD/MM/YY
+        possibleDbValues.push(`${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`);
       } else {
         possibleDbValues.push(targetNormalizedDate);
       }
     } else {
       try {
-        const { data: dateRows, error: dateError } = await supabase
+        const { data: latestRows, error: dateError } = await supabase
           .from('silver_estoque')
           .select('data_atualizacao')
           .order('id', { ascending: false })
-          .limit(2000);
+          .limit(1);
         
-        if (!dateError && dateRows && dateRows.length > 0) {
-          const dateCounts = {};
-          dateRows.forEach(r => {
-            const dStr = r.data_atualizacao;
-            if (dStr) {
-              const norm = normalizeDateStr(dStr);
-              dateCounts[norm] = (dateCounts[norm] || 0) + 1;
-            }
-          });
+        if (!dateError && latestRows && latestRows.length > 0) {
+          const rawLatest = latestRows[0].data_atualizacao;
+          targetNormalizedDate = normalizeDateStr(rawLatest);
 
-          let maxTimestamp = 0;
-          let maxCount = 0;
-          let fallbackDate = "";
-
-          Object.entries(dateCounts).forEach(([normDate, count]) => {
-            if (count > maxCount) {
-              maxCount = count;
-              fallbackDate = normDate;
-            }
-            if (count >= 200) {
-              const ts = parseToTimestamp(normDate);
-              if (ts > maxTimestamp) {
-                maxTimestamp = ts;
-                targetNormalizedDate = normDate;
-              }
-            }
-          });
-
-          if (!targetNormalizedDate) {
-            targetNormalizedDate = fallbackDate;
-          }
-
-          if (targetNormalizedDate) {
-            possibleDbValues = [];
-            const parts = targetNormalizedDate.split('/');
-            if (parts.length === 3) {
-              possibleDbValues.push(`${parts[0]}/${parts[1]}`);
-              possibleDbValues.push(targetNormalizedDate);
-              possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
-            } else {
-              possibleDbValues.push(targetNormalizedDate);
-            }
+          possibleDbValues = [];
+          const parts = targetNormalizedDate.split('/');
+          if (parts.length === 3) {
+            possibleDbValues.push(`${parts[0]}/${parts[1]}`);
+            possibleDbValues.push(targetNormalizedDate);
+            possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
+            possibleDbValues.push(`${parts[0]}/${parts[1]}/${parts[2].slice(2)}`); // DD/MM/YY
+            possibleDbValues.push(`${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`);
+          } else {
+            possibleDbValues.push(targetNormalizedDate);
           }
         }
       } catch (dateErr) {
-        console.warn('[DataContext] Falha ao obter datas de estoque do Supabase, buscando tudo como fallback:', dateErr);
+        console.warn('[DataContext] Falha ao obter data mais recente do estoque:', dateErr);
       }
     }
 
@@ -664,11 +647,13 @@ export function DataProvider({ children }) {
   const [selectedStockDate, setSelectedStockDate] = useState(null);
   const [requestedStockDate, setRequestedStockDate] = useState(null);
 
+  const [stockLoading, setStockLoading] = useState(false);
+
   const mapLookupRef = React.useRef({});
   const globalSkuMapRef = React.useRef({});
 
   const changeStockDate = async (targetDate) => {
-    setLoading(true);
+    setStockLoading(true);
     setError(null);
     try {
       let resolvedDate = targetDate;
@@ -734,7 +719,7 @@ export function DataProvider({ children }) {
       console.error("[DataContext] Erro ao alterar data do estoque:", err);
       setError("Erro ao carregar dados do estoque para a data selecionada.");
     } finally {
-      setLoading(false);
+      setStockLoading(false);
     }
   };
 
@@ -754,9 +739,14 @@ export function DataProvider({ children }) {
             mapLookupRef.current = sheets.mapLookup || {};
             globalSkuMapRef.current = sheets.globalSkuMap || {};
             
-            // Tenta restaurar as datas disponíveis/selecionada a partir do cache
-            if (sheets.estoque && sheets.estoque.length > 0) {
-              const uniqueNormalized = [...new Set(sheets.estoque.map(r => r.c[0]?.v).filter(Boolean).map(normalizeDateStr))];
+            // Restaura as datas disponíveis/selecionada a partir do cache
+            if (sheets.availableDates && sheets.availableDates.length > 0) {
+              setAvailableDates(sheets.availableDates);
+              const initialDate = sheets.estoque?.[0]?.c?.[0]?.v || sheets.availableDates[0] || null;
+              setSelectedStockDate(initialDate);
+              setRequestedStockDate(initialDate);
+            } else if (sheets.resumoEstoque && sheets.resumoEstoque.length > 0) {
+              const uniqueNormalized = [...new Set(sheets.resumoEstoque.map(r => r.data_atualizacao).filter(Boolean).map(normalizeDateStr))];
               uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
               setAvailableDates(uniqueNormalized);
               setSelectedStockDate(uniqueNormalized[0] || null);
@@ -926,7 +916,8 @@ export function DataProvider({ children }) {
         buyclockCasaMap,
         mapLookup,
         globalSkuMap,
-        resumoEstoque
+        resumoEstoque,
+        availableDates: datesList
       };
       gsResults.forEach(({ name, rows }) => { combined[name] = rows; });
 
@@ -957,6 +948,7 @@ export function DataProvider({ children }) {
     <DataContext.Provider value={{ 
       data, 
       loading, 
+      stockLoading,
       error, 
       lastFetch, 
       refetch: () => fetchAll(true),
