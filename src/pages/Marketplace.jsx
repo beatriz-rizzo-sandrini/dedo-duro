@@ -442,27 +442,25 @@ export default function Marketplace() {
     labels: [`Vídeos Curtos (${videoPct}%)`, `LIVEs (${livePct}%)`],
     datasets: [{
       data: [videoStats.gmv, liveStats.gmv],
-      backgroundColor: ['#6366f1', '#f43f5e'],
-      hoverBackgroundColor: ['#818cf8', '#fb7185'],
-      borderColor: ['rgba(99, 102, 241, 0.2)', 'rgba(244, 63, 94, 0.2)'],
-      borderWidth: 2,
-      borderRadius: 6,
-      spacing: 4,
+      backgroundColor: ['#3b82f6', '#ec4899'],
+      hoverBackgroundColor: ['#2563eb', '#db2777'],
+      borderWidth: 0,
+      hoverOffset: 6,
     }],
   }), [videoStats.gmv, liveStats.gmv, videoPct, livePct]);
 
   const formatChartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '72%',
+    cutout: '70%',
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: '#94a3b8', font: { size: 12, weight: '600' }, padding: 16 }
+        labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' }
       },
       datalabels: {
         color: '#ffffff',
-        font: { weight: 'bold', size: 13 },
+        font: { family: 'Inter', weight: 'bold', size: 13 },
         formatter: (value) => {
           if (!totalFormatGmv || !value) return '';
           const pct = ((value / totalFormatGmv) * 100).toFixed(1);
@@ -470,11 +468,12 @@ export default function Marketplace() {
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+        titleFont: { size: 13, family: 'Inter' },
+        bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
         padding: 12,
-        cornerRadius: 10,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
+        cornerRadius: 8,
+        displayColors: false,
         callbacks: {
           label: (context) => {
             const val = context.raw || 0;
@@ -491,11 +490,12 @@ export default function Marketplace() {
     datasets: [{
       label: 'GMV (R$)',
       data: top3Creators.map(c => c.gmv || 0),
-      backgroundColor: ['#10b981', '#6366f1', '#f59e0b'],
-      borderRadius: 8,
+      backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981'],
+      hoverBackgroundColor: ['#2563eb', '#7c3aed', '#059669'],
+      borderRadius: 100,
       borderSkipped: false,
-      barThickness: 32,
-      maxBarThickness: 44,
+      barThickness: 28,
+      maxBarThickness: 40,
     }],
   }), [top3Creators]);
 
@@ -511,13 +511,13 @@ export default function Marketplace() {
       }
     },
     plugins: {
-      legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+      legend: { display: false },
       datalabels: {
         anchor: 'end',
         align: 'top',
         offset: 4,
         color: '#34d399',
-        font: { weight: 'bold', size: 11 },
+        font: { family: 'Inter', weight: 'bold', size: 11 },
         formatter: (value) => {
           if (!totalGMV || !value) return '';
           const pct = ((value / totalGMV) * 100).toFixed(1);
@@ -525,11 +525,12 @@ export default function Marketplace() {
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+        titleFont: { size: 13, family: 'Inter' },
+        bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
         padding: 12,
-        cornerRadius: 10,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
+        cornerRadius: 8,
+        displayColors: false,
         callbacks: {
           label: (context) => {
             const val = context.raw || 0;
@@ -542,10 +543,15 @@ export default function Marketplace() {
     scales: {
       y: { 
         grace: '20%',
-        ticks: { color: '#94a3b8' }, 
-        grid: { color: 'rgba(255,255,255,0.05)' } 
+        border: { display: false },
+        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
+        grid: { color: 'rgba(241, 245, 249, 0.08)' } 
       },
-      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      x: { 
+        border: { display: false },
+        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
+        grid: { display: false } 
+      }
     }
   }), [totalGMV]);
 
@@ -894,24 +900,46 @@ export default function Marketplace() {
         { 
           label: 'Vídeos (GMV)', 
           data: hourlyGmvVideo, 
-          borderColor: '#6366f1', 
-          backgroundColor: 'rgba(99, 102, 241, 0.12)', 
+          borderColor: '#3b82f6', 
+          backgroundColor: (context) => {
+            const chart = context.chart;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return 'rgba(59, 130, 246, 0.15)';
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+            return gradient;
+          }, 
+          borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointRadius: 3,
+          pointRadius: 0,
           pointHoverRadius: 6,
-          pointBackgroundColor: '#6366f1'
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3
         },
         { 
           label: 'LIVES (GMV)', 
           data: hourlyGmvLive, 
-          borderColor: '#f43f5e', 
-          backgroundColor: 'rgba(244, 63, 94, 0.12)', 
+          borderColor: '#ef4444', 
+          backgroundColor: (context) => {
+            const chart = context.chart;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return 'rgba(239, 68, 68, 0.15)';
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+            gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+            return gradient;
+          }, 
+          borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointRadius: 3,
+          pointRadius: 0,
           pointHoverRadius: 6,
-          pointBackgroundColor: '#f43f5e'
+          pointHoverBackgroundColor: '#ef4444',
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3
         }
       ]
     };
@@ -922,14 +950,16 @@ export default function Marketplace() {
         { 
           label: 'Vídeos', 
           data: dailyGmvVideo, 
-          backgroundColor: '#6366f1',
+          backgroundColor: '#3b82f6',
+          hoverBackgroundColor: '#2563eb',
           borderRadius: 8,
           borderSkipped: false,
         },
         { 
           label: 'LIVES', 
           data: dailyGmvLive, 
-          backgroundColor: '#f43f5e',
+          backgroundColor: '#ef4444',
+          hoverBackgroundColor: '#dc2626',
           borderRadius: 8,
           borderSkipped: false,
         }
@@ -944,10 +974,23 @@ export default function Marketplace() {
     const hourlyChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+        legend: { 
+          position: 'bottom', 
+          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' } 
+        },
         datalabels: { display: false },
         tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          titleFont: { size: 13, family: 'Inter' },
+          bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: true,
           callbacks: {
             label: (ctx) => {
               const val = ctx.raw || 0;
@@ -959,21 +1002,41 @@ export default function Marketplace() {
         }
       },
       scales: {
-        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        y: { 
+          border: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
+          grid: { color: 'rgba(241, 245, 249, 0.08)' } 
+        },
+        x: { 
+          border: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
+          grid: { display: false } 
+        }
       }
     };
 
     const dailyChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 28,
+          left: 8,
+          right: 8,
+          bottom: 4
+        }
+      },
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+        legend: { 
+          position: 'bottom', 
+          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' } 
+        },
         datalabels: {
           anchor: 'end',
           align: 'top',
+          offset: 4,
           color: (ctx) => ctx.dataset.label === 'Vídeos' ? '#60a5fa' : '#f87171',
-          font: { weight: 'bold', size: 10 },
+          font: { family: 'Inter', weight: 'bold', size: 10 },
           formatter: (value, ctx) => {
             const total = ctx.dataset.label === 'Vídeos' ? totalWeeklyGmvVideo : totalWeeklyGmvLive;
             if (!total || !value) return '';
@@ -982,6 +1045,12 @@ export default function Marketplace() {
           }
         },
         tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          titleFont: { size: 13, family: 'Inter' },
+          bodyFont: { size: 14, family: 'Inter', weight: 'bold' },
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: true,
           callbacks: {
             label: (ctx) => {
               const val = ctx.raw || 0;
@@ -993,8 +1062,17 @@ export default function Marketplace() {
         }
       },
       scales: {
-        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        y: { 
+          grace: '20%',
+          border: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
+          grid: { color: 'rgba(241, 245, 249, 0.08)' } 
+        },
+        x: { 
+          border: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
+          grid: { display: false } 
+        }
       }
     };
 
