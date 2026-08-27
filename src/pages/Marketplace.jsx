@@ -17,6 +17,7 @@ import {
   LineElement
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { supabase } from '../services/supabase';
 import { processTikTokFiles, mergeMarketplaceData } from '../utils/tiktokProcessor';
 import './Marketplace.css';
@@ -88,7 +89,10 @@ const sortArray = (array, config, defaultKey = 'gmv') => {
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
+  plugins: { 
+    legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+    datalabels: { display: false }
+  },
 };
 
 const barOptions = {
@@ -351,20 +355,53 @@ export default function Marketplace() {
     return sortArray(list, sortConfig).slice(0, 50);
   }, [filteredAffinity, sortConfig]);
 
-  // Chart Data
+  // Chart Data & Options com Porcentagens (%)
   const top3Creators = useMemo(() => {
     return [...sortedCreators].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 3);
   }, [sortedCreators]);
 
+  const totalFormatGmv = (videoStats.gmv || 0) + (liveStats.gmv || 0);
+  const videoPct = totalFormatGmv ? ((videoStats.gmv / totalFormatGmv) * 100).toFixed(1) : '0';
+  const livePct = totalFormatGmv ? ((liveStats.gmv / totalFormatGmv) * 100).toFixed(1) : '0';
+
   const formatChartData = useMemo(() => ({
-    labels: ['Vídeos Curtos', 'LIVEs'],
+    labels: [`Vídeos Curtos (${videoPct}%)`, `LIVEs (${livePct}%)`],
     datasets: [{
       data: [videoStats.gmv, liveStats.gmv],
       backgroundColor: ['#3b82f6', '#ef4444'],
       borderColor: ['#2563eb', '#dc2626'],
       borderWidth: 1,
     }],
-  }), [videoStats.gmv, liveStats.gmv]);
+  }), [videoStats.gmv, liveStats.gmv, videoPct, livePct]);
+
+  const formatChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#94a3b8', font: { size: 12, weight: '600' } }
+      },
+      datalabels: {
+        color: '#ffffff',
+        font: { weight: 'bold', size: 13 },
+        formatter: (value) => {
+          if (!totalFormatGmv || !value) return '';
+          const pct = ((value / totalFormatGmv) * 100).toFixed(1);
+          return `${pct}%`;
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const val = context.raw || 0;
+            const pct = totalFormatGmv ? ((val / totalFormatGmv) * 100).toFixed(1) : '0';
+            return ` ${context.label}: ${formatCurrency(val)} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }), [totalFormatGmv]);
 
   const topCreatorsChartData = useMemo(() => ({
     labels: top3Creators.map(c => (c.creator_name || '').substring(0, 15)),
@@ -374,6 +411,38 @@ export default function Marketplace() {
       backgroundColor: '#10b981',
     }],
   }), [top3Creators]);
+
+  const topCreatorsChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+      datalabels: {
+        anchor: 'end',
+        align: 'top',
+        color: '#34d399',
+        font: { weight: 'bold', size: 11 },
+        formatter: (value) => {
+          if (!totalGMV || !value) return '';
+          const pct = ((value / totalGMV) * 100).toFixed(1);
+          return `${pct}%`;
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const val = context.raw || 0;
+            const pct = totalGMV ? ((val / totalGMV) * 100).toFixed(1) : '0';
+            return ` GMV: ${formatCurrency(val)} (${pct}% do total geral)`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+    }
+  }), [totalGMV]);
 
   // ==========================================
   // RENDERS
@@ -387,7 +456,7 @@ export default function Marketplace() {
             <PieChart size={20} className="header-icon" /> Distribuição por Formato (GMV)
           </h2>
           <div style={{ height: '300px' }}>
-            <Doughnut data={formatChartData} options={chartOptions} />
+            <Doughnut data={formatChartData} options={formatChartOptions} plugins={[ChartDataLabels]} />
           </div>
         </div>
 
@@ -396,7 +465,7 @@ export default function Marketplace() {
             <Trophy size={20} className="header-icon" style={{ color: '#f59e0b' }} /> Top Criadores
           </h2>
           <div style={{ height: '300px' }}>
-            <Bar data={topCreatorsChartData} options={barOptions} />
+            <Bar data={topCreatorsChartData} options={topCreatorsChartOptions} plugins={[ChartDataLabels]} />
           </div>
         </div>
       </div>
@@ -751,6 +820,68 @@ export default function Marketplace() {
       ]
     };
 
+    const totalWeeklyGmvVideo = dailyGmvVideo.reduce((a, b) => a + b, 0);
+    const totalWeeklyGmvLive = dailyGmvLive.reduce((a, b) => a + b, 0);
+    const totalDailyGmvVideo = hourlyGmvVideo.reduce((a, b) => a + b, 0);
+    const totalDailyGmvLive = hourlyGmvLive.reduce((a, b) => a + b, 0);
+
+    const hourlyChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+        datalabels: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.raw || 0;
+              const total = ctx.dataset.label.includes('Vídeos') ? totalDailyGmvVideo : totalDailyGmvLive;
+              const pct = total ? ((val / total) * 100).toFixed(1) : '0';
+              return ` ${ctx.dataset.label}: ${formatCurrency(val)} (${pct}% do total do dia)`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    };
+
+    const dailyChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8' } },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: (ctx) => ctx.dataset.label === 'Vídeos' ? '#60a5fa' : '#f87171',
+          font: { weight: 'bold', size: 10 },
+          formatter: (value, ctx) => {
+            const total = ctx.dataset.label === 'Vídeos' ? totalWeeklyGmvVideo : totalWeeklyGmvLive;
+            if (!total || !value) return '';
+            const pct = ((value / total) * 100).toFixed(1);
+            return `${pct}%`;
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.raw || 0;
+              const total = ctx.dataset.label === 'Vídeos' ? totalWeeklyGmvVideo : totalWeeklyGmvLive;
+              const pct = total ? ((val / total) * 100).toFixed(1) : '0';
+              return ` ${ctx.dataset.label}: ${formatCurrency(val)} (${pct}% da semana)`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    };
+
     const topVideos = [...filteredVideos].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
     const topLives = [...filteredLives].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
 
@@ -796,7 +927,7 @@ export default function Marketplace() {
               </div>
             </h2>
             <div style={{ height: '300px' }}>
-              <Line data={hourlyChartData} options={chartOptions} />
+              <Line data={hourlyChartData} options={hourlyChartOptions} />
             </div>
           </div>
 
@@ -809,7 +940,7 @@ export default function Marketplace() {
               </div>
             </h2>
             <div style={{ height: '300px' }}>
-              <Bar data={dailyChartData} options={barOptions} />
+              <Bar data={dailyChartData} options={dailyChartOptions} plugins={[ChartDataLabels]} />
             </div>
           </div>
         </div>
