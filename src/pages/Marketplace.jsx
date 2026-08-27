@@ -117,16 +117,39 @@ const tabs = [
 const parseReportPeriod = (periodStr) => {
   if (!periodStr || !periodStr.includes('-')) return null;
   const parts = periodStr.split('-');
-  if (parts.length !== 2) return null;
-  const toISO = (dStr) => {
-    const p = dStr.trim().split(/[\/]/);
-    if (p.length === 3) return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
-    return dStr.trim();
-  };
-  return {
-    start: toISO(parts[0]),
-    end: toISO(parts[1])
-  };
+  
+  // Formato: 20260601-20260824 (8 dígitos cada)
+  if (parts.length === 2 && parts[0].trim().length === 8 && parts[1].trim().length === 8 && !parts[0].includes('/') && !parts[1].includes('/')) {
+    const s = parts[0].trim();
+    const e = parts[1].trim();
+    return {
+      start: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`,
+      end: `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}`
+    };
+  }
+
+  // Formato: DD/MM/YYYY - DD/MM/YYYY
+  if (parts.length === 2) {
+    const toISO = (dStr) => {
+      const p = dStr.trim().split(/[\/]/);
+      if (p.length === 3) return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+      return dStr.trim();
+    };
+    return {
+      start: toISO(parts[0]),
+      end: toISO(parts[1])
+    };
+  }
+
+  // Formato: YYYY-MM-DD-YYYY-MM-DD
+  if (parts.length === 6) {
+    return {
+      start: `${parts[0]}-${parts[1]}-${parts[2]}`,
+      end: `${parts[3]}-${parts[4]}-${parts[5]}`
+    };
+  }
+
+  return null;
 };
 
 // Componente Reutilizável de Paginação
@@ -231,16 +254,42 @@ export default function Marketplace() {
   useEffect(() => {
     async function loadData() {
       try {
-        const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
         const { data, error } = await supabase
           .from('tiktok_reports')
           .select('id, created_at, period, data')
-          .gte('created_at', sixtyDaysAgo)
           .order('created_at', { ascending: false });
         
         if (error) throw error;
         if (data && data.length > 0) {
           setRawReports(data);
+
+          // Detectar a data final mais recente entre todos os relatórios disponíveis
+          let latestDateStr = null;
+          data.forEach(r => {
+            const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+            if (p && p.end) {
+              if (!latestDateStr || p.end > latestDateStr) {
+                latestDateStr = p.end;
+              }
+            }
+          });
+
+          // Definir automaticamente o filtro inicial para os últimos 30 dias a partir da data mais recente
+          if (latestDateStr) {
+            const endD = new Date(`${latestDateStr}T12:00:00`);
+            const startD = new Date(endD);
+            startD.setDate(startD.getDate() - 29); // 30 dias no total (ex: 26/07 a 24/08)
+
+            const formatDateStr = (d) => {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${day}`;
+            };
+
+            setStartDate(formatDateStr(startD));
+            setEndDate(formatDateStr(endD));
+          }
         } else {
           throw new Error("Nenhum dado encontrado nos relatórios do TikTok.");
         }
@@ -334,10 +383,10 @@ export default function Marketplace() {
 
   // Quantidade de dias no período filtrado (para médias diárias)
   const filteredDaysCount = useMemo(() => {
-    // 1. Se o usuário selecionou datas personalizadas no calendário:
+    // 1. Se o usuário tem datas selecionadas no calendário:
     if (startDate && endDate) {
-      const d1 = new Date(startDate);
-      const d2 = new Date(endDate);
+      const d1 = new Date(`${startDate}T12:00:00`);
+      const d2 = new Date(`${endDate}T12:00:00`);
       const diffTime = Math.abs(d2 - d1);
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
       return Math.max(1, diffDays);
@@ -346,27 +395,16 @@ export default function Marketplace() {
     if (!startDate && endDate) return 1;
 
     // 2. Se as planilhas trouxerem o período nos metadados (ex: 20260201-20260228):
-    const periodStr = marketplaceData?.metadata?.period;
-    if (periodStr && periodStr.includes('-')) {
-      const parts = periodStr.split('-');
-      if (parts.length === 2 && parts[0].length === 8 && parts[1].length === 8) {
-        const y1 = parseInt(parts[0].slice(0, 4), 10);
-        const m1 = parseInt(parts[0].slice(4, 6), 10) - 1;
-        const day1 = parseInt(parts[0].slice(6, 8), 10);
-
-        const y2 = parseInt(parts[1].slice(0, 4), 10);
-        const m2 = parseInt(parts[1].slice(4, 6), 10) - 1;
-        const day2 = parseInt(parts[1].slice(6, 8), 10);
-
-        const date1 = new Date(y1, m1, day1);
-        const date2 = new Date(y2, m2, day2);
-        const diffTime = Math.abs(date2 - date1);
-        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        return Math.max(1, diffDays);
-      }
+    const p = parseReportPeriod(marketplaceData?.metadata?.period);
+    if (p && p.start && p.end) {
+      const d1 = new Date(`${p.start}T12:00:00`);
+      const d2 = new Date(`${p.end}T12:00:00`);
+      const diffTime = Math.abs(d2 - d1);
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return Math.max(1, diffDays);
     }
     
-    return 1;
+    return 30;
   }, [startDate, endDate, marketplaceData?.metadata?.period]);
 
   // Lista Oficial de Criadores (Métricas 100% idênticas ao TikTok)
@@ -1821,7 +1859,11 @@ export default function Marketplace() {
       <div className="mkp-header">
         <div>
           <h1 className="mkp-title">Marketplace & Afiliados</h1>
-          <p className="mkp-subtitle">Análise detalhada de performance - {formatPeriod(marketplaceData.metadata?.period)}</p>
+          <p className="mkp-subtitle">
+            Análise de performance: {startDate && endDate 
+              ? `${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${filteredDaysCount} dias)` 
+              : formatPeriod(marketplaceData.metadata?.period)}
+          </p>
         </div>
 
         <div className="mkp-global-filters">
