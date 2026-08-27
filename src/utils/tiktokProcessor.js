@@ -136,20 +136,20 @@ export async function processTikTokFiles(files) {
     creator_name: getCol(row, 'username', 'usuário', 'criador', 'creator'),
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
     product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
-    views: parseNum(getCol(row, 'video views', 'visualiza')),
-    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'cliques')),
-    orders: parseNum(getCol(row, 'orders', 'pedido')),
-    gmv: parseNum(getCol(row, 'gmv')),
+    views: parseNum(getCol(row, 'video views', 'visualiza', 'views', 'view', 'reproduç', 'reproduz', 'impress')),
+    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'clique', 'clicks', 'click')),
+    orders: parseNum(getCol(row, 'orders', 'pedido', 'compras', 'vendas')),
+    gmv: parseNum(getCol(row, 'gmv', 'receita', 'faturamento', 'valor')),
     datetime: getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'),
     date: parseToISO(getCol(row, 'publish time', 'publicação', 'date', 'data', 'horário'))
   })).filter(v => v.video_id || v.creator_name);
 
   const calculateDuration = (row) => {
-    let dur = parseNum(getCol(row, 'live duration', 'duração da live'));
+    let dur = parseNum(getCol(row, 'live duration', 'duração da live', 'duração', 'duracao'));
     if (dur) return dur;
     
-    const startStr = getCol(row, 'start time', 'início');
-    const endStr = getCol(row, 'end time', 'término');
+    const startStr = getCol(row, 'start time', 'início', 'inicio');
+    const endStr = getCol(row, 'end time', 'término', 'termino', 'fim');
     if (startStr && endStr) {
       const dStart = new Date(startStr);
       const dEnd = new Date(endStr);
@@ -167,12 +167,12 @@ export async function processTikTokFiles(files) {
     product_ids: extractProductIds(getCol(row, 'product id', 'id do produto')),
     product_names: extractProductIds(getCol(row, 'product name', 'nome do produto')),
     duration_seconds: calculateDuration(row),
-    views: parseNum(getCol(row, 'live views', 'visualiza')),
-    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'cliques')),
-    orders: parseNum(getCol(row, 'orders', 'pedido')),
-    gmv: parseNum(getCol(row, 'gmv')),
-    datetime: getCol(row, 'start time', 'início', 'date', 'data', 'horário'),
-    date: parseToISO(getCol(row, 'start time', 'início', 'date', 'data', 'horário'))
+    views: parseNum(getCol(row, 'live views', 'visualiza', 'espectador', 'viewer', 'audiência', 'audiencia', 'público', 'publico', 'impress', 'views', 'view', 'watch')),
+    clicks: parseNum(getCol(row, 'product clicks', 'cliques no produto', 'clique', 'clicks', 'click')),
+    orders: parseNum(getCol(row, 'orders', 'pedido', 'compras', 'vendas')),
+    gmv: parseNum(getCol(row, 'gmv', 'receita', 'faturamento', 'valor')),
+    datetime: getCol(row, 'start time', 'início', 'inicio', 'date', 'data', 'horário'),
+    date: parseToISO(getCol(row, 'start time', 'início', 'inicio', 'date', 'data', 'horário'))
   })).filter(l => l.live_id || l.creator_name);
 
   // --- Processamento (Afinidade e Agrupamentos) ---
