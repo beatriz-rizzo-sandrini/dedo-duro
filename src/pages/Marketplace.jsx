@@ -368,19 +368,23 @@ export default function Marketplace() {
     labels: [`Vídeos Curtos (${videoPct}%)`, `LIVEs (${livePct}%)`],
     datasets: [{
       data: [videoStats.gmv, liveStats.gmv],
-      backgroundColor: ['#3b82f6', '#ef4444'],
-      borderColor: ['#2563eb', '#dc2626'],
-      borderWidth: 1,
+      backgroundColor: ['#6366f1', '#f43f5e'],
+      hoverBackgroundColor: ['#818cf8', '#fb7185'],
+      borderColor: ['rgba(99, 102, 241, 0.2)', 'rgba(244, 63, 94, 0.2)'],
+      borderWidth: 2,
+      borderRadius: 6,
+      spacing: 4,
     }],
   }), [videoStats.gmv, liveStats.gmv, videoPct, livePct]);
 
   const formatChartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    cutout: '72%',
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: '#94a3b8', font: { size: 12, weight: '600' } }
+        labels: { color: '#94a3b8', font: { size: 12, weight: '600' }, padding: 16 }
       },
       datalabels: {
         color: '#ffffff',
@@ -392,6 +396,11 @@ export default function Marketplace() {
         }
       },
       tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        padding: 12,
+        cornerRadius: 10,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
         callbacks: {
           label: (context) => {
             const val = context.raw || 0;
@@ -408,7 +417,11 @@ export default function Marketplace() {
     datasets: [{
       label: 'GMV (R$)',
       data: top3Creators.map(c => c.gmv || 0),
-      backgroundColor: '#10b981',
+      backgroundColor: ['#10b981', '#6366f1', '#f59e0b'],
+      borderRadius: 8,
+      borderSkipped: false,
+      barThickness: 32,
+      maxBarThickness: 44,
     }],
   }), [top3Creators]);
 
@@ -429,6 +442,11 @@ export default function Marketplace() {
         }
       },
       tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        padding: 12,
+        cornerRadius: 10,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
         callbacks: {
           label: (context) => {
             const val = context.raw || 0;
@@ -512,25 +530,25 @@ export default function Marketplace() {
         <div className="mkp-stats-grid">
           <div className="mkp-kpi-card">
             <div className="kpi-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
-              <Users size={24} />
+              <Users size={20} />
             </div>
             <div>
               <h3>Total de Criadores</h3>
               <p className="kpi-value">{formatNumber(creatorSummaryTotals.totalCount)}</p>
-              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
-                {creatorSummaryTotals.totalCount === 1 ? '1 criador ativo' : `${formatNumber(creatorSummaryTotals.totalCount)} criadores ativos no filtro`}
+              <p className="kpi-subtext">
+                {creatorSummaryTotals.totalCount === 1 ? '1 criador ativo' : `${formatNumber(creatorSummaryTotals.totalCount)} criadores ativos`}
               </p>
             </div>
           </div>
 
           <div className="mkp-kpi-card" style={{ border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.05)' }}>
             <div className="kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
-              <TrendingUp size={24} />
+              <TrendingUp size={20} />
             </div>
             <div>
               <h3 style={{ color: '#10b981' }}>Receita Total (GMV)</h3>
               <p className="kpi-value" style={{ color: '#10b981' }}>{formatCurrency(creatorSummaryTotals.totalGmv)}</p>
-              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+              <p className="kpi-subtext">
                 Média: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatCurrency(creatorSummaryTotals.avgGmvPerCreator)}</strong> / criador
               </p>
             </div>
@@ -538,27 +556,27 @@ export default function Marketplace() {
 
           <div className="mkp-kpi-card">
             <div className="kpi-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
-              <ShoppingBag size={24} />
+              <ShoppingBag size={20} />
             </div>
             <div>
               <h3>Pedidos & Vendas</h3>
-              <p className="kpi-value">{formatNumber(creatorSummaryTotals.totalOrders)}</p>
-              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
-                {formatNumber(creatorSummaryTotals.totalItems)} itens • Ticket Médio: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatCurrency(creatorSummaryTotals.avgTicket)}</strong>
+              <p className="kpi-value">{formatNumber(creatorSummaryTotals.totalOrders)} <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>pedidos</span></p>
+              <p className="kpi-subtext">
+                {formatNumber(creatorSummaryTotals.totalItems)} itens · Ticket Médio: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatCurrency(creatorSummaryTotals.avgTicket)}</strong>
               </p>
             </div>
           </div>
 
           <div className="mkp-kpi-card">
             <div className="kpi-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>
-              <Video size={24} />
+              <Video size={20} />
             </div>
             <div>
               <h3>Conteúdos (Vídeo / Live)</h3>
-              <p className="kpi-value" style={{ fontSize: '24px' }}>
-                {formatNumber(creatorSummaryTotals.totalVideos)} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>vídeos</span> • {formatNumber(creatorSummaryTotals.totalLives)} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>lives</span>
+              <p className="kpi-value">
+                {formatNumber(creatorSummaryTotals.totalVideos)} <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>vídeos</span> · {formatNumber(creatorSummaryTotals.totalLives)} <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--mkp-text-secondary)' }}>lives</span>
               </p>
-              <p style={{ fontSize: '12px', marginTop: '4px', color: 'var(--mkp-text-secondary)' }}>
+              <p className="kpi-subtext">
                 Tempo em Live: <strong style={{ color: 'var(--mkp-text-primary)' }}>{formatDuration(creatorSummaryTotals.totalLiveDuration)}</strong>
               </p>
             </div>
@@ -807,16 +825,48 @@ export default function Marketplace() {
     const hourlyChartData = {
       labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
       datasets: [
-        { label: 'Vídeos (GMV)', data: hourlyGmvVideo, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.5)', tension: 0.3 },
-        { label: 'LIVES (GMV)', data: hourlyGmvLive, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.5)', tension: 0.3 }
+        { 
+          label: 'Vídeos (GMV)', 
+          data: hourlyGmvVideo, 
+          borderColor: '#6366f1', 
+          backgroundColor: 'rgba(99, 102, 241, 0.12)', 
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#6366f1'
+        },
+        { 
+          label: 'LIVES (GMV)', 
+          data: hourlyGmvLive, 
+          borderColor: '#f43f5e', 
+          backgroundColor: 'rgba(244, 63, 94, 0.12)', 
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#f43f5e'
+        }
       ]
     };
 
     const dailyChartData = {
       labels: daysOfWeek,
       datasets: [
-        { label: 'Vídeos', data: dailyGmvVideo, backgroundColor: '#3b82f6' },
-        { label: 'LIVES', data: dailyGmvLive, backgroundColor: '#ef4444' }
+        { 
+          label: 'Vídeos', 
+          data: dailyGmvVideo, 
+          backgroundColor: '#6366f1',
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+        { 
+          label: 'LIVES', 
+          data: dailyGmvLive, 
+          backgroundColor: '#f43f5e',
+          borderRadius: 8,
+          borderSkipped: false,
+        }
       ]
     };
 
