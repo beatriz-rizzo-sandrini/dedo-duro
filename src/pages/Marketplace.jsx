@@ -332,17 +332,57 @@ export default function Marketplace() {
     );
   }, [searchTerm, marketplaceData]);
 
+  // Quantidade de dias no período filtrado (para médias diárias)
+  const filteredDaysCount = useMemo(() => {
+    // 1. Se o usuário selecionou datas personalizadas no calendário:
+    if (startDate && endDate) {
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      const diffTime = Math.abs(d2 - d1);
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return Math.max(1, diffDays);
+    }
+    if (startDate && !endDate) return 1;
+    if (!startDate && endDate) return 1;
+
+    // 2. Se as planilhas trouxerem o período nos metadados (ex: 20260201-20260228):
+    const periodStr = marketplaceData?.metadata?.period;
+    if (periodStr && periodStr.includes('-')) {
+      const parts = periodStr.split('-');
+      if (parts.length === 2 && parts[0].length === 8 && parts[1].length === 8) {
+        const y1 = parseInt(parts[0].slice(0, 4), 10);
+        const m1 = parseInt(parts[0].slice(4, 6), 10) - 1;
+        const day1 = parseInt(parts[0].slice(6, 8), 10);
+
+        const y2 = parseInt(parts[1].slice(0, 4), 10);
+        const m2 = parseInt(parts[1].slice(4, 6), 10) - 1;
+        const day2 = parseInt(parts[1].slice(6, 8), 10);
+
+        const date1 = new Date(y1, m1, day1);
+        const date2 = new Date(y2, m2, day2);
+        const diffTime = Math.abs(date2 - date1);
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return Math.max(1, diffDays);
+      }
+    }
+    
+    return 1;
+  }, [startDate, endDate, marketplaceData?.metadata?.period]);
+
   // Lista Oficial de Criadores (Métricas 100% idênticas ao TikTok)
   const sortedCreators = useMemo(() => {
     if (!marketplaceData?.creators) return [];
-    let list = [...(marketplaceData.creators || [])];
+    let list = marketplaceData.creators.map(c => ({
+      ...c,
+      avg_live_duration_seconds: Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1))
+    }));
     list = list.filter(c => c && c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(c => c.creator_name.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig);
-  }, [searchTerm, sortConfig, marketplaceData]);
+  }, [searchTerm, sortConfig, marketplaceData, filteredDaysCount]);
 
   const totalGMV = useMemo(() => {
     if (searchTerm) {
@@ -363,6 +403,7 @@ export default function Marketplace() {
     const totalVideos = sortedCreators.reduce((acc, c) => acc + (c.video_count || 0), 0);
     const totalLives = sortedCreators.reduce((acc, c) => acc + (c.live_count || 0), 0);
     const totalLiveDuration = sortedCreators.reduce((acc, c) => acc + (c.live_duration_seconds || 0), 0);
+    const avgLiveDurationPerDay = Math.round(totalLiveDuration / (filteredDaysCount || 1));
     const avgGmvPerCreator = totalCount > 0 ? totalGmv / totalCount : 0;
     const avgTicket = totalOrders > 0 ? totalGmv / totalOrders : 0;
 
@@ -374,10 +415,11 @@ export default function Marketplace() {
       totalVideos,
       totalLives,
       totalLiveDuration,
+      avgLiveDurationPerDay,
       avgGmvPerCreator,
       avgTicket
     };
-  }, [sortedCreators]);
+  }, [sortedCreators, filteredDaysCount]);
 
   const videoStats = useMemo(() => {
     return filteredVideos.reduce((acc, v) => ({
@@ -742,6 +784,9 @@ export default function Marketplace() {
                   <th className="text-right" onClick={() => handleSort('video_count')} style={{ cursor: 'pointer' }}>Vídeos{renderSortIcon('video_count')}</th>
                   <th className="text-right" onClick={() => handleSort('live_count')} style={{ cursor: 'pointer' }}>LIVES{renderSortIcon('live_count')}</th>
                   <th className="text-right" onClick={() => handleSort('live_duration_seconds')} style={{ cursor: 'pointer' }}>Tempo de Live{renderSortIcon('live_duration_seconds')}</th>
+                  <th className="text-right" onClick={() => handleSort('avg_live_duration_seconds')} style={{ cursor: 'pointer' }}>
+                    Média Live/Dia ({filteredDaysCount}d){renderSortIcon('avg_live_duration_seconds')}
+                  </th>
                   <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV Total{renderSortIcon('gmv')}</th>
                 </tr>
               </thead>
@@ -755,12 +800,15 @@ export default function Marketplace() {
                       <td className="text-right">{formatNumber(row.video_count)}</td>
                       <td className="text-right">{formatNumber(row.live_count)}</td>
                       <td className="text-right">{formatDuration(row.live_duration_seconds)}</td>
+                      <td className="text-right" style={{ color: 'var(--mkp-accent-blue)', fontWeight: 600 }}>
+                        {formatDuration(row.avg_live_duration_seconds)}
+                      </td>
                       <td className="td-total text-right"><span className="badge-total">{formatCurrency(row.gmv)}</span></td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center" style={{ padding: '32px', color: '#94a3b8' }}>
+                    <td colSpan="8" className="text-center" style={{ padding: '32px', color: '#94a3b8' }}>
                       Nenhum criador encontrado com os filtros selecionados.
                     </td>
                   </tr>
@@ -780,6 +828,9 @@ export default function Marketplace() {
                     <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalVideos)}</td>
                     <td className="text-right" style={{ fontWeight: 'bold' }}>{formatNumber(creatorSummaryTotals.totalLives)}</td>
                     <td className="text-right" style={{ fontWeight: 'bold' }}>{formatDuration(creatorSummaryTotals.totalLiveDuration)}</td>
+                    <td className="text-right" style={{ fontWeight: 'bold', color: 'var(--mkp-accent-blue)' }}>
+                      {formatDuration(creatorSummaryTotals.avgLiveDurationPerDay)}
+                    </td>
                     <td className="text-right td-total" style={{ fontWeight: 'bold' }}>
                       <span className="badge-total" style={{ background: 'var(--mkp-accent-blue)', color: '#fff', boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)' }}>
                         {formatCurrency(creatorSummaryTotals.totalGmv)}
