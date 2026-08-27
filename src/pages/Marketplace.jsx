@@ -303,6 +303,35 @@ export default function Marketplace() {
     loadData();
   }, []);
 
+  // Intervalo completo de datas disponíveis no banco (mínimo e máximo)
+  const availableDateRange = useMemo(() => {
+    if (!rawReports || rawReports.length === 0) return null;
+    let minDate = null;
+    let maxDate = null;
+
+    rawReports.forEach(r => {
+      const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+      if (p) {
+        if (p.start && (!minDate || p.start < minDate)) minDate = p.start;
+        if (p.end && (!maxDate || p.end > maxDate)) maxDate = p.end;
+      }
+    });
+
+    if (!minDate && !maxDate) return null;
+    const formatStr = (dStr) => {
+      if (!dStr) return '';
+      return dStr.split('-').reverse().join('/');
+    };
+
+    return {
+      min: minDate,
+      max: maxDate,
+      minFormatted: formatStr(minDate),
+      maxFormatted: formatStr(maxDate),
+      label: `${formatStr(minDate)} a ${formatStr(maxDate)}`
+    };
+  }, [rawReports]);
+
   // Dados consolidados filtrados pelo intervalo de datas selecionado no calendário
   const marketplaceData = useMemo(() => {
     if (!rawReports || rawReports.length === 0) return null;
@@ -1859,11 +1888,31 @@ export default function Marketplace() {
       <div className="mkp-header">
         <div>
           <h1 className="mkp-title">Marketplace & Afiliados</h1>
-          <p className="mkp-subtitle">
-            Análise de performance: {startDate && endDate 
-              ? `${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${filteredDaysCount} dias)` 
-              : formatPeriod(marketplaceData.metadata?.period)}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+            <p className="mkp-subtitle" style={{ margin: 0 }}>
+              {startDate && endDate 
+                ? `Exibindo: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${filteredDaysCount} dias)` 
+                : formatPeriod(marketplaceData.metadata?.period)}
+            </p>
+            {availableDateRange && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(59, 130, 246, 0.12)',
+                color: '#60a5fa',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '20px',
+                padding: '3px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                letterSpacing: '0.2px'
+              }}>
+                <CalendarDays size={14} />
+                Histórico Disponível: <strong>{availableDateRange.label}</strong>
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mkp-global-filters">
@@ -1878,29 +1927,87 @@ export default function Marketplace() {
             />
           </div>
 
-          <div className="filter-group">
-            <CalendarDays size={18} className="filter-icon" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="filter-input date-input"
-              title="Data Inicial"
-            />
-          </div>
-          <div className="filter-group" style={{ marginLeft: '-12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="filter-group">
+              <CalendarDays size={18} className="filter-icon" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="filter-input date-input"
+                title="Data Inicial"
+              />
+            </div>
             <span style={{ color: 'var(--mkp-text-secondary)', fontWeight: 'bold' }}>-</span>
+            <div className="filter-group">
+              <CalendarDays size={18} className="filter-icon" />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="filter-input date-input"
+                title="Data Final"
+              />
+            </div>
           </div>
-          <div className="filter-group">
-            <CalendarDays size={18} className="filter-icon" />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="filter-input date-input"
-              title="Data Final"
-            />
-          </div>
+
+          {availableDateRange && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (availableDateRange?.max) {
+                    const endD = new Date(`${availableDateRange.max}T12:00:00`);
+                    const startD = new Date(endD);
+                    startD.setDate(startD.getDate() - 29);
+                    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    setStartDate(fmt(startD));
+                    setEndDate(fmt(endD));
+                  }
+                }}
+                style={{
+                  background: 'var(--mkp-surface)',
+                  border: '1px solid var(--mkp-border)',
+                  color: 'var(--mkp-text-primary)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Restaurar visualização dos últimos 30 dias"
+              >
+                Últimos 30d
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (availableDateRange?.min && availableDateRange?.max) {
+                    setStartDate(availableDateRange.min);
+                    setEndDate(availableDateRange.max);
+                  }
+                }}
+                style={{
+                  background: 'var(--mkp-surface)',
+                  border: '1px solid var(--mkp-border)',
+                  color: 'var(--mkp-text-primary)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap'
+                }}
+                title={`Ver todo o período disponível (${availableDateRange.label})`}
+              >
+                Tudo ({availableDateRange.minFormatted} a {availableDateRange.maxFormatted})
+              </button>
+            </div>
+          )}
+
           <button 
             onClick={() => setActiveTab(8)}
             style={{
@@ -1909,7 +2016,8 @@ export default function Marketplace() {
               border: 'none', borderRadius: '8px', padding: '0 20px',
               fontWeight: 'bold', cursor: 'pointer', height: '42px',
               boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-              transition: 'all 0.2s ease', marginLeft: '16px'
+              transition: 'all 0.2s ease', marginLeft: '8px',
+              whiteSpace: 'nowrap'
             }}
             onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
