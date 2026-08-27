@@ -129,6 +129,60 @@ const parseReportPeriod = (periodStr) => {
   };
 };
 
+// Componente Reutilizável de Paginação
+const PaginationControls = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange, onItemsPerPageChange, label = 'itens' }) => {
+  if (totalItems === 0) return null;
+  return (
+    <div className="table-pagination">
+      <div className="pagination-info">
+        <span>
+          Mostrando <strong>{itemsPerPage === 'all' ? 1 : Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}</strong> a <strong>{itemsPerPage === 'all' ? totalItems : Math.min(totalItems, currentPage * itemsPerPage)}</strong> de <strong>{formatNumber(totalItems)}</strong> {label}
+        </span>
+      </div>
+      <div className="pagination-actions">
+        {onItemsPerPageChange && (
+          <div className="pagination-per-page">
+            <span>Mostrar:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                onItemsPerPageChange(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                onPageChange(1);
+              }}
+              className="pagination-select"
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value="all">Todos</option>
+            </select>
+          </div>
+        )}
+        {itemsPerPage !== 'all' && totalPages > 1 && (
+          <div className="pagination-buttons">
+            <button
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+            >
+              <ChevronLeft size={16} /> Anterior
+            </button>
+            <span className="pagination-current">{currentPage} / {totalPages}</span>
+            <button
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+            >
+              Próxima <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function Marketplace() {
   const [activeTab, setActiveTab] = useState(0);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
@@ -142,8 +196,28 @@ export default function Marketplace() {
 
   // Configurador de ordenação (Resetado ao mudar de aba)
   const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
+  
+  // Estados de Paginação por Aba/Tabela
   const [creatorsPage, setCreatorsPage] = useState(1);
   const [creatorsPerPage, setCreatorsPerPage] = useState(15);
+
+  const [affinityPage, setAffinityPage] = useState(1);
+  const [affinityPerPage, setAffinityPerPage] = useState(15);
+
+  const [refundsProdPage, setRefundsProdPage] = useState(1);
+  const [refundsProdPerPage, setRefundsProdPerPage] = useState(10);
+  const [refundsCreatorPage, setRefundsCreatorPage] = useState(1);
+  const [refundsCreatorPerPage, setRefundsCreatorPerPage] = useState(10);
+
+  const [revProdPage, setRevProdPage] = useState(1);
+  const [revProdPerPage, setRevProdPerPage] = useState(10);
+  const [revCreatorPage, setRevCreatorPage] = useState(1);
+  const [revCreatorPerPage, setRevCreatorPerPage] = useState(10);
+
+  const [commProdPage, setCommProdPage] = useState(1);
+  const [commProdPerPage, setCommProdPerPage] = useState(10);
+  const [commCreatorPage, setCommCreatorPage] = useState(1);
+  const [commCreatorPerPage, setCommCreatorPerPage] = useState(10);
 
   const [uploadFiles, setUploadFiles] = useState({
     creators: null,
@@ -428,11 +502,20 @@ export default function Marketplace() {
   const topCreatorsChartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 28,
+        left: 8,
+        right: 8,
+        bottom: 4
+      }
+    },
     plugins: {
       legend: { position: 'bottom', labels: { color: '#94a3b8' } },
       datalabels: {
         anchor: 'end',
         align: 'top',
+        offset: 4,
         color: '#34d399',
         font: { weight: 'bold', size: 11 },
         formatter: (value) => {
@@ -457,7 +540,11 @@ export default function Marketplace() {
       }
     },
     scales: {
-      y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { 
+        grace: '20%',
+        ticks: { color: '#94a3b8' }, 
+        grid: { color: 'rgba(255,255,255,0.05)' } 
+      },
       x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
     }
   }), [totalGMV]);
@@ -699,96 +786,75 @@ export default function Marketplace() {
           </div>
 
           {/* Paginação */}
-          {creatorsPerPage !== 'all' && totalPages > 1 && (
-            <div style={{
-              padding: '16px 32px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderTop: '1px solid var(--mkp-border)',
-              background: 'var(--mkp-surface)'
-            }}>
-              <span style={{ fontSize: '13px', color: 'var(--mkp-text-secondary)' }}>
-                Página {creatorsPage} de {totalPages} ({formatNumber(sortedCreators.length)} criadores filtrados)
-              </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setCreatorsPage(p => Math.max(1, p - 1))}
-                  disabled={creatorsPage === 1}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--mkp-border)',
-                    background: creatorsPage === 1 ? 'transparent' : 'var(--mkp-surface-hover)',
-                    color: creatorsPage === 1 ? 'var(--mkp-text-secondary)' : 'var(--mkp-text-primary)',
-                    cursor: creatorsPage === 1 ? 'not-allowed' : 'pointer',
-                    opacity: creatorsPage === 1 ? 0.5 : 1
-                  }}
-                >
-                  <ChevronLeft size={16} /> Anterior
-                </button>
-                <button
-                  onClick={() => setCreatorsPage(p => Math.min(totalPages, p + 1))}
-                  disabled={creatorsPage === totalPages}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--mkp-border)',
-                    background: creatorsPage === totalPages ? 'transparent' : 'var(--mkp-surface-hover)',
-                    color: creatorsPage === totalPages ? 'var(--mkp-text-secondary)' : 'var(--mkp-text-primary)',
-                    cursor: creatorsPage === totalPages ? 'not-allowed' : 'pointer',
-                    opacity: creatorsPage === totalPages ? 0.5 : 1
-                  }}
-                >
-                  Próxima <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-          )}
+          <PaginationControls
+            currentPage={creatorsPage}
+            totalPages={totalPages}
+            totalItems={sortedCreators.length}
+            itemsPerPage={creatorsPerPage}
+            onPageChange={setCreatorsPage}
+            onItemsPerPageChange={setCreatorsPerPage}
+            label="criadores"
+          />
         </div>
       </div>
     );
   };
 
-  const renderTab2 = () => (
-    <div className="animated-fade-in">
-      <div className="mkp-table-section">
-        <div className="table-header">
-          <h2><ArrowRightLeft size={20} className="header-icon" /> Top Afinidade: Produto × Criador</h2>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('product_name')} style={{ cursor: 'pointer' }}>Produto{renderSortIcon('product_name')}</th>
-                <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
-                <th className="text-right" onClick={() => handleSort('video_gmv')} style={{ cursor: 'pointer' }}>GMV Vídeo{renderSortIcon('video_gmv')}</th>
-                <th className="text-right" onClick={() => handleSort('live_gmv')} style={{ cursor: 'pointer' }}>GMV LIVE{renderSortIcon('live_gmv')}</th>
-                <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>Total GMV{renderSortIcon('gmv')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {affinityList.map((row, i) => (
-                <tr key={i}>
-                  <td style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.product_name}>{row.product_name}</td>
-                  <td className="td-creator">{row.creator_name}</td>
-                  <td className="text-right">{formatCurrency(row.video_gmv)}</td>
-                  <td className="text-right">{formatCurrency(row.live_gmv)}</td>
-                  <td className="td-total text-right"><span className="badge-total">{formatCurrency(row.gmv)}</span></td>
+  const renderTab2 = () => {
+    const totalPages = Math.ceil(affinityList.length / (affinityPerPage === 'all' ? affinityList.length || 1 : affinityPerPage));
+    const paginatedAffinity = affinityPerPage === 'all'
+      ? affinityList
+      : affinityList.slice((affinityPage - 1) * affinityPerPage, affinityPage * affinityPerPage);
+
+    return (
+      <div className="animated-fade-in">
+        <div className="mkp-table-section">
+          <div className="table-header">
+            <h2><ArrowRightLeft size={20} className="header-icon" /> Top Afinidade: Produto × Criador</h2>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('product_name')} style={{ cursor: 'pointer' }}>Produto{renderSortIcon('product_name')}</th>
+                  <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
+                  <th className="text-right" onClick={() => handleSort('video_gmv')} style={{ cursor: 'pointer' }}>GMV Vídeo{renderSortIcon('video_gmv')}</th>
+                  <th className="text-right" onClick={() => handleSort('live_gmv')} style={{ cursor: 'pointer' }}>GMV LIVE{renderSortIcon('live_gmv')}</th>
+                  <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>Total GMV{renderSortIcon('gmv')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginatedAffinity.length > 0 ? paginatedAffinity.map((row, i) => (
+                  <tr key={i}>
+                    <td style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.product_name}>{row.product_name}</td>
+                    <td className="td-creator">{row.creator_name}</td>
+                    <td className="text-right">{formatCurrency(row.video_gmv)}</td>
+                    <td className="text-right">{formatCurrency(row.live_gmv)}</td>
+                    <td className="td-total text-right"><span className="badge-total">{formatCurrency(row.gmv)}</span></td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="5" className="text-center" style={{ padding: '32px', color: '#94a3b8' }}>
+                      Nenhum dado de afinidade encontrado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <PaginationControls
+            currentPage={affinityPage}
+            totalPages={totalPages}
+            totalItems={affinityList.length}
+            itemsPerPage={affinityPerPage}
+            onPageChange={setAffinityPage}
+            onItemsPerPageChange={setAffinityPerPage}
+            label="combinações"
+          />
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTab3 = () => {
     // 1. Receita Média por Conteúdo
@@ -1093,14 +1159,24 @@ export default function Marketplace() {
   const renderTab5 = () => {
     let sortedByRefunds = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) sortedByRefunds = sortedByRefunds.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    sortedByRefunds = sortArray(sortedByRefunds, sortConfig).slice(0, 10);
+    sortedByRefunds = sortArray(sortedByRefunds, sortConfig);
 
-    let creatorRefunds = sortArray([...sortedCreators], sortConfig).slice(0, 10);
+    let creatorRefunds = sortArray([...sortedCreators], sortConfig);
+
+    const totalProdPages = Math.ceil(sortedByRefunds.length / (refundsProdPerPage === 'all' ? sortedByRefunds.length || 1 : refundsProdPerPage));
+    const paginatedProds = refundsProdPerPage === 'all' 
+      ? sortedByRefunds 
+      : sortedByRefunds.slice((refundsProdPage - 1) * refundsProdPerPage, refundsProdPage * refundsProdPerPage);
+
+    const totalCreatorPages = Math.ceil(creatorRefunds.length / (refundsCreatorPerPage === 'all' ? creatorRefunds.length || 1 : refundsCreatorPerPage));
+    const paginatedCreators = refundsCreatorPerPage === 'all' 
+      ? creatorRefunds 
+      : creatorRefunds.slice((refundsCreatorPage - 1) * refundsCreatorPerPage, refundsCreatorPage * refundsCreatorPerPage);
 
     return (
       <div className="animated-fade-in">
         <div className="mkp-kpi-card" style={{ marginBottom: '24px', borderColor: '#fca5a5', background: 'rgba(239, 68, 68, 0.1)' }}>
-          <div className="kpi-icon" style={{ background: '#fee2e2', color: '#ef4444' }}><AlertCircle size={24} /></div>
+          <div className="kpi-icon" style={{ background: '#fee2e2', color: '#ef4444' }}><AlertCircle size={20} /></div>
           <div>
             <h3 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase' }}>
               Total Cancelado
@@ -1112,7 +1188,7 @@ export default function Marketplace() {
               </div>
             </h3>
             <p className="kpi-value" style={{ color: '#f87171' }}>{formatCurrency(totalRefunds)}</p>
-            <p style={{ fontSize: '12px', marginTop: '4px', color: '#fca5a5' }}>
+            <p className="kpi-subtext" style={{ color: '#fca5a5' }}>
               Taxa Geral: {totalGMV ? ((totalRefunds / totalGMV) * 100).toFixed(2) : 0}%
             </p>
           </div>
@@ -1121,7 +1197,7 @@ export default function Marketplace() {
         <div className="mkp-sections-grid" style={{ alignItems: 'stretch' }}>
           <div className="mkp-table-section" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="table-header">
-              <h2>Top 10 Produtos (Cancelados)</h2>
+              <h2>Produtos (Cancelados)</h2>
             </div>
             <div className="table-responsive" style={{ flex: 1 }}>
               <table className="data-table">
@@ -1134,7 +1210,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedByRefunds.length > 0 ? sortedByRefunds.map((row, i) => (
+                  {paginatedProds.length > 0 ? paginatedProds.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.product_name}>{row.product_name}</td>
                       <td className="text-right">{formatCurrency(row.gmv)}</td>
@@ -1159,11 +1235,20 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={refundsProdPage}
+              totalPages={totalProdPages}
+              totalItems={sortedByRefunds.length}
+              itemsPerPage={refundsProdPerPage}
+              onPageChange={setRefundsProdPage}
+              onItemsPerPageChange={setRefundsProdPerPage}
+              label="produtos"
+            />
           </div>
 
           <div className="mkp-table-section" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="table-header">
-              <h2>Top 10 Criadores (Cancelados)</h2>
+              <h2>Criadores (Cancelados)</h2>
             </div>
             <div className="table-responsive" style={{ flex: 1 }}>
               <table className="data-table">
@@ -1176,7 +1261,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {creatorRefunds.length > 0 ? creatorRefunds.map((row, i) => (
+                  {paginatedCreators.length > 0 ? paginatedCreators.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.creator_name}>{row.creator_name}</td>
                       <td className="text-right">{formatCurrency(row.gmv)}</td>
@@ -1189,14 +1274,32 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={refundsCreatorPage}
+              totalPages={totalCreatorPages}
+              totalItems={creatorRefunds.length}
+              itemsPerPage={refundsCreatorPerPage}
+              onPageChange={setRefundsCreatorPage}
+              onItemsPerPageChange={setRefundsCreatorPerPage}
+              label="criadores"
+            />
           </div>
         </div>
       </div>
-    )
+    );
   };
 
   const renderTab6 = () => {
-    let topCreatorsGMV = sortArray([...sortedCreators], sortConfig).slice(0, 10);
+    const totalProdPages = Math.ceil(sortedProducts.length / (revProdPerPage === 'all' ? sortedProducts.length || 1 : revProdPerPage));
+    const paginatedProds = revProdPerPage === 'all' 
+      ? sortedProducts 
+      : sortedProducts.slice((revProdPage - 1) * revProdPerPage, revProdPage * revProdPerPage);
+
+    const totalCreatorPages = Math.ceil(sortedCreators.length / (revCreatorPerPage === 'all' ? sortedCreators.length || 1 : revCreatorPerPage));
+    const paginatedCreators = revCreatorPerPage === 'all' 
+      ? sortedCreators 
+      : sortedCreators.slice((revCreatorPage - 1) * revCreatorPerPage, revCreatorPage * revCreatorPerPage);
+
     return (
       <div className="animated-fade-in">
         <div className="mkp-sections-grid" style={{ alignItems: 'stretch' }}>
@@ -1215,7 +1318,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProducts.length > 0 ? sortedProducts.map((row, i) => (
+                  {paginatedProds.length > 0 ? paginatedProds.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.product_name}>{row.product_name}</td>
                       <td className="text-right">{formatNumber(row.orders)}</td>
@@ -1240,6 +1343,15 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={revProdPage}
+              totalPages={totalProdPages}
+              totalItems={sortedProducts.length}
+              itemsPerPage={revProdPerPage}
+              onPageChange={setRevProdPage}
+              onItemsPerPageChange={setRevProdPerPage}
+              label="produtos"
+            />
           </div>
 
           <div className="mkp-table-section" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1257,7 +1369,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topCreatorsGMV.length > 0 ? topCreatorsGMV.map((row, i) => (
+                  {paginatedCreators.length > 0 ? paginatedCreators.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.creator_name}>{row.creator_name}</td>
                       <td className="text-right">{formatNumber(row.orders)}</td>
@@ -1270,32 +1382,51 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={revCreatorPage}
+              totalPages={totalCreatorPages}
+              totalItems={sortedCreators.length}
+              itemsPerPage={revCreatorPerPage}
+              onPageChange={setRevCreatorPage}
+              onItemsPerPageChange={setRevCreatorPerPage}
+              label="criadores"
+            />
           </div>
         </div>
       </div>
-    )
+    );
   };
 
   const renderTab7 = () => {
     let sortedProdsComm = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) sortedProdsComm = sortedProdsComm.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    sortedProdsComm = sortArray(sortedProdsComm, sortConfig).slice(0, 10);
+    sortedProdsComm = sortArray(sortedProdsComm, sortConfig);
 
-    let creatorComm = sortArray([...sortedCreators], sortConfig).slice(0, 10);
+    let creatorComm = sortArray([...sortedCreators], sortConfig);
+
+    const totalProdPages = Math.ceil(sortedProdsComm.length / (commProdPerPage === 'all' ? sortedProdsComm.length || 1 : commProdPerPage));
+    const paginatedProds = commProdPerPage === 'all' 
+      ? sortedProdsComm 
+      : sortedProdsComm.slice((commProdPage - 1) * commProdPerPage, commProdPage * commProdPerPage);
+
+    const totalCreatorPages = Math.ceil(creatorComm.length / (commCreatorPerPage === 'all' ? creatorComm.length || 1 : commCreatorPerPage));
+    const paginatedCreators = commCreatorPerPage === 'all' 
+      ? creatorComm 
+      : creatorComm.slice((commCreatorPage - 1) * commCreatorPerPage, commCreatorPage * commCreatorPerPage);
 
     const commissionMargin = totalGMV ? ((totalCommission / totalGMV) * 100).toFixed(2) : 0;
     return (
       <div className="animated-fade-in">
         <div className="mkp-sections-grid" style={{ marginBottom: '24px' }}>
           <div className="mkp-kpi-card">
-            <div className="kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}><Percent size={24} /></div>
+            <div className="kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}><Percent size={20} /></div>
             <div>
               <h3>Comissões Pagas (Afiliados)</h3>
               <p className="kpi-value" style={{ color: '#34d399' }}>{formatCurrency(totalCommission)}</p>
             </div>
           </div>
           <div className="mkp-kpi-card">
-            <div className="kpi-icon" style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#cbd5e1' }}><TrendingUp size={24} /></div>
+            <div className="kpi-icon" style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#cbd5e1' }}><TrendingUp size={20} /></div>
             <div>
               <h3>% Médio de Comissão</h3>
               <p className="kpi-value" style={{ color: '#f8fafc' }}>{commissionMargin}%</p>
@@ -1319,7 +1450,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProdsComm.length > 0 ? sortedProdsComm.map((row, i) => (
+                  {paginatedProds.length > 0 ? paginatedProds.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.product_name}>{row.product_name}</td>
                       <td className="text-right">{formatCurrency(row.gmv)}</td>
@@ -1344,6 +1475,15 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={commProdPage}
+              totalPages={totalProdPages}
+              totalItems={sortedProdsComm.length}
+              itemsPerPage={commProdPerPage}
+              onPageChange={setCommProdPage}
+              onItemsPerPageChange={setCommProdPerPage}
+              label="produtos"
+            />
           </div>
 
           <div className="mkp-table-section" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1361,7 +1501,7 @@ export default function Marketplace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {creatorComm.length > 0 ? creatorComm.map((row, i) => (
+                  {paginatedCreators.length > 0 ? paginatedCreators.map((row, i) => (
                     <tr key={i}>
                       <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.creator_name}>{row.creator_name}</td>
                       <td className="text-right">{formatCurrency(row.gmv)}</td>
@@ -1374,6 +1514,15 @@ export default function Marketplace() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={commCreatorPage}
+              totalPages={totalCreatorPages}
+              totalItems={creatorComm.length}
+              itemsPerPage={commCreatorPerPage}
+              onPageChange={setCommCreatorPage}
+              onItemsPerPageChange={setCommCreatorPerPage}
+              label="criadores"
+            />
           </div>
         </div>
       </div>
