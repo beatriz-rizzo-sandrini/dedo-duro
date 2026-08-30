@@ -130,6 +130,9 @@
 .card-marketplace:hover .icon-wrapper { background: rgba(249, 115, 22, 0.2); transform: scale(1.1); }
 .card-marketplace:hover .card-icon { color: #fdba74; filter: drop-shadow(0 0 8px #f97316); }
 
+.card-documentacao:hover .icon-wrapper { background: rgba(14, 165, 233, 0.2); transform: scale(1.1); }
+.card-documentacao:hover .card-icon { color: #38bdf8; filter: drop-shadow(0 0 8px #0ea5e9); }
+
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 20px;
