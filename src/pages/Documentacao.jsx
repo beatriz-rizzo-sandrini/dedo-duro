@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, Search, Copy, Check, Printer, Layers, Cpu, Database, 
-  Boxes, GitBranch, ArrowRight, ShieldCheck, Terminal, Sparkles, 
+  Boxes, GitBranch, ArrowRight, ArrowLeft, ShieldCheck, Terminal, Sparkles, 
   TrendingUp, Box, Tags, Truck, Activity, Bell, Store, FileSpreadsheet, 
-  FileEdit, Users, Server, ExternalLink, Code2
+  FileEdit, Users, Server, ExternalLink, Code2, Globe, ShoppingBag, 
+  Palette, ClipboardList, CheckCircle2, AlertCircle, Clock, Calendar, 
+  ArrowDown, ChevronRight, HelpCircle, CheckCheck, RefreshCw, Eye,
+  Sliders, ArrowUpRight, FileCheck, CheckSquare, Zap, ChevronDown
 } from 'lucide-react';
 import './Documentacao.css';
 
@@ -13,455 +16,643 @@ const TECH_STACK = [
   { name: "React 19", category: "Frontend", version: "19.2.5", desc: "Biblioteca reativa moderna para construção da SPA, utilizando Context API e Hooks customizados.", badge: "Framework" },
   { name: "Vite 8", category: "Ferramenta", version: "8.0.10", desc: "Bundler ultrarrápido com Hot Module Replacement (HMR) e compilação otimizada de assets.", badge: "Build Tool" },
   { name: "SQL (PostgreSQL)", category: "Banco de Dados", version: "Postgres 15+", desc: "Linguagem de banco para queries analíticas, índices de alta performance e views consolidadas no Supabase.", badge: "Database" },
-  { name: "Supabase SDK", category: "Backend / DB", version: "2.105.1", desc: "Cliente oficial para conexão direta, queries paralelas, upserts e autenticação no PostgreSQL em nuvem.", badge: "Backend as a Service" },
+  { name: "Supabase SDK", category: "Backend / DB", version: "2.105.1", desc: "Cliente oficial para conexão direta, queries paralelas, upserts e autenticação no PostgreSQL em nuvem.", badge: "BaaS" },
   { name: "Node.js & Express", category: "Backend", version: "4.18+", desc: "Servidor RESTful e ambiente de execução para os robôs de sincronização em segundo plano.", badge: "API Server" },
   { name: "Google Gemini IA", category: "Inteligência Artificial", version: "1.5 / 3.6 Flash", desc: "API generativa do Google para criação automática de títulos padronizados e descrições SEO no módulo de cadastro.", badge: "GenAI" },
   { name: "Framer Motion", category: "Frontend", version: "12.38.0", desc: "Motor de animações fluidas para transições de páginas, interações de cards e feedbacks visuais.", badge: "UI / Animações" },
   { name: "Chart.js & Recharts", category: "Visualização", version: "4.5 / 3.10", desc: "Renderização de gráficos de evolução temporal de vendas, curvas ABC e distribuição por canais.", badge: "Data Viz" },
-  { name: "XLSX & jsPDF", category: "Exportação", version: "0.18 / 4.2", desc: "Geração de planilhas Excel estruturadas para fornecedores e exportação de relatórios em PDF.", badge: "Export Utilities" },
-  { name: "HTML5 & Vanilla CSS", category: "Linguagem", version: "W3C Padrão", desc: "Estrutura semântica e estilização customizada com suporte a temas Claro e Escuro dinâmicos.", badge: "Design System" },
-  { name: "MySQL2", category: "Banco de Dados", version: "3.9+", desc: "Driver de replicação e contingência para espelhamento local das tabelas analíticas.", badge: "Local DB" }
+  { name: "XLSX & jsPDF", category: "Exportação", version: "0.18 / 4.2", desc: "Geração de planilhas Excel estruturadas para fornecedores e exportação de relatórios em PDF.", badge: "Export" }
 ];
 
 const MODULES_LIST = [
-  { id: 'dashboard', name: 'Dashboard', route: '/', icon: Layers, desc: 'Hub visual central com atalhos animados, visão macro e navegação para todos os subsistemas.' },
-  { id: 'vendas', name: 'Vendas', route: '/vendas', icon: TrendingUp, desc: 'Relatórios detalhados com filtros temporais, curvas ABC, comparativo entre marcas e faturamento.' },
-  { id: 'cobertura', name: 'Cobertura', route: '/cobertura', icon: Boxes, desc: 'Cálculo de Dias de Cobertura (DDC), giro médio diário, estoque físico + a caminho e faixas de risco.' },
+  { id: 'dashboard', name: 'Dashboard', route: '/', icon: Layers, desc: 'Hub visual central com KPIs macro, atalhos rápidos e visão panorâmica de todo o negócio.' },
+  { id: 'vendas', name: 'Vendas', route: '/vendas', icon: TrendingUp, desc: 'Relatórios analíticos de sellout com filtros temporais, curvas ABC de produtos e marcas, e faturamento consolidado.' },
+  { id: 'cobertura', name: 'Cobertura', route: '/cobertura', icon: Boxes, desc: 'Cálculo de Dias de Cobertura (DDC), giro médio diário, estoque físico + a caminho e faixas de risco de ruptura.' },
   { id: 'estoque', name: 'Estoque', route: '/estoque', icon: Box, desc: 'Consulta de saldos de estoque por data histórica, múltiplos centros de distribuição e valorização de custo.' },
   { id: 'produto', name: 'Produto', route: '/produto', icon: Tags, desc: 'Ficha técnica individual por SKU com histórico de consumo, canais de venda e fornecedores homologados.' },
   { id: 'reposicao', name: 'Reposição', route: '/reposicao', icon: Truck, desc: 'Acompanhamento de mercadorias em trânsito (a caminho), notas fiscais de envio e previsões de entrega.' },
   { id: 'sellout', name: 'Sellout', route: '/sellout', icon: Activity, desc: 'Análise do escoamento na ponta final do cliente e comparativos de performance entre marcas parceiras.' },
   { id: 'alertas', name: 'Alertas', route: '/alertas', icon: Bell, desc: 'Varredura automática de rupturas iminentes de estoque, produtos estagnados e divergências cadastrais.' },
-  { id: 'marketplace', name: 'Marketplace', route: '/marketplace', icon: Store, desc: 'Conciliação e análise de vendas por criadores, afiliados e campanhas especiais (TikTok Shop).' },
-  { id: 'planilha', name: 'Pedidos / Fornecedores', route: '/planilha', icon: FileSpreadsheet, desc: 'Automação de pedidos de compras baseados em lead time de fornecedor e metas de cobertura em dias.' },
-  { id: 'cadastro', name: 'Cadastro Inteligente', route: '/cadastro', icon: FileEdit, desc: 'Padronização de códigos de cor, tamanhos e geração de descrições ricas para e-commerce via Google Gemini IA.' },
-  { id: 'usuarios', name: 'Usuários & Permissões', route: '/usuarios', icon: Users, desc: 'Gestão de acessos com níveis de privilégio (Admin, Gestor, Operador) e controle de status de conta.' }
+  { id: 'marketplace', name: 'Marketplace (TikTok)', route: '/marketplace', icon: Store, desc: 'Conciliação e análise de vendas por criadores, afiliados e métricas de transmissões ao vivo (lives).' },
+  { id: 'planilha', name: 'Pedidos de Compra', route: '/planilha', icon: FileSpreadsheet, desc: 'Automação de pedidos de compras baseados em lead time de fornecedor e metas de cobertura em dias.' },
+  { id: 'cadastro', name: 'Cadastro Inteligente', route: '/cadastro', icon: FileEdit, desc: 'Padronização de códigos de cor, tamanhos e geração de descrições ricas com Inteligência Artificial (Gemini).' },
+  { id: 'usuarios', name: 'Usuários & Permissões', route: '/usuarios', icon: Users, desc: 'Gestão de acessos com níveis de privilégio (Admin, Gestor, Operador) e ferramenta de redefinição de senhas.' }
 ];
 
 export default function Documentacao() {
-  const [activeTab, setActiveTab] = useState('todos');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [copied, setCopied] = useState(false);
+  // Inicialmente null para exibir APENAS as 2 opções principais
+  const [selectedPillar, setSelectedPillar] = useState(null);
+  const [selectedTopic, setSelectedTopic] = useState('produtos');
   const [codeCopied, setCodeCopied] = useState('');
+  const [checkedItems, setCheckedItems] = useState({});
+
+  const toggleCheck = (id) => {
+    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const copyToClipboard = (text, type = 'all') => {
     navigator.clipboard.writeText(text);
-    if (type === 'all') {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } else {
-      setCodeCopied(type);
-      setTimeout(() => setCodeCopied(''), 2000);
-    }
+    setCodeCopied(type);
+    setTimeout(() => setCodeCopied(''), 2500);
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const filteredTech = useMemo(() => {
-    if (!searchTerm) return TECH_STACK;
-    const term = searchTerm.toLowerCase();
-    return TECH_STACK.filter(t => 
-      t.name.toLowerCase().includes(term) || 
-      t.category.toLowerCase().includes(term) || 
-      t.desc.toLowerCase().includes(term)
-    );
-  }, [searchTerm]);
-
-  const filteredModules = useMemo(() => {
-    if (!searchTerm) return MODULES_LIST;
-    const term = searchTerm.toLowerCase();
-    return MODULES_LIST.filter(m => 
-      m.name.toLowerCase().includes(term) || 
-      m.desc.toLowerCase().includes(term) ||
-      m.route.toLowerCase().includes(term)
-    );
-  }, [searchTerm]);
-
-  const showSection = (tabKey) => {
-    if (activeTab === 'todos') return true;
-    return activeTab === tabKey;
+  const handleSelectPillar = (pillar) => {
+    setSelectedPillar(pillar);
+    if (pillar === 'site') {
+      setSelectedTopic('produtos');
+    } else {
+      setSelectedTopic('paginas');
+    }
   };
 
   return (
-    <div className="doc-container">
-      {/* Cabeçalho da Documentação */}
-      <header className="doc-header">
-        <div className="doc-header-info">
-          <div className="doc-title-row">
-            <h1 className="doc-title">Documentação do Sistema Dedo Duro</h1>
-            <span className="doc-badge">v2.0 Fullstack</span>
+    <div className="doc-page-container">
+      {/* Cabeçalho Unificado */}
+      <header className="doc-page-header">
+        <div className="doc-header-left">
+          <div className="doc-tag-pill">
+            <Sparkles size={13} /> Base de Conhecimento Sandrini
           </div>
-          <p className="doc-subtitle">
-            Dossiê técnico e operacional completo sobre a arquitetura, linguagens utilizadas, 
-            pipeline de dados, inteligência de SKUs e funcionamento de todos os módulos.
+          <h1 className="doc-page-title">Central de Documentação</h1>
+          <p className="doc-page-desc">
+            {selectedPillar === null 
+              ? 'Selecione abaixo qual área você deseja consultar:' 
+              : selectedPillar === 'site' 
+                ? 'Guias de criação de produtos, marketing visual e expedição de pedidos da loja virtual.'
+                : 'Manual detalhado das 12 telas, rotina do relatório diário e inteligência de estoque do Dedo Duro.'}
           </p>
         </div>
 
-        <div className="doc-header-actions">
+        <div className="doc-header-right">
           <button 
-            className="doc-action-btn"
+            className="doc-header-btn"
             onClick={() => copyToClipboard(`https://github.com/beatriz-rizzo-sandrini/dedo-duro`, 'link')}
-            title="Copiar referência do repositório"
           >
-            {codeCopied === 'link' ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
-            <span>{codeCopied === 'link' ? 'Copiado!' : 'Copiar Link'}</span>
+            {codeCopied === 'link' ? <Check size={15} color="#10b981" /> : <Copy size={15} />}
+            <span>{codeCopied === 'link' ? 'Copiado' : 'Copiar Link'}</span>
           </button>
-
-          <button 
-            className="doc-action-btn primary"
-            onClick={handlePrint}
-            title="Imprimir ou gerar PDF desta documentação"
-          >
-            <Printer size={16} />
-            <span>Imprimir / Salvar PDF</span>
+          <button className="doc-header-btn primary" onClick={handlePrint}>
+            <Printer size={15} />
+            <span>Imprimir / PDF</span>
           </button>
         </div>
       </header>
 
-      {/* Controles: Busca e Abas */}
-      <div className="doc-controls">
-        <div className="doc-search-wrapper">
-          <Search size={20} className="doc-search-icon" />
-          <input 
-            type="text"
-            className="doc-search-input"
-            placeholder="Pesquisar linguagens, módulos, tabelas ou conceitos (ex: Gemini, Supabase, Cobertura, Lupo, Cron)..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      {/* ========================================================================= */}
+      {/* 1. TELA INICIAL: APENAS AS DUAS OPÇÕES                                   */}
+      {/* ========================================================================= */}
+      {selectedPillar === null ? (
+        <div className="doc-select-portal">
+          <div className="doc-two-cards-grid">
+            {/* Opção 1: Site */}
+            <div 
+              className="doc-pillar-hub-card card-site"
+              onClick={() => handleSelectPillar('site')}
+            >
+              <div className="pillar-hub-icon-bubble site">
+                <Globe size={30} />
+              </div>
+              <div className="pillar-hub-badge">E-commerce</div>
+              <h2 className="pillar-hub-title">Site & Loja Virtual</h2>
+              <p className="pillar-hub-desc">
+                Criação de produtos com SEO, padronização fotográfica, configuração de banners, vitrines, cupons e fluxo de expedição de pedidos.
+              </p>
 
-        <div className="doc-tabs-bar">
-          <button 
-            className={`doc-tab-btn ${activeTab === 'todos' ? 'active' : ''}`}
-            onClick={() => setActiveTab('todos')}
-          >
-            <BookOpen size={16} />
-            <span>Visão Geral</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'arquitetura' ? 'active' : ''}`}
-            onClick={() => setActiveTab('arquitetura')}
-          >
-            <GitBranch size={16} />
-            <span>Arquitetura & ETL</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'tecnologias' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tecnologias')}
-          >
-            <Cpu size={16} />
-            <span>Linguagens & Tecnologias</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'modulos' ? 'active' : ''}`}
-            onClick={() => setActiveTab('modulos')}
-          >
-            <Boxes size={16} />
-            <span>Módulos & Telas</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'banco' ? 'active' : ''}`}
-            onClick={() => setActiveTab('banco')}
-          >
-            <Database size={16} />
-            <span>Banco de Dados</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'skus' ? 'active' : ''}`}
-            onClick={() => setActiveTab('skus')}
-          >
-            <Tags size={16} />
-            <span>Parser de SKUs</span>
-          </button>
-          <button 
-            className={`doc-tab-btn ${activeTab === 'deploy' ? 'active' : ''}`}
-            onClick={() => setActiveTab('deploy')}
-          >
-            <Terminal size={16} />
-            <span>Instalação & Deploy</span>
-          </button>
-        </div>
-      </div>
+              <div className="pillar-hub-items">
+                <span><ShoppingBag size={14} /> Criação de Produtos</span>
+                <span><Palette size={14} /> Marketing e Tema</span>
+                <span><ClipboardList size={14} /> Gerenciar Pedidos</span>
+              </div>
 
-      {/* 1. VISÃO GERAL E PROPÓSITO */}
-      {showSection('todos') && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <ShieldCheck size={24} className="doc-section-title-icon" />
-            1. Visão Geral e Propósito de Negócio
-          </h2>
-          <p className="doc-lead-text">
-            O <strong>Dedo Duro</strong> foi desenvolvido para solucionar um dos maiores gargalos operacionais 
-            do comércio eletrônico multicanal: a falta de visibilidade em tempo real sobre ruptura de estoque, 
-            cobertura real em dias, discrepâncias entre códigos de marketplace e o catálogo mestre do ERP, 
-            e a morosidade no cálculo manual de pedidos de compra.
-          </p>
+              <div className="pillar-hub-footer">
+                <span className="hub-link-text">Acessar Documentação do Site</span>
+                <ArrowRight size={18} className="hub-arrow" />
+              </div>
+            </div>
 
-          <div className="doc-callout">
-            <Sparkles size={24} className="doc-callout-icon" />
-            <div className="doc-callout-content">
-              <div className="doc-callout-title">Por que o nome "Dedo Duro"?</div>
-              O sistema atua como um auditor incansável: ele aponta instantaneamente onde o estoque zerou, 
-              quais canais estão vendendo produtos sem estoque correspondente no armazém, quais pedidos de reposição 
-              estão atrasados e quais SKUs estão com excesso de estoque imobilizando capital de giro.
+            {/* Opção 2: Dedo Duro */}
+            <div 
+              className="doc-pillar-hub-card card-dedo"
+              onClick={() => handleSelectPillar('dedo')}
+            >
+              <div className="pillar-hub-icon-bubble dedo">
+                <ShieldCheck size={30} />
+              </div>
+              <div className="pillar-hub-badge">Sistema Interno</div>
+              <h2 className="pillar-hub-title">Sistema Dedo Duro</h2>
+              <p className="pillar-hub-desc">
+                Manual de cada uma das 12 telas do sistema, passo a passo para preencher o relatório diário e arquitetura técnica do banco de dados.
+              </p>
+
+              <div className="pillar-hub-items">
+                <span><Layers size={14} /> Cada Página: Como Funciona</span>
+                <span><FileSpreadsheet size={14} /> Relatório Diário</span>
+                <span><Cpu size={14} /> Arquitetura & Dados</span>
+              </div>
+
+              <div className="pillar-hub-footer">
+                <span className="hub-link-text">Acessar Documentação do Dedo Duro</span>
+                <ArrowRight size={18} className="hub-arrow" />
+              </div>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* 2. TELA INTERNA (SUBTÓPICOS E CONTEÚDO)                                   */
+        /* ========================================================================= */
+        <div className="doc-content-portal">
+          {/* Barra de Navegação: Voltar + Breadcrumb */}
+          <div className="doc-top-nav-bar">
+            <button 
+              className="doc-nav-back-button"
+              onClick={() => setSelectedPillar(null)}
+            >
+              <ArrowLeft size={16} />
+              <span>Voltar para as Opções</span>
+            </button>
 
-      {/* 2. ARQUITETURA GERAL E PIPELINE */}
-      {(showSection('todos') || showSection('arquitetura')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <GitBranch size={24} className="doc-section-title-icon" />
-            2. Arquitetura do Sistema e Fluxo de Dados (ETL)
-          </h2>
-          <p className="doc-lead-text">
-            A solução adota uma arquitetura híbrida de alta performance: o Frontend React 19 se comunica de 
-            forma otimizada e paralela com o banco PostgreSQL no Supabase (com cache em memória local de 10 minutos), 
-            enquanto robôs agendados em Node.js (via cron) orquestram a extração e carga de dados de múltiplos canais.
-          </p>
-
-          <div className="pipeline-container">
-            <div className="pipeline-step">
-              <div className="pipeline-step-number">1</div>
-              <h3 className="pipeline-step-title">Fontes de Dados</h3>
-              <p className="pipeline-step-desc">
-                Google Sheets (GViz), Mercado Livre Fulfillment API, ERP Senior X e TikTok Shop.
-              </p>
-            </div>
-
-            <div className="pipeline-step">
-              <div className="pipeline-step-number">2</div>
-              <h3 className="pipeline-step-title">Robôs de Sincronização</h3>
-              <p className="pipeline-step-desc">
-                Scripts em Node.js aplicam parsers inteligentes de SKU e realizam upsert nas tabelas Bronze e Silver.
-              </p>
-            </div>
-
-            <div className="pipeline-step">
-              <div className="pipeline-step-number">3</div>
-              <h3 className="pipeline-step-title">Supabase (PostgreSQL)</h3>
-              <p className="pipeline-step-desc">
-                Armazenamento relacional com Arquitetura Medalhão (Bronze, Silver e Views Gold consolidadas).
-              </p>
-            </div>
-
-            <div className="pipeline-step">
-              <div className="pipeline-step-number">4</div>
-              <h3 className="pipeline-step-title">Frontend Reativo</h3>
-              <p className="pipeline-step-desc">
-                React 19 SPA com Vite, renderização instantânea, consultas paralelas paginadas e filtros por empresa.
-              </p>
+            <div className="doc-nav-path">
+              <span>Central</span>
+              <ChevronRight size={14} />
+              <strong>{selectedPillar === 'site' ? 'Site & Loja Virtual' : 'Sistema Dedo Duro'}</strong>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* 3. LINGUAGENS E TECNOLOGIAS */}
-      {(showSection('todos') || showSection('tecnologias')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <Cpu size={24} className="doc-section-title-icon" />
-            3. Linguagens e Tecnologias Utilizadas
-          </h2>
-          <p className="doc-lead-text">
-            Todas as ferramentas do stack foram selecionadas para garantir velocidade de resposta, integridade 
-            relacional e excelente experiência de uso para a equipe de gestão e compras.
-          </p>
+          {/* Abas dos Subtópicos */}
+          <div className="doc-tabs-bar">
+            {selectedPillar === 'site' ? (
+              <>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'produtos' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('produtos')}
+                >
+                  <ShoppingBag size={16} />
+                  <span>Criação de Produtos</span>
+                </button>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'marketing' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('marketing')}
+                >
+                  <Palette size={16} />
+                  <span>Marketing e Tema</span>
+                </button>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'pedidos' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('pedidos')}
+                >
+                  <ClipboardList size={16} />
+                  <span>Gerenciar Pedidos</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'paginas' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('paginas')}
+                >
+                  <Layers size={16} />
+                  <span>Cada Página: Como Funciona</span>
+                </button>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'rotina' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('rotina')}
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Como Preencher o Relatório Diário</span>
+                </button>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'arquitetura' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('arquitetura')}
+                >
+                  <Cpu size={16} />
+                  <span>Arquitetura Técnica & Banco</span>
+                </button>
+              </>
+            )}
+          </div>
 
-          <div className="tech-grid">
-            {filteredTech.map((tech, idx) => (
-              <div key={idx} className="tech-card">
-                <div className="tech-card-header">
-                  <h3 className="tech-name">{tech.name}</h3>
-                  <span className="tech-badge">{tech.badge}</span>
+          {/* Painel de Conteúdo */}
+          <main className="doc-panel-box">
+            {/* SITE: CRIAÇÃO DE PRODUTOS */}
+            {selectedPillar === 'site' && selectedTopic === 'produtos' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Manual de Cadastro</span>
+                  <h2>Criação de Produtos no E-commerce</h2>
+                  <p className="topic-intro">
+                    Diretrizes para cadastro de novos produtos, estrutura de títulos, fotografia profissional e SEO para alta conversão.
+                  </p>
                 </div>
-                <p className="tech-desc">{tech.desc}</p>
-                <div className="tech-meta">Versão / Padrão: {tech.version}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
-      {/* 4. BANCO DE DADOS E ARQUITETURA MEDALHÃO */}
-      {(showSection('todos') || showSection('banco')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <Database size={24} className="doc-section-title-icon" />
-            4. Banco de Dados e Arquitetura Medalhão
-          </h2>
-          <p className="doc-lead-text">
-            O Dedo Duro estrutura seus dados no Supabase PostgreSQL separando claramente a ingestão 
-            bruta da camada de consumo analítico de alta performance:
-          </p>
-
-          <div className="medallion-container">
-            <div className="medallion-tier bronze">
-              <h3 className="medallion-title">🥉 Camada Bronze</h3>
-              <p className="medallion-desc">Dados brutos em formato texto, sem transformação, preservando o estado original da importação.</p>
-              <div className="medallion-tables">
-                <span className="table-tag">bronze_vendas</span>
-                <span className="table-tag">bronze_estoque</span>
-                <span className="table-tag">bronze_caminho</span>
-                <span className="table-tag">bronze_badstock</span>
-              </div>
-            </div>
-
-            <div className="medallion-tier silver">
-              <h3 className="medallion-title">🥈 Camada Silver</h3>
-              <p className="medallion-desc">Dados tipados (DATE, NUMERIC), índices únicos compostos, marcas normalizadas e chaves mapeadas.</p>
-              <div className="medallion-tables">
-                <span className="table-tag">silver_vendas</span>
-                <span className="table-tag">silver_estoque</span>
-                <span className="table-tag">silver_reposicao</span>
-                <span className="table-tag">silver_mapeamento_sku</span>
-              </div>
-            </div>
-
-            <div className="medallion-tier gold">
-              <h3 className="medallion-title">🥇 Camada Gold</h3>
-              <p className="medallion-desc">Views e agrupamentos prontos para alimentar as telas do sistema com velocidade máxima.</p>
-              <div className="medallion-tables">
-                <span className="table-tag">vw_vendas_consolidadas</span>
-                <span className="table-tag">v_resumo_estoque_diario</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="code-box">
-            <div className="code-box-header">
-              <span className="code-box-lang">Exemplo SQL DDL (Silver & Views)</span>
-              <button 
-                className="code-box-copy"
-                onClick={() => copyToClipboard(`CREATE TABLE IF NOT EXISTS silver_estoque (
-    id SERIAL PRIMARY KEY,
-    data_atualizacao VARCHAR(50),
-    sku_produto VARCHAR(255) NOT NULL,
-    descricao_produto VARCHAR(255),
-    marca VARCHAR(255),
-    local_estoque VARCHAR(255) NOT NULL,
-    quantidade_disponivel NUMERIC(10, 2) DEFAULT 0,
-    valor_unitario NUMERIC(10, 2) DEFAULT 0,
-    UNIQUE (data_atualizacao, sku_produto, local_estoque)
-);`, 'sql')}
-              >
-                {codeCopied === 'sql' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                <span>{codeCopied === 'sql' ? 'Copiado' : 'Copiar'}</span>
-              </button>
-            </div>
-            <pre>
-{`CREATE TABLE IF NOT EXISTS silver_estoque (
-    id SERIAL PRIMARY KEY,
-    data_atualizacao VARCHAR(50),
-    sku_produto VARCHAR(255) NOT NULL,
-    descricao_produto VARCHAR(255),
-    marca VARCHAR(255),
-    local_estoque VARCHAR(255) NOT NULL,
-    quantidade_disponivel NUMERIC(10, 2) DEFAULT 0,
-    valor_unitario NUMERIC(10, 2) DEFAULT 0,
-    UNIQUE (data_atualizacao, sku_produto, local_estoque)
-);`}
-            </pre>
-          </div>
-        </section>
-      )}
-
-      {/* 5. MÓDULOS E TELAS DO SISTEMA */}
-      {(showSection('todos') || showSection('modulos')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <Boxes size={24} className="doc-section-title-icon" />
-            5. Módulos e Funcionalidades do Sistema
-          </h2>
-          <p className="doc-lead-text">
-            O Dedo Duro é composto por 12 módulos especializados que cobrem desde a gestão diária de vendas até a 
-            concessão de papéis de usuários e geração de descrições com Inteligência Artificial:
-          </p>
-
-          <div className="modules-grid">
-            {filteredModules.map((mod) => {
-              const IconComponent = mod.icon;
-              return (
-                <div key={mod.id} className="module-card">
-                  <div className="module-card-top">
-                    <div className="module-icon-wrap">
-                      <IconComponent size={22} color="#3b82f6" />
-                    </div>
-                    <span className="module-route-badge">{mod.route}</span>
+                <div className="formula-highlight-box">
+                  <div className="formula-title">
+                    <Sparkles size={18} /> Fórmula Recomendada para Título Comercial
                   </div>
-                  <h3 className="module-name">{mod.name}</h3>
-                  <p className="module-desc">{mod.desc}</p>
+                  <div className="formula-code">
+                    [Tipo de Produto] + [Marca] + [Linha/Modelo] + [Diferencial ou Quantidade do Kit]
+                  </div>
+                  <div className="formula-example">
+                    <em>Exemplo:</em> Kit 3 Cuecas Boxer Lupo Algodão com Elastano Sem Costura Antimicrobial
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
-      {/* 6. NORMALIZAÇÃO E PARSER DE SKUS */}
-      {(showSection('todos') || showSection('skus')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <Tags size={24} className="doc-section-title-icon" />
-            6. Inteligência de SKUs e Motor de Normalização
-          </h2>
-          <p className="doc-lead-text">
-            Um dos grandes diferenciais do Dedo Duro é o módulo <code>productParser.js</code>. 
-            Ele resolve automaticamente divergências clássicas do e-commerce:
-          </p>
+                <div className="doc-grid-2x2">
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Boxes size={18} /></div>
+                    <h3>Grade de Variações (Cor & Tamanho)</h3>
+                    <p>Agrupamento padronizado de variações para a loja:</p>
+                    <ul>
+                      <li><strong>Produto Pai:</strong> Agrupa as variações compartilhando a descrição principal.</li>
+                      <li><strong>Variações Filhas:</strong> Cada combinação de Cor x Tamanho (ex: Preto / M).</li>
+                      <li><strong>Tabela de Medidas:</strong> Inserção de tabela de medidas em centímetros para diminuir trocas.</li>
+                    </ul>
+                  </div>
 
-          <ul className="module-features-list" style={{ fontSize: '0.95rem', lineHeight: '1.8' }}>
-            <li><strong>Auto-resolução de SKUs Mercado Livre (MLB):</strong> Mapeia códigos de variações e anúncios externos diretamente para o SKU raiz do ERP Senior.</li>
-            <li><strong>Catálogo Mestre Indexado:</strong> Integração com arquivos de referência de mais de 30.000 códigos de barras EAN e SKUs oficiais.</li>
-            <li><strong>Normalização de Marcas:</strong> Trata sinônimos de marcas líderes (ex: <em>LUPO SPORT</em>, <em>LUPO MASCULINO</em> → <strong>LUPO</strong>; <em>POLO WEAR</em>, <em>TRIFIL</em>, <em>SELENE</em>).</li>
-            <li><strong>Desmembramento de Kits:</strong> Converte kits de múltiplos produtos (ex: Kit com 3 cuecas ou pacote de 10 meias) para cálculo unitário do estoque físico consumido.</li>
-          </ul>
-        </section>
-      )}
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Eye size={18} /></div>
+                    <h3>Padrão Fotográfico & Mídia</h3>
+                    <p>Normas para aprovação das fotos no catálogo:</p>
+                    <ul>
+                      <li><strong>Resolução Mínima:</strong> 1200 x 1200 pixels (1:1 quadrada).</li>
+                      <li><strong>1ª Foto (Capa):</strong> Fundo branco puro (#FFFFFF), peça centralizada e sem logomarcas promocionais.</li>
+                      <li><strong>Fotos Secundárias:</strong> Visão traseira, detalhes do tecido/elástico e foto no corpo.</li>
+                    </ul>
+                  </div>
 
-      {/* 7. INSTALAÇÃO E DEPLOY */}
-      {(showSection('todos') || showSection('deploy')) && (
-        <section className="doc-section-card">
-          <h2 className="doc-section-title">
-            <Terminal size={24} className="doc-section-title-icon" />
-            7. Guia de Instalação, Execução e Deploy
-          </h2>
-          <p className="doc-lead-text">
-            O projeto pode ser executado localmente para desenvolvimento ou implantado na nuvem (Vercel):
-          </p>
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><FileEdit size={18} /></div>
+                    <h3>Ficha Técnica & Descrição SEO</h3>
+                    <p>Informações indispensáveis para o consumidor e Google:</p>
+                    <ul>
+                      <li><strong>Benefícios de Uso:</strong> Texto comercial destacando conforto e versatilidade.</li>
+                      <li><strong>Composição Têxtil:</strong> Percentual exato dos fios (ex: 95% Algodão, 5% Elastano).</li>
+                      <li><strong>Instruções de Lavagem:</strong> Preservação e durabilidade da peça.</li>
+                    </ul>
+                  </div>
 
-          <div className="code-box">
-            <div className="code-box-header">
-              <span className="code-box-lang">Comandos de Instalação e Execução</span>
-              <button 
-                className="code-box-copy"
-                onClick={() => copyToClipboard(`npm install\nnpm run dev`, 'cli')}
-              >
-                {codeCopied === 'cli' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                <span>{codeCopied === 'cli' ? 'Copiado' : 'Copiar'}</span>
-              </button>
-            </div>
-            <pre>
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><TrendingUp size={18} /></div>
+                    <h3>Precificação & Estoque</h3>
+                    <p>Configuração comercial na plataforma:</p>
+                    <ul>
+                      <li><strong>Preço De / Por:</strong> Preço original tachado e promocional em destaque.</li>
+                      <li><strong>Estoque Mínimo:</strong> Quantidade de segurança para evitar venda sem estoque.</li>
+                      <li><strong>Markup:</strong> Considerar comissões de gateway e embalagem no preço final.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SITE: MARKETING E TEMA */}
+            {selectedPillar === 'site' && selectedTopic === 'marketing' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Design & Conversão</span>
+                  <h2>Marketing e Tema da Loja Virtual</h2>
+                  <p className="topic-intro">
+                    Configuração de banners da página inicial, vitrines dinâmicas, promoções de carrinho e pixels de rastreamento.
+                  </p>
+                </div>
+
+                <div className="banner-guide-row">
+                  <div className="banner-guide-col">
+                    <span className="guide-label">🖥️ Desktop Hero Banner</span>
+                    <strong>1920 x 600 px</strong>
+                    <p>Foco visual no centro para legibilidade em monitores wide.</p>
+                  </div>
+                  <div className="banner-guide-col">
+                    <span className="guide-label">📱 Mobile Hero Banner</span>
+                    <strong>800 x 800 px</strong>
+                    <p>Formato quadrado otimizado para telas verticais de smartphones.</p>
+                  </div>
+                  <div className="banner-guide-col">
+                    <span className="guide-label">🖼️ Mosaico de Categorias</span>
+                    <strong>600 x 400 px</strong>
+                    <p>Banners para coleções estratégicas (Lupo, Kits, Linha Térmica).</p>
+                  </div>
+                </div>
+
+                <div className="doc-grid-2x2">
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Store size={18} /></div>
+                    <h3>Vitrines Inteligentes da Home</h3>
+                    <p>Organização dinâmica baseada nos dados do Dedo Duro:</p>
+                    <ul>
+                      <li><strong>Mais Vendidos:</strong> Vitrine no topo com os produtos de maior giro.</li>
+                      <li><strong>Ofertas da Semana:</strong> Produtos selecionados com desconto para acelerar saída.</li>
+                      <li><strong>Kits Especiais:</strong> Ofertas progressivas (compre mais por menos).</li>
+                    </ul>
+                  </div>
+
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Tags size={18} /></div>
+                    <h3>Cupons & Promoções</h3>
+                    <p>Ações de atração e recuperação de carrinho:</p>
+                    <ul>
+                      <li><strong>Primeira Compra:</strong> Cupom <code>SANDRINI10</code> para novos cadastros.</li>
+                      <li><strong>Desconto Progressivo:</strong> Leve 3 Pague 2 ou 15% OFF a partir de 4 peças.</li>
+                      <li><strong>Regras de Segurança:</strong> Limite de uso por CPF e validade definida.</li>
+                    </ul>
+                  </div>
+
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Activity size={18} /></div>
+                    <h3>Pixels de Conversão</h3>
+                    <p>Alimentação dos algoritmos de tráfego pago:</p>
+                    <ul>
+                      <li><strong>Meta Pixel:</strong> Rastreamento de visualização, adição ao carrinho e compra.</li>
+                      <li><strong>Google Analytics 4:</strong> Origem do tráfego e ticket médio.</li>
+                      <li><strong>TikTok Pixel:</strong> Otimização de conversões para criadores de conteúdo.</li>
+                    </ul>
+                  </div>
+
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><ShieldCheck size={18} /></div>
+                    <h3>Réguas de Confiança</h3>
+                    <p>Selos de credibilidade para aumentar a taxa de conversão:</p>
+                    <ul>
+                      <li>Selo de Compra Segura SSL e antifraude.</li>
+                      <li>Primeira Troca Grátis em até 7 dias corridos.</li>
+                      <li>Atendimento humano via WhatsApp em destaque.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SITE: GERENCIAR PEDIDOS */}
+            {selectedPillar === 'site' && selectedTopic === 'pedidos' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Operação Logística</span>
+                  <h2>Gerenciamento e Expedição de Pedidos</h2>
+                  <p className="topic-intro">
+                    Fluxo do pedido da confirmação do pagamento até a entrega final e procedimento de trocas.
+                  </p>
+                </div>
+
+                <div className="order-steps-container">
+                  <div className="order-mini-step">
+                    <div className="mini-step-badge">1</div>
+                    <h4>Aprovado</h4>
+                    <p>Pagamento confirmado pelo gateway antifraude.</p>
+                  </div>
+                  <div className="order-step-chevron"><ArrowRight size={16} /></div>
+
+                  <div className="order-mini-step">
+                    <div className="mini-step-badge">2</div>
+                    <h4>Separação</h4>
+                    <p>Coleta física no armazém por lista de lote.</p>
+                  </div>
+                  <div className="order-step-chevron"><ArrowRight size={16} /></div>
+
+                  <div className="order-mini-step">
+                    <div className="mini-step-badge">3</div>
+                    <h4>Conferência & NF</h4>
+                    <p>Bipagem dos itens, emissão da NF-e e etiqueta.</p>
+                  </div>
+                  <div className="order-step-chevron"><ArrowRight size={16} /></div>
+
+                  <div className="order-mini-step">
+                    <div className="mini-step-badge">4</div>
+                    <h4>Despachado</h4>
+                    <p>Coleta da transportadora e envio de rastreio.</p>
+                  </div>
+                </div>
+
+                <div className="doc-grid-2x2" style={{ marginTop: '24px' }}>
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><Truck size={18} /></div>
+                    <h3>Conferência com Bipagem</h3>
+                    <p>Prevenção de envio de produtos trocados:</p>
+                    <ul>
+                      <li>Leitura obrigatória do código de barras de cada produto contra a nota.</li>
+                      <li>Conferência de tamanho e cor especialmente em kits.</li>
+                      <li>Embalagem inviolável devidamente lacrada.</li>
+                    </ul>
+                  </div>
+
+                  <div className="doc-info-card">
+                    <div className="card-icon-round"><RefreshCw size={18} /></div>
+                    <h3>Trocas e Devoluções</h3>
+                    <p>Diretrizes de pós-venda:</p>
+                    <ul>
+                      <li>Prazo legal de 7 dias corridos após o recebimento para arrependimento.</li>
+                      <li>Geração de autorização de postagem gratuita nos Correios.</li>
+                      <li>Vistoria: produto em perfeito estado volta ao estoque; avariado vira <em>badstock</em>.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DEDO DURO: CADA PÁGINA COMO FUNCIONA */}
+            {selectedPillar === 'dedo' && selectedTopic === 'paginas' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Guia das Telas</span>
+                  <h2>Cada Página do Dedo Duro: Como Funciona</h2>
+                  <p className="topic-intro">
+                    O Dedo Duro conta com 12 telas estratégicas integradas para controle rigoroso de estoque e sellout.
+                  </p>
+                </div>
+
+                <div className="modules-compact-grid">
+                  {MODULES_LIST.map((mod) => {
+                    const IconComp = mod.icon;
+                    return (
+                      <div key={mod.id} className="module-compact-card">
+                        <div className="module-compact-top">
+                          <div className="module-bubble"><IconComp size={18} /></div>
+                          <span className="module-route">{mod.route}</span>
+                        </div>
+                        <h4>{mod.name}</h4>
+                        <p>{mod.desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="formula-highlight-box" style={{ marginTop: '24px' }}>
+                  <div className="formula-title">
+                    <Boxes size={18} /> Fórmula de Cobertura de Estoque (DDC)
+                  </div>
+                  <div className="formula-code">
+                    DDC = (Estoque Disponível + Estoque a Caminho) ÷ Giro Médio Diário
+                  </div>
+                  <div className="coverage-legend-row">
+                    <span className="cov-badge red">🚨 Ruptura (0 dias)</span>
+                    <span className="cov-badge yellow">⚠️ Crítico (1 a 14 dias)</span>
+                    <span className="cov-badge green">✅ Saudável (15 a 45 dias)</span>
+                    <span className="cov-badge blue">📦 Excesso (&gt; 60 dias)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DEDO DURO: COMO PREENCHER O RELATÓRIO DIÁRIO */}
+            {selectedPillar === 'dedo' && selectedTopic === 'rotina' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Rotina Operacional</span>
+                  <h2>Como Preencher o Relatório Diário</h2>
+                  <p className="topic-intro">
+                    Procedimento padrão matinal para a equipe importar e conferir os dados diários com precisão.
+                  </p>
+                </div>
+
+                <div className="routine-timeline-compact">
+                  <div className="routine-row">
+                    <div className="routine-hour"><Clock size={15} /> 08:30 - 09:15</div>
+                    <div className="routine-detail">
+                      <h4>1. Extração dos Relatórios</h4>
+                      <p>Baixar relatórios de vendas e inventário do dia anterior:</p>
+                      <div className="source-tags">
+                        <span>Mercado Livre Full (SP e MG)</span>
+                        <span>ERP Senior X (Faturamento & Matriz)</span>
+                        <span>TikTok Shop Seller Center</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="routine-row">
+                    <div className="routine-hour"><Clock size={15} /> 09:15 - 09:40</div>
+                    <div className="routine-detail">
+                      <h4>2. Padronização das Planilhas</h4>
+                      <p>Conferir colunas obrigatórias aceitas pelos parsers:</p>
+                      <div className="table-wrapper-clean">
+                        <table className="clean-table">
+                          <thead>
+                            <tr>
+                              <th>Data (DD/MM/AAAA)</th>
+                              <th>Local / Canal</th>
+                              <th>SKU Produto</th>
+                              <th>Descrição</th>
+                              <th>Quantidade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td><code>02/09/2026</code></td>
+                              <td><code>ML FULL SP</code></td>
+                              <td><code>LU7890-001-M</code></td>
+                              <td>Cueca Boxer Lupo M</td>
+                              <td><code>120</code></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="routine-row">
+                    <div className="routine-hour"><Clock size={15} /> 09:40 - 10:00</div>
+                    <div className="routine-detail">
+                      <h4>3. Resolução de SKUs Não Mapeados</h4>
+                      <p>
+                        Se houver produto novo sem reconhecimento de marca, vincule o código da plataforma ao SKU do Senior ERP na tabela <code>silver_mapeamento_sku</code>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="interactive-checklist-box">
+                  <h4><CheckSquare size={18} /> Checklist Matinal do Gestor</h4>
+                  <div className="checklist-group">
+                    <label className={`chk-label ${checkedItems['c1'] ? 'checked' : ''}`} onClick={() => toggleCheck('c1')}>
+                      <input type="checkbox" checked={!!checkedItems['c1']} onChange={() => {}} />
+                      <span>Total de peças do Dashboard confere com a soma dos relatórios?</span>
+                    </label>
+                    <label className={`chk-label ${checkedItems['c2'] ? 'checked' : ''}`} onClick={() => toggleCheck('c2')}>
+                      <input type="checkbox" checked={!!checkedItems['c2']} onChange={() => {}} />
+                      <span>Produtos com estoque zerado foram informados para pausa nos anúncios?</span>
+                    </label>
+                    <label className={`chk-label ${checkedItems['c3'] ? 'checked' : ''}`} onClick={() => toggleCheck('c3')}>
+                      <input type="checkbox" checked={!!checkedItems['c3']} onChange={() => {}} />
+                      <span>Todas as notas de reposição despachadas foram cadastradas em Reposição?</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DEDO DURO: ARQUITETURA TÉCNICA */}
+            {selectedPillar === 'dedo' && selectedTopic === 'arquitetura' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge">Engenharia & Dados</span>
+                  <h2>Arquitetura Técnica & Banco de Dados</h2>
+                  <p className="topic-intro">
+                    Estrutura Medalhão do PostgreSQL no Supabase, scripts de integração e comandos.
+                  </p>
+                </div>
+
+                <div className="medallion-row">
+                  <div className="medallion-clean-col bronze">
+                    <span className="tier-pill">Bronze</span>
+                    <h4>🥉 Dados Brutos</h4>
+                    <p>Ingestão textual das planilhas sem transformação.</p>
+                    <div className="tier-code-list">
+                      <code>bronze_vendas</code>
+                      <code>bronze_estoque</code>
+                      <code>bronze_caminho</code>
+                    </div>
+                  </div>
+
+                  <div className="medallion-clean-col silver">
+                    <span className="tier-pill">Silver</span>
+                    <h4>🥈 Normalizados</h4>
+                    <p>Tipagem de data e números, índices e marcas.</p>
+                    <div className="tier-code-list">
+                      <code>silver_vendas</code>
+                      <code>silver_estoque</code>
+                      <code>silver_mapeamento_sku</code>
+                    </div>
+                  </div>
+
+                  <div className="medallion-clean-col gold">
+                    <span className="tier-pill">Gold</span>
+                    <h4>🥇 Analítica</h4>
+                    <p>Views consolidadas para alimentar o frontend.</p>
+                    <div className="tier-code-list">
+                      <code>vw_vendas_consolidadas</code>
+                      <code>v_resumo_estoque_diario</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="terminal-clean-box">
+                  <div className="terminal-clean-header">
+                    <span>Terminal / Comandos de Execução</span>
+                    <button 
+                      className="terminal-copy-btn"
+                      onClick={() => copyToClipboard(`npm install\nnpm run dev`, 'cmd')}
+                    >
+                      {codeCopied === 'cmd' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                      <span>{codeCopied === 'cmd' ? 'Copiado' : 'Copiar'}</span>
+                    </button>
+                  </div>
+                  <pre>
 {`# 1. Instalar dependências da aplicação
 npm install
 
 # 2. Iniciar servidor Vite local
 npm run dev
-# Frontend acessível em: http://localhost:5173
 
-# 3. Iniciar servidor Backend auxiliar (se necessário)
-cd backend
-npm install
-node server.js
-# API acessível em: http://localhost:3001`}
-            </pre>
-          </div>
-        </section>
+# 3. Executar robô de sincronização (opcional)
+node backend/sincronizador_supabase.js`}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
       )}
     </div>
   );

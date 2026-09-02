@@ -135,8 +135,51 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const adminResetPassword = async (targetUser, newPassword, forceChange = true) => {
+    if (!user) return { success: false, error: 'Ação não autorizada' };
+    setLoading(true);
+    try {
+      // 1. Tentar chamar RPC dedicada se criada no Supabase
+      const { data, error: rpcError } = await supabase.rpc('f_admin_reset_password', {
+        p_caller_id: user.id,
+        p_user_id: targetUser.id,
+        p_new_senha: newPassword,
+        p_force_change: forceChange
+      });
+
+      if (!rpcError && data) {
+        return { success: true };
+      }
+
+      // 2. Fallback resiliente: atualiza a senha via f_change_password e o status via f_update_usuario
+      const { error: chgError } = await supabase.rpc('f_change_password', {
+        p_user_id: targetUser.id,
+        p_new_senha: newPassword
+      });
+      if (chgError) throw chgError;
+
+      if (forceChange) {
+        const { error: updError } = await supabase.rpc('f_update_usuario', {
+          p_caller_id: user.id,
+          p_user_id: targetUser.id,
+          p_nome: targetUser.nome,
+          p_role: targetUser.role,
+          p_status: 'novo',
+          p_empresa: targetUser.empresa
+        });
+        if (updError) throw updError;
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message || 'Falha ao redefinir senha do usuário.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout, changePassword, createUser, listUsers, updateUser, deleteUser }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout, changePassword, createUser, listUsers, updateUser, deleteUser, adminResetPassword }}>
       {children}
     </AuthContext.Provider>
   );

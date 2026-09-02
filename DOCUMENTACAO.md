@@ -1,316 +1,250 @@
-# 📘 Documentação Oficial do Sistema DEDO DURO
-### Sistema Fullstack de Gestão de Estoque, Sellout, Ruptura e Reposição Multicanal
+# 📘 Central de Documentação Oficial — Grupo Sandrini
+### Base de Conhecimento: Loja Virtual (Site) & Sistema Dedo Duro
+
+```
+                           ┌──────────────────────────────┐
+                           │         DOCUMENTAÇÃO         │
+                           └──────────────┬───────────────┘
+                                          │
+                   ┌──────────────────────┴──────────────────────┐
+                   ▼                                             ▼
+            ┌─────────────┐                               ┌─────────────┐
+            │    SITE     │                               │  DEDO DURO  │
+            └──────┬──────┘                               └──────┬──────┘
+                   │                                             │
+      ┌────────────┼────────────┐                   ┌────────────┴────────────┐
+      ▼            ▼            ▼                   ▼                         ▼
+  [Criação     [Marketing   [Gerenciar        [Cada Página              [Como Preencher
+     de            e         Pedidos]             Como                     o Relatório
+  Produtos]      Tema]                          Funciona]                    Diário]
+```
 
 ---
 
 ## 📑 Sumário
 
-1. [Visão Geral e Propósito de Negócio](#1-visão-geral-e-propósito-de-negócio)
-2. [Arquitetura Geral do Sistema](#2-arquitetura-geral-do-sistema)
-3. [Linguagens e Tecnologias Utilizadas](#3-linguagens-e-tecnologias-utilizadas)
-4. [Bancos de Dados e Arquitetura Medalhão](#4-bancos-de-dados-e-arquitetura-medalhão)
-5. [Módulos e Telas do Dedo Duro](#5-módulos-e-telas-do-dedo-duro)
-6. [Inteligência de SKUs e Motor de Normalização](#6-inteligência-de-skus-e-motor-de-normalização)
-7. [Robôs de Integração, APIs e Sincronizadores (ETL)](#7-robôs-de-integração-apis-e-sincronizadores-etl)
-8. [Autenticação, Permissões e Multi-Empresa](#8-autenticação-permissões-e-multi-empresa)
-9. [Guia de Instalação, Execução e Deploy](#9-guia-de-instalação-execução-e-deploy)
-10. [Estrutura de Pastas e Arquivos](#10-estrutura-de-pastas-e-arquivos)
+### 🌐 Pilar 1: Site (E-commerce)
+1. [Criação de Produtos](#1-criação-de-produtos-no-site)
+   - 1.1 Título e Nomenclatura Comercial
+   - 1.2 Grade de Variações (Cor & Tamanho)
+   - 1.3 Padrão Fotográfico & Mídia
+   - 1.4 Descrição, Ficha Técnica e SEO
+   - 1.5 Precificação e Markup
+2. [Marketing e Tema](#2-marketing-e-tema-da-loja-virtual)
+   - 2.1 Gestão de Banners (Carrossel, Mosaico e Réguas de Vantagens)
+   - 2.2 Vitrines e Coleções Inteligentes
+   - 2.3 Cupons de Desconto & Ações Promocionais
+   - 2.4 Pixels de Conversão & Rastreamento
+3. [Gerenciar Pedidos](#3-gerenciamento-de-pedidos-do-site)
+   - 3.1 Ciclo de Vida e Status do Pedido
+   - 3.2 Separação (Picking), Conferência (Packing) e NF-e
+   - 3.3 Comunicação e Rastreio de Entrega
+   - 3.4 Pós-Venda, Trocas e Logística Reversa
 
 ---
 
-## 1. Visão Geral e Propósito de Negócio
-
-O **Dedo Duro** é uma plataforma analítica e operacional fullstack projetada para unificar, auditar e gerenciar todo o ciclo de vida de inventário de e-commerce e atacado. 
-
-### O Problema que o Dedo Duro Resolve:
-- **Discrepância Multicanal**: Produtos vendidos no Mercado Livre (Full/Fulfillment e agências), TikTok Shop, canais próprios e B2B frequentemente usam códigos de anúncio e SKUs divergentes do catálogo mestre no ERP (Senior X).
-- **Ruptura de Estoque Silenciosa**: Vendas aceleradas em um canal que esgotam o estoque físico sem alerta prévio de recompra ou reposição.
-- **Dificuldade no Cálculo de Cobertura**: Falta de visão de dias de cobertura (DDC) baseada no giro real recente e estoque a caminho.
-- **Kits e Agrupamentos**: Um produto vendido individualmente versus em kits (ex: Kit com 3 Cuecas Lupo ou Pacote com 10 Meias) requer desmembramento para controle de estoque exato.
-
-### Principais Objetivos do Sistema:
-1. **"Dedo Duro" no Estoque**: Apontar imediatamente produtos zerados, em ponto de reposição crítico ou com excesso de cobertura (capital parado).
-2. **Conciliação Automatizada de SKUs**: Mapear anúncios e códigos externos para os SKUs oficiais e descrições do ERP Senior.
-3. **Visão 360° em Tempo Real**: Vendas diárias, curvas ABC, estoque disponível por armazém/local, mercadoria em trânsito (caminho com rastreio de NF) e avarias (badstock).
-4. **Agilidade em Compras e Vendas**: Gerador de pedidos para fornecedores (Planilha de Pedidos) e auxílio de cadastro com Inteligência Artificial (Google Gemini).
+### 🛡️ Pilar 2: Dedo Duro (Gestão & Performance)
+4. [Cada Página Como Funciona](#4-cada-página-do-dedo-duro-como-funciona)
+   - 4.1 Dashboard
+   - 4.2 Vendas & Curvas ABC
+   - 4.3 Cobertura de Estoque (DDC)
+   - 4.4 Estoque por Centro de Distribuição
+   - 4.5 Ficha do Produto
+   - 4.6 Reposição em Trânsito (A Caminho)
+   - 4.7 Sellout Multicanal
+   - 4.8 Alertas de Ruptura e Excesso
+   - 4.9 Marketplace (TikTok Shop)
+   - 4.10 Planilha de Pedidos para Fornecedores
+   - 4.11 Cadastro Inteligente com IA (Google Gemini)
+   - 4.12 Usuários, Permissões e Redefinição de Senhas
+5. [Como Preencher o Relatório Diário](#5-como-preencher-o-relatório-diário)
+   - 5.1 Rotina Matinal e Horários Recomendados
+   - 5.2 Fontes Oficiais de Extração
+   - 5.3 Padrão das Colunas Obrigatórias
+   - 5.4 Tratamento de Novos SKUs e Mapeamento
+   - 5.5 Checklist de Validação Diária
+6. [Arquitetura Técnica & Banco de Dados](#6-arquitetura-técnica--banco-de-dados)
+   - 6.1 Arquitetura Medalhão (Bronze, Silver e Gold)
+   - 6.2 Robôs de Sincronização e ETL (Node.js)
+   - 6.3 Motor de Normalização de SKUs (productParser.js)
+   - 6.4 Stack Tecnológico e Deploy
 
 ---
 
-## 2. Arquitetura Geral do Sistema
+# 🌐 PILAR 1: SITE (E-COMMERCE)
 
-A arquitetura do Dedo Duro segue o padrão **Decoupled Fullstack com Camada de Dados Medalhão**:
+## 1. Criação de Produtos no Site
 
+### 1.1 Título e Nomenclatura Comercial
+O título de cada produto deve seguir a fórmula oficial recomendada para garantir clareza e alto ranqueamento no Google:
+> **[Tipo do Produto] + [Marca] + [Modelo / Linha] + [Diferencial Técnico ou Quantidade do Kit]**
+- *Exemplo correto:* `Kit 3 Cuecas Boxer Lupo Algodão com Elastano Sem Costura Antimicrobial`
+- *Exemplo incorreto:* `Cueca Lupo boxer masculina kit top`
+
+### 1.2 Grade de Variações (Cor & Tamanho)
+- **Produto Pai:** Cadastro base com as características gerais (tecido, composição, marca).
+- **Variações Filhas:** Combinações específicas de Cor x Tamanho (ex: Preto / M, Marinho / G).
+- **Tabela de Medidas:** Inserção obrigatória da tabela de equivalência de numeração (cm de tórax, quadril ou calçado) para reduzir devoluções por tamanho incorreto.
+
+### 1.3 Padrão Fotográfico & Mídia
+- **Resolução Recomendada:** 1200 x 1200 pixels (1:1) até 1600 x 1600 pixels.
+- **1ª Foto (Capa):** Fundo branco (#FFFFFF) limpo, produto centralizado sem sombras duras nem marcas d'água promocionais.
+- **Fotos Subsequentes:** Imagem de costas, detalhes de acabamento/elástico, foto em modelo (lifestyle) e embalagem comercial do produto.
+
+### 1.4 Descrição, Ficha Técnica e SEO
+- **Parágrafo Comercial:** Texto persuasivo destacando os benefícios do produto no dia a dia, tecnologia empregada e durabilidade.
+- **Ficha Técnica Detalhada:** Composição percentual do tecido (ex: 95% Algodão, 5% Elastano), país de fabricação, código de barras EAN-13 oficial e cuidados na lavagem.
+- **Meta Tags SEO:** Meta Description concisa de até 155 caracteres contendo as principais palavras-chave buscadas pelo consumidor.
+
+---
+
+## 2. Marketing e Tema da Loja Virtual
+
+### 2.1 Gestão de Banners da Home
+- **Hero Banner (Carrossel Principal):**
+  - Desktop: `1920 x 600 px` (elementos textuais centralizados para evitar cortes em telas menores).
+  - Mobile: `800 x 800 px` ou `750 x 900 px` (verticalizado para visualização em smartphones).
+- **Banners Secundários / Mosaicos:** `600 x 400 px` para destacar categorias e coleções.
+- **Régua de Vantagens:** Faixa no topo ou logo abaixo do banner com selos informativos: *Frete Grátis*, *Parcelamento sem Juros*, *Primeira Troca Grátis* e *Compra Segura SSL*.
+
+### 2.2 Vitrines e Coleções Inteligentes
+- **Mais Vendidos (Top Sellers):** Vitrine dinâmica ordenada pelos produtos com maior saída apurados no Dedo Duro.
+- **Lançamentos da Coleção:** Novos modelos recém-cadastrados.
+- **Ofertas Relâmpago:** Produtos com preço promocional temporário para girar estoque excedente.
+
+### 2.3 Cupons de Desconto & Ações Promocionais
+- **Cupom de Boas-Vindas:** Ex: `SANDRINI10` (10% de desconto na primeira compra mediante cadastro de e-mail).
+- **Promoções Progressivas:** Regras automáticas no carrinho (ex: "Leve 3 Pague 2" ou "Compre 4 com 15% OFF").
+- **Limitações de Segurança:** Validade temporal estrita, valor mínimo de carrinho e restrição de 1 utilização por CPF.
+
+### 2.4 Pixels de Conversão & Rastreamento
+- **Meta Pixel:** Rastreamento dos eventos de funil (`ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`) para alimentar campanhas de tráfego pago no Instagram/Facebook.
+- **Google Analytics 4 (GA4):** Análise completa de origens de tráfego, ticket médio e taxa de conversão.
+- **TikTok Pixel:** Otimização para tráfego oriundo de vídeos e criadores de conteúdo.
+
+---
+
+## 3. Gerenciamento de Pedidos do Site
+
+### 3.1 Ciclo de Vida do Pedido
 ```
- ┌────────────────────────────────────────────────────────────────────────┐
- │                              FONTES DE DADOS                           │
- │  Google Sheets (GViz) │ Mercado Livre API │ ERP Senior X │ TikTok Shop │
- └──────────────┬───────────────────┬───────────────┬───────────────┬─────┘
-                │                   │               │               │
-                ▼                   ▼               ▼               ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                     ROBÔS DE INTEGRAÇÃO & ETL (Node.js)                │
- │  - sincronizador_supabase.js   - sincronizar_meli.js                   │
- │  - sincronizar_senior.js       - consolidar_marketplace.js             │
- │  - tiktokProcessor.js          - productParser.js                      │
- └──────────────────────────────────┬─────────────────────────────────────┘
-                                    │
-                                    ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                      BANCO DE DADOS POSTGRESQL (Supabase)              │
- │  ┌─────────────────┐    ┌─────────────────┐    ┌────────────────────┐  │
- │  │  Camada Bronze  │ ─► │  Camada Silver  │ ─► │ Camada Gold (Views)│  │
- │  │  (Dados Brutos) │    │ (Tipados/Limpos)│    │(Vw_Consolidadas)   │  │
- │  └─────────────────┘    └─────────────────┘    └────────────────────┘  │
- └──────────────────────────────────┬─────────────────────────────────────┘
-                                    │
-               ┌────────────────────┴───────────────────┐
-               ▼                                        ▼
- ┌───────────────────────────┐            ┌───────────────────────────┐
- │   BACKEND REST (Express)  │            │   FRONTEND SPA (React 19) │
- │  - Porta 3001             │            │  - Vite 8 + Fast Refresh  │
- │  - Espelho MySQL Local    │            │  - Supabase Client Direto │
- │  - Endpoint Gemini IA     │            │  - Chart.js & Framer      │
- └───────────────────────────┘            └───────────────────────────┘
-```
-
----
-
-## 3. Linguagens e Tecnologias Utilizadas
-
-| Camada | Tecnologia / Ferramenta | Versão | Função no Sistema |
-| :--- | :--- | :--- | :--- |
-| **Linguagem Principal** | **JavaScript (ES6+)** | Modern ES | Utilizado de ponta a ponta (Frontend, Backend e Scripts). |
-| **Linguagem de Template** | **JSX (React)** | 19.2 | Renderização declarativa e reativa dos componentes de UI. |
-| **Linguagem de Banco** | **SQL (PostgreSQL / MySQL)** | Postgres 15+ | Criação de tabelas, índices, triggers e views analíticas consolidadas. |
-| **Linguagens Web** | **HTML5 & CSS3** | Padrão W3C | Semântica da interface e estilização modular com variáveis de tema. |
-| **Frontend Framework** | **React** | `^19.2.5` | Criação de SPAs dinâmicas com Hooks personalizados e Context API. |
-| **Build & Dev Server** | **Vite** | `^8.0.10` | Bundler ultrarrápido com Hot Module Replacement (HMR). |
-| **Roteamento** | **React Router DOM** | `^7.14.2` | Gerenciamento de rotas, navegação protegida e histórico do browser. |
-| **Animações** | **Framer Motion** | `^12.38.0` | Transições suaves de páginas, expansão de cards e efeitos interativos. |
-| **Gráficos & Charts** | **Chart.js** & **Recharts** | `^4.5.1` / `^3.10.1` | Gráficos de barras, linhas temporais, pizza e dispersão de vendas. |
-| **Ícones** | **Lucide React** | `^1.14.0` | Conjunto iconográfico moderno e consistente em todo o painel. |
-| **Exportação de Arquivos** | **XLSX (SheetJS)** & **jsPDF** | `^0.18.5` / `^4.2.1` | Exportação de relatórios gerenciais em Excel e PDF estruturado. |
-| **Inteligência Artificial** | **Google Generative AI SDK** | `^0.24.1` | Chamadas aos modelos Gemini para geração de SEO e textos comerciais. |
-| **Backend & Servidor** | **Node.js + Express** | `^4.18` | Servidor HTTP RESTful para endpoints de fallback e integração com IA. |
-| **Banco na Nuvem** | **Supabase (PostgreSQL)** | `^2.105.1` | Banco de dados primário gerenciado na nuvem com alta escalabilidade. |
-| **Banco Local** | **MySQL2** | `^3.9` | Driver de conexão para replicação e redundância local. |
-| **Agendamento** | **Node-cron** | `^3.0` | Cron jobs para execução periódica de robôs de sincronização. |
-| **Comunicação HTTP** | **Axios & Fetch nativo** | Modern | Consumo das APIs do Senior X, Mercado Livre e Google GViz. |
-
----
-
-## 4. Bancos de Dados e Arquitetura Medalhão
-
-O sistema armazena e processa dados sob o consagrado conceito de **Arquitetura Medalhão**:
-
-### 🥉 Camada Bronze (Dados Brutos / Staging)
-Tabelas que recebem os dados brutos exatamente como chegam das fontes, sem transformação:
-- `bronze_vendas`: Registros crus de vendas provenientes de planilhas ou APIs externas.
-- `bronze_estoque`: Capturas diárias de saldos de estoque por local e anúncio.
-- `bronze_caminho`: Remessas em trânsito com previsões e notas fiscais.
-- `bronze_badstock`: Lotes com avarias ou produtos danificados.
-
-### 🥈 Camada Silver (Dados Limpos, Tipados e Mapeados)
-Tabelas estruturadas com integridade referencial, tipos nativos (`DATE`, `NUMERIC`) e restrições únicas:
-- `silver_vendas`: Vendas com data normalizada, quantidade numérica, marca identificada e chaves únicas `(data_venda, local_venda, sku_produto)`.
-- `silver_estoque`: Saldos diários por local com valorização de custo e SKU oficial mapeado.
-- `silver_reposicao`: Mercadorias a caminho com status da nota fiscal e previsão de recebimento.
-- `silver_badstock`: Inventário não comercializável isolado do cálculo de cobertura.
-- `silver_mapeamento_sku`: Tabela mestre que relaciona `(sku_plataforma, plataforma)` ao `(sku_senior, descricao_oficial, marca_oficial)`.
-
-### 🥇 Camada Gold (Views e Agrupamentos Analíticos)
-Visões SQL otimizadas prontas para alimentar o Frontend com máximo desempenho:
-- `vw_vendas_consolidadas`: Consolidação de vendas já traduzidas para os SKUs oficiais do ERP.
-- `v_resumo_estoque_diario`: Totais pré-calculados de estoque por data, marca e local, permitindo carregamento instantâneo de dashboards históricos.
-
----
-
-## 5. Módulos e Telas do Dedo Duro
-
-### 1. 📊 Dashboard (`/`)
-Central de comando com cartões animados de alta resposta visual (efeito neon no hover), permitindo saltar para qualquer módulo do ecossistema. Exibe opções administrativas para gestores.
-
-### 2. 📈 Vendas (`/vendas`)
-- Análise aprofundada de vendas com seletores de período, marcas e locais de expedição.
-- Cálculo de curvas ABC, produtos mais vendidos, média diária de vendas e faturamento consolidado.
-- Gráficos temporais de evolução e detalhamento linha a linha por produto.
-
-### 3. 🛡️ Cobertura (`/cobertura`)
-- O coração do cálculo de reposição: calcula os **Dias de Cobertura (DDC)** com base no estoque atual dividido pelo giro médio diário.
-- Classificação por faixas de risco (Ruptura Iminente, Crítico, Saudável, Excesso).
-- Exibição do estoque físico somado ao "estoque a caminho", prevenindo compras duplicadas.
-
-### 4. 📦 Estoque (`/estoque`)
-- Consulta da posição de estoque por SKU, armazém, Full e depósitos locais.
-- Seletor de datas para viagem no tempo (auditoria do saldo em datas passadas).
-- Métricas de valor financeiro total estocado e custo unitário.
-
-### 5. 🏷️ Produto (`/produto`)
-- Ficha técnica completa de cada item do catálogo.
-- Histórico individualizado de vendas, oscilações de estoque, canais onde o produto está ativo e fornecedores homologados.
-
-### 6. 🚚 Reposição (`/reposicao`)
-- Controle de notas fiscais de transferência e pedidos de compra já emitidos e em trânsito.
-- Acompanhamento de datas previstas de entrega e status de transporte.
-
-### 7. ⚡ Sellout (`/sellout`)
-- Acompanhamento do escoamento de mercadoria na ponta final do cliente.
-- Comparativos de desempenho entre marcas parceiras (Lupo, Polo Wear, Trifil, etc.).
-
-### 8. 🚨 Alertas (`/alertas`)
-- Monitoramento em tempo real de anomalias:
-  - Ruptura de estoque em itens de alto giro (Curva A).
-  - Produtos sem venda há mais de 60/90 dias (estoque parado).
-  - Divergências de preço de custo ou falta de mapeamento de SKU.
-
-### 9. 🏪 Marketplace (`/marketplace`)
-- Módulo focado no ecossistema de vendas por criadores, influenciadores e afiliados (ex: TikTok Shop).
-- Importação e processamento de planilhas de comissões, faturamento por criador e correlação com o estoque físico.
-
-### 10. 📝 Pedidos / Planilha (`/planilha`)
-- Automação de cálculo de necessidades de compra para fornecedores.
-- Sugestão automática de quantidades a comprar considerando prazo de entrega (lead time) e metas de dias de cobertura.
-- Exportação direta para planilhas padrão de pedido.
-
-### 11. ✍️ Cadastro com IA (`/cadastro`)
-- Padronizador de títulos de produtos, correspondência de siglas de cores e tamanhos.
-- Integração nativa com **Google Gemini IA** para geração automática de descrições ricas otimizadas para SEO e conversão em marketplaces.
-
-### 12. 👥 Usuários (`/usuarios`)
-- Painel restrito a administradores e gestores para aprovação de cadastros, bloqueio de acessos e concessão de papéis (`admin`, `gestor`, `operador`).
-
----
-
-## 6. Inteligência de SKUs e Motor de Normalização
-
-O motor de parsing (`src/utils/productParser.js`) é um dos diferenciais técnicos mais importantes do Dedo Duro:
-
-1. **Auto-resolução de SKUs do Mercado Livre (MLB)**:
-   - Extrai automaticamente os identificadores de anúncio e variações de atributos.
-   - Corrige prefixos e variações de cores e tamanhos específicos de cada marca.
-2. **Catálogo Mestre Senior X**:
-   - O sistema carrega um catálogo indexado (`seniorCatalog.json` e `eanMapping.json`) com mais de 30.000 referências e códigos EAN/código de barras.
-3. **Normalização de Marcas**:
-   - Tratamento de sinônimos: `LUPO SPORT`, `LUPO MASCULINO` -> `LUPO`; `POLO WEAR` -> `POLO WEAR`; `TRIFIL`, `SCALA`, `SELENE`, etc.
-4. **Desmembramento de Kits**:
-   - Identifica se o anúncio representa múltiplos itens (ex: "Kit 10 Pares Meia Cano Curto") para dar baixa e calcular a cobertura com precisão matemática.
-
----
-
-## 7. Robôs de Integração, APIs e Sincronizadores (ETL)
-
-O backend possui rotinas programadas em segundo plano (via `node-cron` e scripts CLI):
-
-1. **`sincronizador_supabase.js`**:
-   - Lê dados de planilhas mestras (Google Sheets) via protocolo GViz.
-   - Executa a limpeza, validação de tipos e aplica `upsert` no Supabase nas camadas Bronze e Silver.
-2. **`sincronizar_meli.js` & `sincronizar_vendas_meli.js`**:
-   - Conecta à API oficial do Mercado Livre utilizando tokens OAuth2.
-   - Baixa o estoque do armazém Full (Fulfillment) e as ordens diárias de venda.
-3. **`sincronizar_senior.js`**:
-   - Integração com a API REST do ERP Senior X.
-   - Sincroniza produtos cadastrados, códigos de barras (EAN), descrições oficiais e custos unitários.
-4. **`consolidar_marketplace.js` & `tiktokProcessor.js`**:
-   - Processamento de arquivos CSV/Excel exportados do TikTok Shop e canais de criadores, gerando a conciliação financeira e de inventário.
-
----
-
-## 8. Autenticação, Permissões e Multi-Empresa
-
-### Autenticação (`AuthContext.jsx`)
-- Autenticação com sessão persistida em `localStorage` e verificação na tabela `usuarios` do Supabase.
-- Papéis definidos:
-  - **Admin**: Acesso irrestrito a configurações, sincronizações manuais e gestão de usuários.
-  - **Gestor**: Acesso completo a relatórios, indicadores financeiros, compras e aprovações.
-  - **Operador / Usuário**: Acesso operacional focado em consultas de estoque, vendas e produtos.
-
-### Multi-Empresa (`CompanyContext.jsx`)
-- Suporte a filtros isolados por tenant/empresa (ex: **Sandrini**, **Rise Up**, etc.).
-- Todo o carregamento do `DataContext` respeita o contexto da empresa selecionada, garantindo que métricas de marcas distintas não sejam misturadas indevidamente.
-
----
-
-## 9. Guia de Instalação, Execução e Deploy
-
-### Pré-requisitos
-- **Node.js** v18.0.0 ou superior.
-- Gerenciador de pacotes **npm** ou **yarn**.
-- Servidor **MySQL** local (opcional, caso utilize espelho local).
-- Acesso à internet para comunicação com o Supabase.
-
-### 1. Clonar e Instalar o Frontend
-```bash
-git clone <url-do-repositorio>
-cd "Sistema de Gestão Estoque DEDO DURO"
-npm install
+[ Aguardando Pagamento ] ──► [ Aprovado / Pago ] ──► [ Em Separação (Picking) ]
+                                                            │
+                                                            ▼
+[ Entregue ao Cliente ] ◄─── [ Em Trânsito ] ◄─────── [ Faturado (NF-e & Packing) ]
 ```
 
-### 2. Configurar o Backend
-```bash
-cd backend
-npm install
-```
+### 3.2 Separação, Conferência e Despacho
+1. **Picking (Separação):** Impressão da lista consolidada de separação por lote de pedidos.
+2. **Packing (Conferência):** Bipagem dos códigos de barras dos produtos para conferência antes do empacotamento.
+3. **Faturamento:** Emissão automática da Nota Fiscal Eletrônica (NF-e) e impressão da DANFE Simplificada colada na embalagem junto com a etiqueta de envio.
+4. **Despacho:** Coleta diária pela transportadora ou entrega nas agências credenciadas.
 
-Crie o arquivo `.env` na pasta `backend`:
-```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=sua_senha
-DB_NAME=dedo_duro
-PORT=3001
-GEMINI_API_KEY=sua_chave_do_google_gemini
-```
-
-### 3. Rodar em Ambiente de Desenvolvimento
-No terminal raiz:
-```bash
-npm run dev
-```
-Acesse a aplicação em: `http://localhost:5173`
-
-Em outro terminal, para rodar o backend auxiliar:
-```bash
-cd backend
-node server.js
-```
-
-### 4. Deploy em Produção (Vercel)
-O projeto está configurado para deploy imediato no **Vercel**:
-- `vercel.json` gerencia reescritas de SPA para que o React Router funcione perfeitamente sem erros 404 em recarregamento de página.
-- Funções serverless em `/api` (como `generate-seo.js`) executam chamadas de IA sem expor chaves secretas no navegador.
+### 3.3 Atendimento e Pós-Venda
+- **Prazo Legal de Arrependimento:** 7 dias corridos após o recebimento (Art. 49 do CDC).
+- **Logística Reversa:** Emissão de código de postagem pré-pago nos Correios para devolução sem custo ao cliente.
+- **Vistoria:** Ao receber o item devolvido, a equipe confere as etiquetas originais. Produto perfeito volta ao estoque; se avariado, registra-se como *badstock*.
 
 ---
 
-## 10. Estrutura de Pastas e Arquivos
+# 🛡️ PILAR 2: DEDO DURO (ESTOQUE & GESTÃO)
 
-```
-dedo-duro/
-├── api/                    # Serverless functions Vercel (Gemini AI SEO)
-├── backend/                # Servidor Express, robôs ETL e scripts de sincronização
-│   ├── server.js           # Servidor RESTful
-│   ├── sincronizador_*.js  # Robôs de sincronização (Supabase, Meli, Senior)
-│   └── schema_supabase.sql # DDL com a estrutura das tabelas e views
-├── public/                 # Favicon e arquivos públicos estáticos
-├── src/                    # Código-fonte do Frontend SPA
-│   ├── assets/             # Imagens e logotipos
-│   ├── components/         # Componentes reutilizáveis (Sidebar, Header, Layout)
-│   ├── contexts/           # Provedores de estado (Auth, Company, DataContext)
-│   ├── pages/              # Telas e Painéis da Aplicação
-│   │   ├── Dashboard.jsx   # Hub central
-│   │   ├── Vendas.jsx      # Painel de Vendas
-│   │   ├── Cobertura.jsx   # Painel de Cobertura de Estoque
-│   │   ├── Estoque.jsx     # Painel de Posição de Estoque
-│   │   ├── Documentacao.jsx# Painel Interativo de Documentação (Novo)
-│   │   └── ...             # Demais módulos
-│   ├── services/           # Clientes de API (Supabase client)
-│   ├── utils/              # Parsers de produto, datas, exportação e IA
-│   ├── App.jsx             # Definição de rotas e providers
-│   ├── index.css           # Design system e variáveis de tema
-│   └── main.jsx            # Ponto de entrada do React 19
-├── package.json            # Dependências e scripts do projeto
-├── vite.config.js          # Configurações do Vite
-└── DOCUMENTACAO.md          # Este arquivo de documentação técnica
-```
+## 4. Cada Página do Dedo Duro: Como Funciona
+
+### 4.1 Dashboard (`/`)
+Painel de controle visual com visão macro de KPIs: total de peças vendidas no mês, faturamento estimado, dias médios de cobertura do estoque, gráfico de vendas recentes e cards de acesso rápido a todos os submódulos.
+
+### 4.2 Vendas (`/vendas`)
+Relatórios analíticos de sellout com filtros temporais flexíveis (Hoje, Últimos 7 dias, Últimos 30 dias, Mês Atual, Período Customizado). Exibe gráficos de evolução temporal, curva ABC de produtos (classificação 80/20) e participação percentual por marca.
+
+### 4.3 Cobertura (`/cobertura`)
+O coração do Dedo Duro. Calcula automaticamente a saúde do inventário aplicando a fórmula:
+$$\text{DDC} = \frac{\text{Estoque Disponível} + \text{Estoque a Caminho}}{\text{Giro Médio Diário}}$$
+- **Ruptura (0 dias):** Estoque zerado.
+- **Crítico (1 a 14 dias):** Risco iminente de ruptura.
+- **Saudável (15 a 45 dias):** Operação equilibrada.
+- **Excesso (> 60 dias):** Capital parado necessitando de ação comercial.
+
+### 4.4 Estoque (`/estoque`)
+Consulta de inventário por centros de distribuição (Sandrini Matriz, Fulfillment Mercado Livre SP/MG, etc.), com valorização ao custo médio unitário e histórico por datas de fechamento.
+
+### 4.5 Produto (`/produto`)
+Ficha técnica 360° de qualquer SKU do catálogo: histórico de vendas mês a mês, canais onde está ativo, preço médio de venda e curva de consumo.
+
+### 4.6 Reposição (`/reposicao`)
+Acompanhamento das remessas em trânsito (a caminho), com número da Nota Fiscal, transportadora responsável, quantidade enviada e data prevista de entrega no armazém de destino.
+
+### 4.7 Sellout (`/sellout`)
+Análise comparativa do escoamento na ponta final do consumidor e participação (market share) entre as marcas parceiras.
+
+### 4.8 Alertas (`/alertas`)
+Varredura contínua de anomalias: produtos que entraram em ruptura recente, SKUs com giro acelerado sem pedido de compra colocado e inconsistências cadastrais.
+
+### 4.9 Marketplace / TikTok (`/marketplace`)
+Módulo dedicado à performance de vendas no TikTok Shop: vendas geradas em transmissões ao vivo (lives), ranking de criadores parceiros e produtos de maior tração.
+
+### 4.10 Planilha de Pedidos (`/planilha`)
+Automação de pedidos de compra para indústrias e fornecedores. O usuário define o lead time de entrega e a meta de cobertura desejada em dias; o sistema calcula a quantidade exata a ser comprada por SKU e gera a planilha em Excel pronta para envio.
+
+### 4.11 Cadastro Inteligente (`/cadastro`)
+Ferramenta para decodificação de códigos complexos de fornecedores e geração de títulos e descrições ricas com Inteligência Artificial (Google Gemini).
+
+### 4.12 Usuários & Permissões (`/usuarios`)
+Gestão de acessos com controle hierárquico (Administrador, Gestor, Usuário). Conta com ferramenta de **Redefinição de Senhas** em 1 clique, gerando senhas temporárias seguras com opção de exigir que o colaborador escolha sua nova senha pessoal no primeiro acesso.
 
 ---
-*Documentação gerada e mantida pela equipe do Sistema de Gestão de Estoque Dedo Duro.*
+
+## 5. Como Preencher o Relatório Diário
+
+### 5.1 Rotina Matinal e Horários
+- **Janela de Execução:** Diariamente entre **08:30 e 09:30** da manhã.
+- **Objetivo:** Ter todos os painéis atualizados com os dados do dia anterior antes das reuniões matinais de alinhamento.
+
+### 5.2 Fontes Oficiais de Extração
+1. **Mercado Livre:** Painel de Vendas (Exportar vendas do dia anterior) e Relatório de Inventário do Full (SP e MG).
+2. **ERP Senior X:** Relatório de notas fiscais faturadas e inventário do armazém Matriz.
+3. **TikTok Shop:** Painel do Seller Center (aba Pedidos Faturados).
+
+### 5.3 Padrão das Colunas Obrigatórias
+| Coluna | Formato Obrigatório | Exemplo Válido | O que NÃO fazer |
+|---|---|---|---|
+| **Data** | `DD/MM/AAAA` | `02/09/2026` | `2026-09-02` ou com horas |
+| **Local / Canal** | Texto padronizado | `ML FULL SP`, `MATRIZ` | Variações com siglas aleatórias |
+| **SKU Produto** | Código da Plataforma | `LU7890-001-M` | Caracteres especiais invisíveis |
+| **Descrição** | Texto comercial | `Cueca Boxer Lupo Algodão M` | Deixar em branco |
+| **Qtd. Vendida** | Número inteiro ou decimal | `120` | `120 pçs` ou `120 unidades` |
+
+### 5.4 Tratamento de Novos SKUs
+Se um produto novo aparecer na tela com a marca "NÃO MAPEADO" ou com divergência de código:
+1. Acesse o módulo de Mapeamento ou cadastre a correspondência na tabela `silver_mapeamento_sku`.
+2. Associe o SKU da Plataforma ao SKU Oficial do ERP Senior.
+3. O sistema atualizará automaticamente todo o histórico desse produto.
+
+### 5.5 Checklist de Validação Diária
+- [ ] O somatório de peças vendidas no **Dashboard** bate com o total dos relatórios de origem?
+- [ ] Os produtos com estoque zerado foram devidamente informados às equipes comerciais?
+- [ ] As notas fiscais de reposição despachadas no dia anterior foram registradas no módulo **Reposição**?
+
+---
+
+## 6. Arquitetura Técnica & Banco de Dados
+
+### 6.1 Arquitetura Medalhão no Supabase (PostgreSQL)
+- **🥉 Bronze (Dados Brutos):** Tabelas `bronze_vendas`, `bronze_estoque`, `bronze_caminho`, `bronze_badstock`. Ingestão textual sem tipagem forçada.
+- **🥈 Silver (Dados Normalizados):** Tabelas `silver_vendas`, `silver_estoque`, `silver_reposicao`, `silver_mapeamento_sku`. Tipagem estrita (`DATE`, `NUMERIC`), índices compostos e marcas normalizadas.
+- **🥇 Gold (Camada de Consumo):** Views SQL otimizadas (`vw_vendas_consolidadas`, `v_resumo_estoque_diario`) prontas para responder às requisições do frontend com velocidade milimétrica.
+
+### 6.2 Robôs de Sincronização (ETL)
+Localizados na pasta `backend/`:
+- `sincronizador_supabase.js`: Pipeline principal de carga e transformação.
+- `sincronizar_meli.js`: Integração com a API oficial do Mercado Livre.
+- `sincronizar_senior.js`: Conexão com o ERP Senior X.
+- `consolidar_marketplace.js`: Agregação de métricas de múltiplos marketplaces.
+
+### 6.3 Motor de Normalização de SKUs (`productParser.js`)
+Motor com mais de 30.000 regras de códigos de barras EAN, desmembramento de kits de múltiplas peças e tratamento de sinônimos de marcas (ex: unificação de *LUPO SPORT*, *LUPO UNDERWEAR* sob a marca **LUPO**).
+
+### 6.4 Stack Tecnológico e Deploy
+- **Frontend:** React 19, Vite 8, Framer Motion, Chart.js, Recharts, Lucide React.
+- **Backend / Database:** Node.js, Express, Supabase PostgreSQL, Google Gemini IA.
+- **Hospedagem:** Vercel (Frontend e Serverless Functions em `/api`).

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Edit2, Trash2, Shield, Building, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Shield, Building, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Eye, EyeOff, KeyRound, Copy, CheckCheck, RefreshCw } from 'lucide-react';
 import { toTitleCase } from '../utils/stringUtils';
 
 export default function Usuarios() {
-  const { user: currentUser, listUsers, createUser, updateUser, deleteUser } = useAuth();
+  const { user: currentUser, listUsers, createUser, updateUser, deleteUser, adminResetPassword } = useAuth();
   
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +31,25 @@ export default function Usuarios() {
   // Delete states
   const [deletingUser, setDeletingUser] = useState(null);
 
+  // Reset Password states
+  const [resettingUser, setResettingUser] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetShowPassword, setResetShowPassword] = useState(true);
+  const [resetForceChange, setResetForceChange] = useState(true);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
   const isAdmin = currentUser && currentUser.role === 'admin';
   const isGestor = currentUser && currentUser.role === 'gestor';
+
+  const generateTempPassword = () => {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `Sandrini@${code}`;
+  };
 
   const loadUsersList = async () => {
     setLoading(true);
@@ -93,6 +110,46 @@ export default function Usuarios() {
       setTimeout(() => setSuccessMsg(''), 4000);
     } else {
       setErrorMsg(res.error || 'Erro ao atualizar usuário.');
+    }
+  };
+
+  const openResetModal = (u) => {
+    setResettingUser(u);
+    setResetPassword(generateTempPassword());
+    setResetShowPassword(true);
+    setResetForceChange(true);
+    setCopiedPassword(false);
+  };
+
+  const handleCopyPassword = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(resetPassword);
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2500);
+    }
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!resetPassword || resetPassword.length < 5) {
+      setErrorMsg('A nova senha deve ter pelo menos 5 caracteres.');
+      return;
+    }
+
+    setResetLoading(true);
+    const res = await adminResetPassword(resettingUser, resetPassword, resetForceChange);
+    setResetLoading(false);
+
+    if (res.success) {
+      setSuccessMsg(`Senha do usuário ${resettingUser.nome} redefinida com sucesso! Senha temporária: "${resetPassword}"`);
+      setResettingUser(null);
+      loadUsersList();
+      setTimeout(() => setSuccessMsg(''), 8000);
+    } else {
+      setErrorMsg(res.error || 'Erro ao redefinir senha do usuário.');
     }
   };
 
@@ -298,6 +355,164 @@ export default function Usuarios() {
         )}
       </AnimatePresence>
 
+      {/* RESET PASSWORD MODAL */}
+      <AnimatePresence>
+        {resettingUser && (
+          <div style={styles.modalOverlay} onClick={() => setResettingUser(null)}>
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={styles.modalContent} 
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: '#fef3c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#d97706'
+                  }}>
+                    <KeyRound size={18} />
+                  </div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a' }}>Redefinir Senha</h2>
+                </div>
+                <button style={styles.closeBtn} onClick={() => setResettingUser(null)}><X size={20} /></button>
+              </div>
+
+              <form onSubmit={handleResetSubmit} style={styles.form}>
+                <div style={{
+                  padding: '12px 14px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  color: '#475569',
+                  lineHeight: '1.5'
+                }}>
+                  Definindo nova senha para <strong>{resettingUser.nome}</strong> ({resettingUser.email}).
+                </div>
+
+                <div style={styles.formGroup}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={styles.label}>Nova Senha Temporária</label>
+                    <button
+                      type="button"
+                      onClick={() => setResetPassword(generateTempPassword())}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#3b82f6',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0
+                      }}
+                    >
+                      <RefreshCw size={12} /> Gerar Outra
+                    </button>
+                  </div>
+
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <input 
+                      type={resetShowPassword ? 'text' : 'password'} 
+                      className="input-padrao" 
+                      value={resetPassword} 
+                      onChange={e => setResetPassword(e.target.value)} 
+                      required 
+                      style={{ paddingRight: '76px', fontFamily: 'monospace', fontWeight: 600, fontSize: '14px' }}
+                    />
+                    <div style={{ position: 'absolute', right: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <button 
+                        type="button" 
+                        onClick={handleCopyPassword}
+                        title={copiedPassword ? 'Copiado!' : 'Copiar senha'}
+                        style={{
+                          background: copiedPassword ? '#dcfce7' : '#f1f5f9',
+                          border: 'none',
+                          color: copiedPassword ? '#15803d' : '#64748b',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {copiedPassword ? <CheckCheck size={16} /> : <Copy size={16} />}
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setResetShowPassword(!resetShowPassword)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {resetShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  {copiedPassword && (
+                    <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>
+                      ✓ Senha copiada para a área de transferência!
+                    </span>
+                  )}
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  cursor: 'pointer'
+                }} onClick={() => setResetForceChange(!resetForceChange)}>
+                  <input 
+                    type="checkbox"
+                    checked={resetForceChange}
+                    onChange={e => setResetForceChange(e.target.checked)}
+                    id="force-change-checkbox"
+                    style={{ marginTop: '2px', cursor: 'pointer', accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <label htmlFor="force-change-checkbox" style={{ fontSize: '13px', color: '#1e40af', cursor: 'pointer', lineHeight: '1.4' }}>
+                    <strong>Exigir troca de senha no próximo login</strong> (Recomendado)
+                    <div style={{ fontSize: '11px', color: '#3b82f6', marginTop: '2px' }}>
+                      O sistema forçará o colaborador a escolher sua senha pessoal definitiva assim que acessar com esta temporária.
+                    </div>
+                  </label>
+                </div>
+
+                <div style={styles.modalActions}>
+                  <button type="button" className="btn-padrao" onClick={() => setResettingUser(null)} style={styles.cancelBtn}>Cancelar</button>
+                  <button type="submit" className="btn-padrao" style={styles.confirmResetBtn} disabled={resetLoading}>
+                    {resetLoading ? 'Salvando...' : 'Confirmar e Redefinir'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* DELETE CONFIRM MODAL */}
       <AnimatePresence>
         {deletingUser && (
@@ -354,6 +569,7 @@ export default function Usuarios() {
               ) : (
                 users.map(u => {
                   const self = currentUser && currentUser.id === u.id;
+                  const isBlockedByRole = isGestor && u.role === 'admin';
                   return (
                     <tr key={u.id} style={styles.trRow} className="usuarios-tr-row">
                       <td style={{ ...styles.td, fontWeight: 600 }}>{u.nome} {self && <span style={styles.selfBadge}>(Você)</span>}</td>
@@ -381,6 +597,19 @@ export default function Usuarios() {
                       </td>
                       <td style={{ ...styles.td, textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button 
+                            className="btn-padrao" 
+                            style={{
+                              ...styles.actionBtnReset,
+                              opacity: isBlockedByRole ? 0.4 : 1,
+                              cursor: isBlockedByRole ? 'not-allowed' : 'pointer'
+                            }}
+                            onClick={() => !isBlockedByRole && openResetModal(u)}
+                            disabled={isBlockedByRole}
+                            title={isBlockedByRole ? "Gestores não podem redefinir senha de administradores" : "Redefinir senha de acesso"}
+                          >
+                            <KeyRound size={14} />
+                          </button>
                           <button 
                             className="btn-padrao" 
                             style={styles.actionBtnEdit}
@@ -510,6 +739,19 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.2px'
   },
+  actionBtnReset: {
+    background: '#fef3c7',
+    color: '#d97706',
+    border: '1px solid #fde68a',
+    width: '32px',
+    height: '32px',
+    padding: 0,
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s'
+  },
   actionBtnEdit: {
     background: '#eff6ff',
     color: '#3b82f6',
@@ -620,6 +862,12 @@ const styles = {
     background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
     color: 'white',
     border: 'none'
+  },
+  confirmResetBtn: {
+    background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+    color: 'white',
+    border: 'none',
+    boxShadow: '0 4px 10px rgba(217, 119, 6, 0.2)'
   },
   deleteConfirmBtn: {
     background: '#ef4444',
