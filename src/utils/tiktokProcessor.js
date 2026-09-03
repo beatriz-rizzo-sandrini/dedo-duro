@@ -403,10 +403,10 @@ export function mergeMarketplaceData(reportsArray) {
         videoMap[v.video_id] = { ...v };
       } else {
         const mv = videoMap[v.video_id];
-        mv.gmv = (mv.gmv || 0) + (v.gmv || 0);
-        mv.orders = (mv.orders || 0) + (v.orders || 0);
-        mv.views = (mv.views || 0) + (v.views || 0);
-        mv.clicks = (mv.clicks || 0) + (v.clicks || 0);
+        mv.gmv = Math.max(mv.gmv || 0, v.gmv || 0);
+        mv.orders = Math.max(mv.orders || 0, v.orders || 0);
+        mv.views = Math.max(mv.views || 0, v.views || 0);
+        mv.clicks = Math.max(mv.clicks || 0, v.clicks || 0);
       }
     });
 
@@ -417,11 +417,11 @@ export function mergeMarketplaceData(reportsArray) {
         liveMap[l.live_id] = { ...l };
       } else {
         const ml = liveMap[l.live_id];
-        ml.gmv = (ml.gmv || 0) + (l.gmv || 0);
-        ml.orders = (ml.orders || 0) + (l.orders || 0);
-        ml.views = (ml.views || 0) + (l.views || 0);
-        ml.clicks = (ml.clicks || 0) + (l.clicks || 0);
-        ml.duration_seconds = (ml.duration_seconds || 0) + (l.duration_seconds || 0);
+        ml.gmv = Math.max(ml.gmv || 0, l.gmv || 0);
+        ml.orders = Math.max(ml.orders || 0, l.orders || 0);
+        ml.views = Math.max(ml.views || 0, l.views || 0);
+        ml.clicks = Math.max(ml.clicks || 0, l.clicks || 0);
+        ml.duration_seconds = Math.max(ml.duration_seconds || 0, l.duration_seconds || 0);
       }
     });
 

@@ -151,6 +151,49 @@ const parseReportPeriod = (periodStr) => {
   return null;
 };
 
+// Remove relatórios obsoletos ou que foram sobrepostos por importações mais recentes/completas
+const deduplicateReports = (reports) => {
+  if (!reports || reports.length === 0) return [];
+  const sorted = [...reports].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const accepted = [];
+
+  for (const rep of sorted) {
+    const p = parseReportPeriod(rep.period || rep.data?.metadata?.period);
+    if (!p) {
+      accepted.push(rep);
+      continue;
+    }
+
+    const startRep = new Date(`${p.start}T00:00:00Z`).getTime();
+    const endRep = new Date(`${p.end}T23:59:59Z`).getTime();
+
+    let isSubsumed = false;
+    for (const acc of accepted) {
+      const accP = parseReportPeriod(acc.period || acc.data?.metadata?.period);
+      if (!accP) continue;
+      const startAcc = new Date(`${accP.start}T00:00:00Z`).getTime();
+      const endAcc = new Date(`${accP.end}T23:59:59Z`).getTime();
+
+      const overlapStart = Math.max(startRep, startAcc);
+      const overlapEnd = Math.min(endRep, endAcc);
+      const overlapDuration = Math.max(0, overlapEnd - overlapStart);
+      const repDuration = endRep - startRep;
+
+      // Se mais de 40% deste relatório já estiver coberto por uma importação mais recente aceita, ele é descartado
+      if (repDuration > 0 && (overlapDuration / repDuration) > 0.4) {
+        isSubsumed = true;
+        break;
+      }
+    }
+
+    if (!isSubsumed) {
+      accepted.push(rep);
+    }
+  }
+
+  return accepted;
+};
+
 // Componente Reutilizável de Paginação
 const PaginationControls = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange, onItemsPerPageChange, label = 'itens' }) => {
   if (totalItems === 0) return null;
@@ -319,10 +362,11 @@ export default function Marketplace() {
   // Intervalo completo de datas disponíveis no banco (mínimo e máximo)
   const availableDateRange = useMemo(() => {
     if (!rawReports || rawReports.length === 0) return null;
+    const cleanReports = deduplicateReports(rawReports);
     let minDate = null;
     let maxDate = null;
 
-    rawReports.forEach(r => {
+    cleanReports.forEach(r => {
       const p = parseReportPeriod(r.period || r.data?.metadata?.period);
       if (p) {
         if (p.start && (!minDate || p.start < minDate)) minDate = p.start;
@@ -359,14 +403,27 @@ export default function Marketplace() {
       };
     }
     
-    let filtered = rawReports;
+    const cleanReports = deduplicateReports(rawReports);
+    let filtered = cleanReports;
+
     if (startDate || endDate) {
-      filtered = rawReports.filter(r => {
+      const targetStart = startDate ? new Date(`${startDate}T00:00:00Z`).getTime() : 0;
+      const targetEnd = endDate ? new Date(`${endDate}T23:59:59Z`).getTime() : Infinity;
+
+      filtered = cleanReports.filter(r => {
         const p = parseReportPeriod(r.period || r.data?.metadata?.period);
         if (!p) return true;
-        if (startDate && p.end < startDate) return false;
-        if (endDate && p.start > endDate) return false;
-        return true;
+
+        const rStart = new Date(`${p.start}T00:00:00Z`).getTime();
+        const rEnd = new Date(`${p.end}T23:59:59Z`).getTime();
+
+        const overlapStart = Math.max(targetStart, rStart);
+        const overlapEnd = Math.min(targetEnd, rEnd);
+        const overlapDuration = Math.max(0, overlapEnd - overlapStart);
+        const overlapDays = overlapDuration / (1000 * 60 * 60 * 24);
+
+        // Só inclui o relatório se a sobreposição com o período selecionado for de pelo menos 2 dias
+        return overlapDays >= 2;
       });
     }
     
