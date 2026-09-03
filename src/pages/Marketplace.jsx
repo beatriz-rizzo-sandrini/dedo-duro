@@ -115,37 +115,36 @@ const tabs = [
 ];
 
 const parseReportPeriod = (periodStr) => {
-  if (!periodStr || !periodStr.includes('-')) return null;
-  const parts = periodStr.split('-');
-  
-  // Formato: 20260601-20260824 (8 dígitos cada)
-  if (parts.length === 2 && parts[0].trim().length === 8 && parts[1].trim().length === 8 && !parts[0].includes('/') && !parts[1].includes('/')) {
-    const s = parts[0].trim();
-    const e = parts[1].trim();
+  if (!periodStr) return null;
+  const str = String(periodStr).trim();
+
+  // 1. YYYYMMDD-YYYYMMDD (ex: 20260731-20260829)
+  const ymd8Regex = /(\d{4})(\d{2})(\d{2})[^\d]+(\d{4})(\d{2})(\d{2})/;
+  const match8 = str.match(ymd8Regex);
+  if (match8) {
     return {
-      start: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`,
-      end: `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}`
+      start: `${match8[1]}-${match8[2]}-${match8[3]}`,
+      end: `${match8[4]}-${match8[5]}-${match8[6]}`
     };
   }
 
-  // Formato: DD/MM/YYYY - DD/MM/YYYY
-  if (parts.length === 2) {
-    const toISO = (dStr) => {
-      const p = dStr.trim().split(/[\/]/);
-      if (p.length === 3) return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
-      return dStr.trim();
-    };
+  // 2. YYYY-MM-DD ... YYYY-MM-DD
+  const isoRegex = /(\d{4})-(\d{2})-(\d{2})[^\d]+(\d{4})-(\d{2})-(\d{2})/;
+  const matchIso = str.match(isoRegex);
+  if (matchIso) {
     return {
-      start: toISO(parts[0]),
-      end: toISO(parts[1])
+      start: `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`,
+      end: `${matchIso[4]}-${matchIso[5]}-${matchIso[6]}`
     };
   }
 
-  // Formato: YYYY-MM-DD-YYYY-MM-DD
-  if (parts.length === 6) {
+  // 3. DD/MM/YYYY ... DD/MM/YYYY
+  const brRegex = /(\d{2})\/(\d{2})\/(\d{4})[^\d]+(\d{2})\/(\d{2})\/(\d{4})/;
+  const matchBr = str.match(brRegex);
+  if (matchBr) {
     return {
-      start: `${parts[0]}-${parts[1]}-${parts[2]}`,
-      end: `${parts[3]}-${parts[4]}-${parts[5]}`
+      start: `${matchBr[3]}-${matchBr[2]}-${matchBr[1]}`,
+      end: `${matchBr[6]}-${matchBr[5]}-${matchBr[4]}`
     };
   }
 
@@ -212,6 +211,20 @@ export default function Marketplace() {
   const searchTerm = useDeferredValue(rawSearchTerm);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const handleStartDateChange = (newStart) => {
+    setStartDate(newStart);
+    if (newStart && endDate && newStart > endDate) {
+      setEndDate(newStart);
+    }
+  };
+
+  const handleEndDateChange = (newEnd) => {
+    setEndDate(newEnd);
+    if (newEnd && startDate && newEnd < startDate) {
+      setStartDate(newEnd);
+    }
+  };
   
   const [rawReports, setRawReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -334,7 +347,17 @@ export default function Marketplace() {
 
   // Dados consolidados filtrados pelo intervalo de datas selecionado no calendário
   const marketplaceData = useMemo(() => {
-    if (!rawReports || rawReports.length === 0) return null;
+    if (!rawReports || rawReports.length === 0) {
+      return {
+        metadata: { period: '', total_gmv: 0 },
+        creators: [],
+        products: [],
+        videos: [],
+        lives: [],
+        unified_affinity: [],
+        isFilteredEmpty: true
+      };
+    }
     
     let filtered = rawReports;
     if (startDate || endDate) {
@@ -347,7 +370,17 @@ export default function Marketplace() {
       });
     }
     
-    if (filtered.length === 0) return null;
+    if (filtered.length === 0) {
+      return {
+        metadata: { period: '', total_gmv: 0 },
+        creators: [],
+        products: [],
+        videos: [],
+        lives: [],
+        unified_affinity: [],
+        isFilteredEmpty: true
+      };
+    }
     return mergeMarketplaceData(filtered);
   }, [rawReports, startDate, endDate]);
 
@@ -1847,41 +1880,7 @@ export default function Marketplace() {
     );
   }
 
-  if (dataError || !marketplaceData) {
-    return (
-      <div className="mkp-dashboard" style={{ padding: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h1 className="mkp-title">Marketplace & Afiliados</h1>
-            <p className="mkp-subtitle">Análise detalhada de performance</p>
-          </div>
-          <button 
-            onClick={() => setActiveTab(8)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              background: 'var(--mkp-accent-blue)', color: '#fff',
-              border: 'none', borderRadius: '8px', padding: '0 20px',
-              fontWeight: 'bold', cursor: 'pointer', height: '42px',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <UploadCloud size={18} /> Importar Planilhas
-          </button>
-        </div>
 
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '24px', borderRadius: '8px', color: '#f87171' }}>
-          <AlertCircle size={32} style={{ marginBottom: '16px' }} />
-          <h2 style={{ marginBottom: '8px' }}>Erro ao carregar dados (ou banco vazio)</h2>
-          <p>{dataError || 'Nenhum dado disponível na tabela tiktok_reports. Faça a importação das planilhas clicando no botão acima.'}</p>
-        </div>
-
-        {activeTab === 8 && renderTab8()}
-      </div>
-    );
-  }
 
   return (
     <div className="mkp-dashboard">
@@ -1891,8 +1890,8 @@ export default function Marketplace() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
             <p className="mkp-subtitle" style={{ margin: 0 }}>
               {startDate && endDate 
-                ? `Exibindo: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${filteredDaysCount} dias)` 
-                : formatPeriod(marketplaceData.metadata?.period)}
+                ? `Exibindo: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${marketplaceData?.isFilteredEmpty ? 0 : filteredDaysCount} dias)` 
+                : formatPeriod(marketplaceData?.metadata?.period)}
             </p>
             {availableDateRange && (
               <span style={{
@@ -1933,7 +1932,7 @@ export default function Marketplace() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="filter-input date-input"
                 title="Data Inicial"
               />
@@ -1944,7 +1943,7 @@ export default function Marketplace() {
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => handleEndDateChange(e.target.value)}
                 className="filter-input date-input"
                 title="Data Final"
               />
@@ -2026,6 +2025,98 @@ export default function Marketplace() {
           </button>
         </div>
       </div>
+
+      {marketplaceData?.isFilteredEmpty && (
+        <div style={{
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              background: 'rgba(59, 130, 246, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#60a5fa',
+              flexShrink: 0
+            }}>
+              <CalendarDays size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '600', color: 'var(--mkp-text-primary)', fontSize: '14px' }}>
+                Nenhum dado encontrado para o período selecionado ({startDate ? startDate.split('-').reverse().join('/') : ''} a {endDate ? endDate.split('-').reverse().join('/') : ''})
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--mkp-text-secondary)', marginTop: '2px' }}>
+                {availableDateRange 
+                  ? `Os relatórios cadastrados cobrem o período de ${availableDateRange.label}.` 
+                  : 'Nenhum dado cadastrado para este intervalo.'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (availableDateRange?.max) {
+                  const endD = new Date(`${availableDateRange.max}T12:00:00`);
+                  const startD = new Date(endD);
+                  startD.setDate(startD.getDate() - 29);
+                  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  setStartDate(fmt(startD));
+                  setEndDate(fmt(endD));
+                }
+              }}
+              style={{
+                background: 'var(--mkp-accent-blue)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Restaurar Últimos 30 Dias
+            </button>
+            {availableDateRange && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate(availableDateRange.min);
+                  setEndDate(availableDateRange.max);
+                }}
+                style={{
+                  background: 'var(--mkp-surface)',
+                  color: 'var(--mkp-text-primary)',
+                  border: '1px solid var(--mkp-border)',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Ver Todo o Período
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mkp-tabs" style={{ flexWrap: 'wrap', justifyContent: 'flex-start' }}>
         {tabs.map(tab => {
