@@ -9,8 +9,8 @@ const SPREADSHEET_ID = '1bFMoSCDOGZb0Jh-f4f_0OS8HiSYXdG5XgwCrz9KYS_Y';
 // Abas do Google Sheets (badstock, caminho, sellout) - estoque e vendas vem do Supabase
 const SHEETS_FROM_GS = [];
 
-// Data de corte do histórico de vendas no Supabase
-const VENDAS_CUTOFF = '2026-03-29';
+// Data de corte do histórico de vendas no Supabase (últimos ~90 dias / trimestre ativo)
+const VENDAS_CUTOFF = '2026-06-01';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 const CACHE_KEY = '__dedo_duro_data_hybrid7__';
@@ -34,7 +34,7 @@ async function fetchSheet(name) {
   return parseGoogleJSON(text);
 }
 
-// ── Vendas do Supabase (histórico desde 29/03/2026) ─────────────────────────
+// ── Vendas do Supabase ───────────────────────────────────────────────────────
 
 // Converte "2026-05-12" → "12/05/2026" (formato esperado pelas páginas no campo .f)
 function sqlDateToBR(d) {
@@ -45,12 +45,10 @@ function sqlDateToBR(d) {
 }
 
 async function fetchVendasSupabase() {
-  const PAGE_SIZE = 1000;
-  
-  // Cutoff estático para carregar todo o histórico a partir do final de março
+  const PAGE_SIZE = 2500;
   const dynamicCutoff = VENDAS_CUTOFF;
   try {
-    // 1. Obtém o total de registros (head request rápido)
+    // 1. Obtém o total de registros (head request ultra-rápido)
     const { count, error: countError } = await supabase
       .from('vw_vendas_consolidadas')
       .select('*', { count: 'exact', head: true })
@@ -64,7 +62,7 @@ async function fetchVendasSupabase() {
 
     if (totalPages === 0) return [];
 
-    // 2. Dispara consultas em paralelo
+    // 2. Dispara consultas em paralelo em blocos maiores
     const promises = [];
     for (let page = 0; page < totalPages; page++) {
       const from = page * PAGE_SIZE;
@@ -143,28 +141,13 @@ async function fetchVendasSupabase() {
 
 async function fetchAvailableStockDates() {
   try {
-    let allDates = [];
-    let from = 0;
-    const PAGE_SIZE = 1000;
-    let hasMore = true;
+    const { data, error } = await supabase
+      .from('v_resumo_estoque_diario')
+      .select('data_atualizacao')
+      .limit(500);
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('v_resumo_estoque_diario')
-        .select('data_atualizacao')
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        allDates = allDates.concat(data.map(r => r.data_atualizacao));
-        if (data.length < PAGE_SIZE) hasMore = false;
-      } else {
-        hasMore = false;
-      }
-      from += PAGE_SIZE;
-    }
-
-    const uniqueNormalized = [...new Set(allDates.filter(Boolean).map(normalizeDateStr))];
+    if (error) throw error;
+    const uniqueNormalized = [...new Set((data || []).map(r => r.data_atualizacao).filter(Boolean).map(normalizeDateStr))];
     uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
     return uniqueNormalized;
   } catch (err) {
@@ -176,32 +159,14 @@ async function fetchAvailableStockDates() {
 async function fetchResumoEstoqueDiario() {
   try {
     console.log('[DataContext] Buscando resumo de estoque diário...');
-    let allData = [];
-    let from = 0;
-    const PAGE_SIZE = 1000;
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('v_resumo_estoque_diario')
-        .select('data_atualizacao, marca, local_estoque, total_quantidade, total_valor')
-        .range(from, from + PAGE_SIZE - 1);
+    const { data, error } = await supabase
+      .from('v_resumo_estoque_diario')
+      .select('data_atualizacao, marca, local_estoque, total_quantidade, total_valor')
+      .limit(2000);
         
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        allData = allData.concat(data);
-        if (data.length < PAGE_SIZE) {
-          hasMore = false;
-        }
-      } else {
-        hasMore = false;
-      }
-      from += PAGE_SIZE;
-    }
-    
-    console.log(`[DataContext] Resumo de estoque diário carregado: ${allData.length} registros.`);
-    return allData;
+    if (error) throw error;
+    console.log(`[DataContext] Resumo de estoque diário carregado: ${(data || []).length} registros.`);
+    return data || [];
   } catch (err) {
     console.error('Erro ao buscar resumo de estoque diário:', err?.message);
     return [];
@@ -209,7 +174,7 @@ async function fetchResumoEstoqueDiario() {
 }
 
 async function fetchEstoqueSupabase(targetDate = null) {
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 2500;
   
   try {
     let possibleDbValues = null;
@@ -231,7 +196,7 @@ async function fetchEstoqueSupabase(targetDate = null) {
     } else {
       try {
         const { data: latestRows, error: dateError } = await supabase
-          .from('silver_estoque')
+          .from('vw_estoque_consolidado')
           .select('data_atualizacao')
           .order('id', { ascending: false })
           .limit(1);
@@ -259,7 +224,7 @@ async function fetchEstoqueSupabase(targetDate = null) {
 
     // 1. Obtém o total de registros (head request rápido)
     let query = supabase.from('vw_estoque_consolidado').select('*', { count: 'exact', head: true });
-    if (possibleDbValues) {
+    if (possibleDbValues && possibleDbValues.length > 0) {
       query = query.in('data_atualizacao', possibleDbValues);
     }
     const { count, error: countError } = await query;
@@ -283,7 +248,7 @@ async function fetchEstoqueSupabase(targetDate = null) {
         .order('id', { ascending: false })
         .range(from, to);
 
-      if (possibleDbValues) {
+      if (possibleDbValues && possibleDbValues.length > 0) {
         pageQuery = pageQuery.in('data_atualizacao', possibleDbValues);
       }
 
