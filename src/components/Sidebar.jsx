@@ -106,21 +106,10 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         </nav>
 
         {/* Theme and Logout Actions */}
-        <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
+        <div className="sidebar-actions">
           <button 
             onClick={toggleTheme}
-            className="nav-link" 
-            style={{ 
-              background: 'transparent', 
-              border: 'none', 
-              cursor: 'pointer', 
-              width: '100%', 
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '10px 14px'
-            }}
+            className="nav-link action-btn" 
             title={isCollapsed ? "Alternar Tema" : ""}
           >
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
@@ -129,19 +118,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
 
           <button 
             onClick={logout}
-            className="nav-link" 
-            style={{ 
-              background: 'transparent', 
-              border: 'none', 
-              cursor: 'pointer', 
-              width: '100%', 
-              textAlign: 'left',
-              color: 'var(--sidebar-text)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '10px 14px'
-            }}
+            className="nav-link action-btn" 
             title={isCollapsed ? "Sair" : ""}
           >
             <LogOut size={20} />

@@ -28,6 +28,13 @@
   margin-bottom: 24px;
 }
 
+.sidebar.collapsed .sidebar-logo {
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 24px;
+  padding: 0;
+}
+
 .sidebar-logo .logo-text {
   display: block;
   font-size: 26px;
@@ -44,11 +51,16 @@
 }
 
 .logo-text-small {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   font-size: 24px;
   font-weight: 800;
   color: white;
   text-align: center;
+  margin: 0 auto;
+  letter-spacing: 0.5px;
   background: linear-gradient(135deg, #fff, #94a3b8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -122,6 +134,22 @@
   background: #3b82f6;
   color: white;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* ─── Ações de Rodapé (Tema e Sair) ─── */
+.sidebar-actions {
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
 }
 
 /* ─── Botão colapsar (desktop) ─── */
