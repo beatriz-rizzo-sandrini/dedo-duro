@@ -470,35 +470,65 @@ export default function Marketplace() {
 
   const filteredVideos = useMemo(() => {
     if (!marketplaceData?.videos) return [];
-    if (!searchTerm) return marketplaceData.videos;
-    const term = searchTerm.toLowerCase();
-    return marketplaceData.videos.filter(v => 
-      v.creator_name?.toLowerCase().includes(term) ||
-      v.video_title?.toLowerCase().includes(term) ||
-      (v.product_names && v.product_names.some(pn => pn.toLowerCase().includes(term)))
-    );
-  }, [searchTerm, marketplaceData]);
+    let list = marketplaceData.videos;
+    if (startDate || endDate) {
+      list = list.filter(v => {
+        if (startDate && v.date && v.date < startDate) return false;
+        if (endDate && v.date && v.date > endDate) return false;
+        return true;
+      });
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(v => 
+        v.creator_name?.toLowerCase().includes(term) ||
+        v.video_title?.toLowerCase().includes(term) ||
+        (v.product_names && v.product_names.some(pn => pn.toLowerCase().includes(term)))
+      );
+    }
+    return list;
+  }, [searchTerm, marketplaceData, startDate, endDate]);
 
   const filteredLives = useMemo(() => {
     if (!marketplaceData?.lives) return [];
-    if (!searchTerm) return marketplaceData.lives;
-    const term = searchTerm.toLowerCase();
-    return marketplaceData.lives.filter(l => 
-      l.creator_name?.toLowerCase().includes(term) ||
-      l.live_title?.toLowerCase().includes(term) ||
-      (l.product_names && l.product_names.some(pn => pn.toLowerCase().includes(term)))
-    );
-  }, [searchTerm, marketplaceData]);
+    let list = marketplaceData.lives;
+    if (startDate || endDate) {
+      list = list.filter(l => {
+        if (startDate && l.date && l.date < startDate) return false;
+        if (endDate && l.date && l.date > endDate) return false;
+        return true;
+      });
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(l => 
+        l.creator_name?.toLowerCase().includes(term) ||
+        l.live_title?.toLowerCase().includes(term) ||
+        (l.product_names && l.product_names.some(pn => pn.toLowerCase().includes(term)))
+      );
+    }
+    return list;
+  }, [searchTerm, marketplaceData, startDate, endDate]);
 
   const filteredAffinity = useMemo(() => {
     if (!marketplaceData?.unified_affinity) return [];
-    if (!searchTerm) return marketplaceData.unified_affinity;
-    const term = searchTerm.toLowerCase();
-    return marketplaceData.unified_affinity.filter(item => 
-      item.creator_name?.toLowerCase().includes(term) ||
-      item.product_name?.toLowerCase().includes(term)
-    );
-  }, [searchTerm, marketplaceData]);
+    let list = marketplaceData.unified_affinity;
+    if (startDate || endDate) {
+      list = list.filter(item => {
+        if (startDate && item.date && item.date < startDate) return false;
+        if (endDate && item.date && item.date > endDate) return false;
+        return true;
+      });
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(item => 
+        item.creator_name?.toLowerCase().includes(term) ||
+        item.product_name?.toLowerCase().includes(term)
+      );
+    }
+    return list;
+  }, [searchTerm, marketplaceData, startDate, endDate]);
 
   // Quantidade de dias no período filtrado (para médias diárias)
   const filteredDaysCount = useMemo(() => {
@@ -526,27 +556,84 @@ export default function Marketplace() {
     return 30;
   }, [startDate, endDate, marketplaceData?.metadata?.period]);
 
-  // Lista Oficial de Criadores (Métricas 100% idênticas ao TikTok)
+  // Lista Oficial de Criadores (Calculado dinamicamente com base nas datas selecionadas)
   const sortedCreators = useMemo(() => {
     if (!marketplaceData?.creators) return [];
-    let list = marketplaceData.creators.map(c => ({
-      ...c,
-      avg_live_duration_seconds: Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1))
-    }));
+
+    const isCustomDateFilter = Boolean(startDate || endDate);
+    let list = [];
+
+    if (isCustomDateFilter && (filteredVideos.length > 0 || filteredLives.length > 0)) {
+      const creatorMap = {};
+      (marketplaceData.creators || []).forEach(c => {
+        creatorMap[c.creator_name] = {
+          creator_name: c.creator_name,
+          gmv: 0,
+          orders: 0,
+          items_sold: 0,
+          video_count: 0,
+          live_count: 0,
+          live_duration_seconds: 0,
+          refunds: 0,
+          commission: 0,
+          _base: c
+        };
+      });
+
+      filteredVideos.forEach(v => {
+        if (!v.creator_name) return;
+        if (!creatorMap[v.creator_name]) {
+          creatorMap[v.creator_name] = { creator_name: v.creator_name, gmv: 0, orders: 0, items_sold: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, refunds: 0, commission: 0 };
+        }
+        const c = creatorMap[v.creator_name];
+        c.gmv += (v.gmv || 0);
+        c.orders += (v.orders || 0);
+        c.video_count += 1;
+      });
+
+      filteredLives.forEach(l => {
+        if (!l.creator_name) return;
+        if (!creatorMap[l.creator_name]) {
+          creatorMap[l.creator_name] = { creator_name: l.creator_name, gmv: 0, orders: 0, items_sold: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, refunds: 0, commission: 0 };
+        }
+        const c = creatorMap[l.creator_name];
+        c.gmv += (l.gmv || 0);
+        c.orders += (l.orders || 0);
+        c.live_count += 1;
+        c.live_duration_seconds += (l.duration_seconds || 0);
+      });
+
+      Object.values(creatorMap).forEach(c => {
+        if (c._base && c._base.gmv > 0) {
+          const ratio = c.gmv / c._base.gmv;
+          c.items_sold = Math.round((c._base.items_sold || 0) * ratio);
+          c.refunds = (c._base.refunds || 0) * ratio;
+          c.commission = (c._base.commission || 0) * ratio;
+        } else {
+          c.items_sold = c.orders;
+        }
+        c.avg_live_duration_seconds = Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1));
+      });
+
+      list = Object.values(creatorMap).filter(c => c.gmv > 0 || c.orders > 0 || c.video_count > 0 || c.live_count > 0);
+    } else {
+      list = marketplaceData.creators.map(c => ({
+        ...c,
+        avg_live_duration_seconds: Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1))
+      }));
+    }
+
     list = list.filter(c => c && c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(c => c.creator_name.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig);
-  }, [searchTerm, sortConfig, marketplaceData, filteredDaysCount]);
+  }, [searchTerm, sortConfig, marketplaceData, filteredDaysCount, startDate, endDate, filteredVideos, filteredLives]);
 
   const totalGMV = useMemo(() => {
-    if (searchTerm) {
-      return sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
-    }
-    return marketplaceData?.metadata?.total_gmv || marketplaceData?.creators?.reduce((acc, c) => acc + (c.gmv || 0), 0) || 0;
-  }, [marketplaceData, searchTerm, sortedCreators]);
+    return sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
+  }, [sortedCreators]);
     
   const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
   const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
@@ -601,14 +688,58 @@ export default function Marketplace() {
   // Lista Oficial de Produtos
   const sortedProducts = useMemo(() => {
     if (!marketplaceData?.products) return [];
-    let list = [...(marketplaceData.products || [])];
+
+    const isCustomDateFilter = Boolean(startDate || endDate);
+    let list = [];
+
+    if (isCustomDateFilter && filteredAffinity.length > 0) {
+      const prodMap = {};
+      (marketplaceData.products || []).forEach(p => {
+        prodMap[p.product_id] = {
+          product_id: p.product_id,
+          product_name: p.product_name,
+          gmv: 0,
+          orders: 0,
+          items_sold: 0,
+          refunds: 0,
+          commission: 0,
+          _base: p
+        };
+      });
+
+      filteredAffinity.forEach(a => {
+        if (!a.product_id) return;
+        if (!prodMap[a.product_id]) {
+          prodMap[a.product_id] = { product_id: a.product_id, product_name: a.product_name, gmv: 0, orders: 0, items_sold: 0, refunds: 0, commission: 0 };
+        }
+        const p = prodMap[a.product_id];
+        p.gmv += (a.gmv_presence || 0);
+        p.orders += (a.orders_presence || 0);
+      });
+
+      Object.values(prodMap).forEach(p => {
+        if (p._base && p._base.gmv > 0) {
+          const ratio = p.gmv / p._base.gmv;
+          p.items_sold = Math.round((p._base.items_sold || 0) * ratio);
+          p.refunds = (p._base.refunds || 0) * ratio;
+          p.commission = (p._base.commission || 0) * ratio;
+        } else {
+          p.items_sold = p.orders;
+        }
+      });
+
+      list = Object.values(prodMap).filter(p => p.gmv > 0 || p.orders > 0);
+    } else {
+      list = [...(marketplaceData.products || [])];
+    }
+
     list = list.filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(p => p.product_name?.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig).slice(0, 10);
-  }, [searchTerm, sortConfig, marketplaceData]);
+  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredAffinity]);
 
   // Affinity Data
   const affinityList = useMemo(() => {
