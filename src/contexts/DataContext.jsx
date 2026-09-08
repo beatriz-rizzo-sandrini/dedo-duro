@@ -142,7 +142,7 @@ async function fetchVendasSupabase() {
 async function fetchAvailableStockDates() {
   try {
     const { data, error } = await supabase
-      .from('vw_estoque_consolidado')
+      .from('silver_estoque')
       .select('data_atualizacao')
       .order('id', { ascending: false })
       .limit(3000);
@@ -622,32 +622,7 @@ export function DataProvider({ children }) {
     setStockLoading(true);
     setError(null);
     try {
-      let resolvedDate = targetDate;
-      if (targetDate && availableDates.length > 0) {
-        const normTarget = normalizeDateStr(targetDate);
-        if (!availableDates.includes(normTarget)) {
-          const targetTs = parseToTimestamp(normTarget);
-          let closestDate = null;
-          let minDiff = Infinity;
-          
-          availableDates.forEach(d => {
-            const dTs = parseToTimestamp(d);
-            if (dTs <= targetTs) {
-              const diff = targetTs - dTs;
-              if (diff < minDiff) {
-                minDiff = diff;
-                closestDate = d;
-              }
-            }
-          });
-          
-          if (!closestDate) {
-            closestDate = availableDates[availableDates.length - 1]; // oldest fallback
-          }
-          resolvedDate = closestDate;
-        }
-      }
-
+      const resolvedDate = targetDate;
       const estoqueResult = await fetchEstoqueSupabase(resolvedDate);
       const rawEstoque = estoqueResult.rows;
       const mappedEstoque = rawEstoque.map(r => {
