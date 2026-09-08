@@ -300,7 +300,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
       .replace(/\s+/g, ' ')
       .trim();
 
-    if ((skuUpper.startsWith('SA00184') || skuUpper.startsWith('KSA00184')) && normBrand === 'SANDRINI') {
+    if ((skuUpper.includes('1841') || skuUpper.includes('SPARK') || finalTitle.toUpperCase().includes('1841') || finalTitle.toUpperCase().includes('SPARK')) && (normBrand === 'SANDRINI' || skuUpper.startsWith('SA') || skuUpper.startsWith('KSA'))) {
       const isKit = skuUpper.startsWith('K') || skuUpper.startsWith('KSA') || finalTitle.toUpperCase().includes('KIT');
       finalTitle = isKit ? 'Kit Tenis Sandrini Aero Spark (1841)' : 'Tenis Sandrini Aero Spark (1841)';
     } else if (skuUpper.includes('SD2600') || finalTitle.toUpperCase().includes('SD2600')) {
@@ -977,7 +977,7 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
   } else if (baseTitleUpper.includes('A623') || skuUpper.includes('A623')) {
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     baseTitle = isKit ? 'Kit Tenis Sandrini Spryte (A623)' : 'Tenis Sandrini Spryte (A623)';
-  } else if ((skuUpper.startsWith('SA00184') || skuUpper.startsWith('KSA00184')) && normBrand === 'SANDRINI') {
+  } else if ((skuUpper.includes('1841') || skuUpper.includes('SPARK') || baseTitleUpper.includes('1841') || baseTitleUpper.includes('SPARK')) && (normBrand === 'SANDRINI' || isSandrini || skuUpper.startsWith('SA') || skuUpper.startsWith('KSA'))) {
     const isKit = baseTitleUpper.includes('KIT') || skuUpper.startsWith('K') || skuUpper.startsWith('KSA');
     baseTitle = isKit ? 'Kit Tenis Sandrini Aero Spark (1841)' : 'Tenis Sandrini Aero Spark (1841)';
   } else if (baseTitleUpper.includes('77046') || skuUpper.includes('77046') || skuUpper.startsWith('KSA04000003522') || skuUpper.includes('3522CO')) {
