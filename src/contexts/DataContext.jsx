@@ -175,136 +175,64 @@ async function fetchResumoEstoqueDiario() {
 }
 
 async function fetchEstoqueSupabase(targetDate = null) {
-  const PAGE_SIZE = 2500;
+  const PAGE_SIZE = 1000;
   
   try {
-    let possibleDbValues = null;
-    let targetNormalizedDate = "";
-
-    if (targetDate) {
-      targetNormalizedDate = normalizeDateStr(targetDate);
-      possibleDbValues = [];
-      const parts = targetNormalizedDate.split('/');
-      if (parts.length === 3) {
-        possibleDbValues.push(`${parts[0]}/${parts[1]}`);
-        possibleDbValues.push(targetNormalizedDate);
-        possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
-        possibleDbValues.push(`${parts[0]}/${parts[1]}/${parts[2].slice(2)}`); // DD/MM/YY
-        possibleDbValues.push(`${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`);
-      } else {
-        possibleDbValues.push(targetNormalizedDate);
-      }
-    } else {
-      try {
-        const { data: latestRows, error: dateError } = await supabase
-          .from('vw_estoque_consolidado')
-          .select('data_atualizacao')
-          .order('id', { ascending: false })
-          .limit(1);
-        
-        if (!dateError && latestRows && latestRows.length > 0) {
-          const rawLatest = latestRows[0].data_atualizacao;
-          targetNormalizedDate = normalizeDateStr(rawLatest);
-
-          possibleDbValues = [];
-          const parts = targetNormalizedDate.split('/');
-          if (parts.length === 3) {
-            possibleDbValues.push(`${parts[0]}/${parts[1]}`);
-            possibleDbValues.push(targetNormalizedDate);
-            possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`); // YYYY-MM-DD
-            possibleDbValues.push(`${parts[0]}/${parts[1]}/${parts[2].slice(2)}`); // DD/MM/YY
-            possibleDbValues.push(`${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`);
-          } else {
-            possibleDbValues.push(targetNormalizedDate);
-          }
-        }
-      } catch (dateErr) {
-        console.warn('[DataContext] Falha ao obter data mais recente do estoque:', dateErr);
-      }
-    }
-
-    // 1. Obtém o total de registros (head request rápido)
-    let query = supabase.from('vw_estoque_consolidado').select('*', { count: 'exact', head: true });
-    if (possibleDbValues && possibleDbValues.length > 0) {
-      query = query.in('data_atualizacao', possibleDbValues);
-    }
-    const { count, error: countError } = await query;
-
-    if (countError) throw countError;
-
-    const totalRows = count || 0;
-    const totalPages = Math.ceil(totalRows / PAGE_SIZE);
-    console.log(`[DataContext] Carregando estoque: ${totalRows} registros (${totalPages} páginas em paralelo)`);
-
-    if (totalPages === 0) return { rows: [], detectedDate: targetNormalizedDate };
-
-    // 2. Dispara consultas em paralelo
-    const promises = [];
-    for (let page = 0; page < totalPages; page++) {
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      let pageQuery = supabase
-        .from('vw_estoque_consolidado')
-        .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
+    let activeDate = targetDate;
+    if (!activeDate) {
+      const { data: latestRows, error: errLatest } = await supabase
+        .from('silver_estoque')
+        .select('data_atualizacao')
         .order('id', { ascending: false })
-        .range(from, to);
-
-      if (possibleDbValues && possibleDbValues.length > 0) {
-        pageQuery = pageQuery.in('data_atualizacao', possibleDbValues);
+        .limit(1);
+      
+      if (!errLatest && latestRows && latestRows.length > 0) {
+        activeDate = latestRows[0].data_atualizacao;
       }
-
-      promises.push(
-        pageQuery.then(({ data, error }) => {
-          if (error) throw error;
-          return data || [];
-        })
-      );
     }
 
-    const results = await Promise.all(promises);
-    let allData = [];
-    results.forEach(res => {
-      allData = allData.concat(res);
-    });
+    const targetNormalizedDate = normalizeDateStr(activeDate);
+    const parts = targetNormalizedDate ? targetNormalizedDate.split('/') : [];
+    const possibleDbValues = [];
+    if (parts.length === 3) {
+      possibleDbValues.push(`${parts[0]}/${parts[1]}`);
+      possibleDbValues.push(targetNormalizedDate);
+      possibleDbValues.push(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      possibleDbValues.push(`${parts[0]}/${parts[1]}/${parts[2].slice(2)}`);
+      possibleDbValues.push(`${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`);
+    } else if (activeDate) {
+      possibleDbValues.push(activeDate);
+    }
 
-    const rows = allData.map(r => ({
-      c: [
-        { v: r.data_atualizacao, f: r.data_atualizacao },
-        { v: r.sku_produto },
-        { v: r.descricao_produto },
-        { v: r.local_estoque },
-        { v: r.marca },
-        { v: Number(r.quantidade_disponivel) || 0 },
-        { v: Number(r.valor_unitario) || 0 },
-        { v: r.sku_original_plataforma || r.sku_produto } // index 7: original platform SKU
-      ]
-    }));
-    return { rows, detectedDate: targetNormalizedDate };
-  } catch (err) {
-    console.warn('[DataContext] Falha no fetch paralelo de estoque, usando fallback sequencial:', err?.message);
-    
-    // Fallback sequencial
+    console.log(`[DataContext] Buscando estoque para a data ${targetNormalizedDate || activeDate}...`);
+
     let allData = [];
-    let from = 0;
+    let page = 0;
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
+      let query = supabase
         .from('vw_estoque_consolidado')
         .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
-        .order('id', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
+      if (possibleDbValues.length > 0) {
+        query = query.in('data_atualizacao', possibleDbValues);
+      }
+
+      const { data, error } = await query;
       if (error) {
-        console.error('[DataContext] Falha no fallback sequencial de estoque:', error.message);
+        console.error('[DataContext] Erro ao buscar estoque:', error.message);
         break;
       }
       if (!data || data.length === 0) break;
 
       allData = allData.concat(data);
       hasMore = data.length === PAGE_SIZE;
-      from += PAGE_SIZE;
+      page++;
     }
+
+    console.log(`[DataContext] Estoque carregado: ${allData.length} registros para ${targetNormalizedDate || activeDate}`);
 
     const rows = allData.map(r => ({
       c: [
@@ -315,10 +243,14 @@ async function fetchEstoqueSupabase(targetDate = null) {
         { v: r.marca },
         { v: Number(r.quantidade_disponivel) || 0 },
         { v: Number(r.valor_unitario) || 0 },
-        { v: r.sku_original_plataforma || r.sku_produto } // index 7: original platform SKU
+        { v: r.sku_original_plataforma || r.sku_produto }
       ]
     }));
-    return { rows, detectedDate: targetDate || "" };
+
+    return { rows, detectedDate: targetNormalizedDate || activeDate };
+  } catch (err) {
+    console.error('[DataContext] Falha geral ao carregar estoque:', err);
+    return { rows: [], detectedDate: targetDate || "" };
   }
 }
 
