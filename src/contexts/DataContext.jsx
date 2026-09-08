@@ -13,7 +13,7 @@ const SHEETS_FROM_GS = [];
 const VENDAS_CUTOFF = '2026-06-01';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-const CACHE_KEY = '__dedo_duro_data_hybrid7__';
+const CACHE_KEY = '__dedo_duro_data_hybrid8__';
 
 // ── Google Sheets ─────────────────────────────────────────────────────────────
 
@@ -142,9 +142,10 @@ async function fetchVendasSupabase() {
 async function fetchAvailableStockDates() {
   try {
     const { data, error } = await supabase
-      .from('v_resumo_estoque_diario')
+      .from('vw_estoque_consolidado')
       .select('data_atualizacao')
-      .limit(500);
+      .order('id', { ascending: false })
+      .limit(3000);
 
     if (error) throw error;
     const uniqueNormalized = [...new Set((data || []).map(r => r.data_atualizacao).filter(Boolean).map(normalizeDateStr))];
@@ -689,40 +690,6 @@ export function DataProvider({ children }) {
   };
 
   const fetchAll = async (force = false) => {
-    const isDev = import.meta.env.DEV;
-    if (!force && !isDev) {
-      try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-        if (cached) {
-          const { ts, sheets } = JSON.parse(cached);
-          if (Date.now() - ts < CACHE_TTL_MS) {
-            setData(sheets);
-            setLastFetch(new Date(ts));
-            setLoading(false);
-            
-            // Restaura as refs de mapeamento do cache
-            mapLookupRef.current = sheets.mapLookup || {};
-            globalSkuMapRef.current = sheets.globalSkuMap || {};
-            
-            // Restaura as datas disponíveis/selecionada a partir do cache
-            if (sheets.availableDates && sheets.availableDates.length > 0) {
-              setAvailableDates(sheets.availableDates);
-              const initialDate = sheets.estoque?.[0]?.c?.[0]?.v || sheets.availableDates[0] || null;
-              setSelectedStockDate(initialDate);
-              setRequestedStockDate(initialDate);
-            } else if (sheets.resumoEstoque && sheets.resumoEstoque.length > 0) {
-              const uniqueNormalized = [...new Set(sheets.resumoEstoque.map(r => r.data_atualizacao).filter(Boolean).map(normalizeDateStr))];
-              uniqueNormalized.sort((a, b) => parseToTimestamp(b) - parseToTimestamp(a));
-              setAvailableDates(uniqueNormalized);
-              setSelectedStockDate(uniqueNormalized[0] || null);
-              setRequestedStockDate(uniqueNormalized[0] || null);
-            }
-            return;
-          }
-        }
-      } catch { /* ignora */ }
-    }
-
     setLoading(true);
     setError(null);
 
@@ -890,8 +857,8 @@ export function DataProvider({ children }) {
       setLastFetch(new Date());
 
       try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), sheets: combined }));
-      } catch { /* ignora quota */ }
+        sessionStorage.clear();
+      } catch { /* ignora */ }
 
     } catch (err) {
       setError(err.message);
