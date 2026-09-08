@@ -214,6 +214,7 @@ async function fetchEstoqueSupabase(targetDate = null) {
       let query = supabase
         .from('vw_estoque_consolidado')
         .select('id, data_atualizacao, sku_produto, descricao_produto, local_estoque, marca, quantidade_disponivel, valor_unitario, sku_original_plataforma')
+        .order('id', { ascending: true })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (possibleDbValues.length > 0) {
