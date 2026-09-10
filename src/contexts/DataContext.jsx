@@ -45,7 +45,7 @@ function sqlDateToBR(d) {
 }
 
 async function fetchVendasSupabase() {
-  const PAGE_SIZE = 2500;
+  const PAGE_SIZE = 1000; // Limite máximo seguro do Supabase PostgREST é 1000 linhas
   const dynamicCutoff = VENDAS_CUTOFF;
   try {
     // 1. Obtém o total de registros (head request ultra-rápido)
@@ -58,34 +58,37 @@ async function fetchVendasSupabase() {
 
     const totalRows = count || 0;
     const totalPages = Math.ceil(totalRows / PAGE_SIZE);
-    console.log(`[DataContext] Carregando vendas desde ${dynamicCutoff}: ${totalRows} registros (${totalPages} páginas em paralelo)`);
+    console.log(`[DataContext] Carregando vendas desde ${dynamicCutoff}: ${totalRows} registros (${totalPages} páginas em lotes)`);
 
     if (totalPages === 0) return [];
 
-    // 2. Dispara consultas em paralelo em blocos maiores
-    const promises = [];
-    for (let page = 0; page < totalPages; page++) {
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      promises.push(
-        supabase
-          .from('vw_vendas_consolidadas')
-          .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
-          .gte('data_venda', dynamicCutoff)
-          .order('data_venda', { ascending: false })
-          .range(from, to)
-          .then(({ data, error }) => {
-            if (error) throw error;
-            return data || [];
-          })
-      );
-    }
-
-    const results = await Promise.all(promises);
+    // 2. Dispara consultas em blocos controlados de 15 requisições paralelas
     let allData = [];
-    results.forEach(res => {
-      allData = allData.concat(res);
-    });
+    const BATCH_CONCURRENCY = 15;
+    for (let batch = 0; batch < totalPages; batch += BATCH_CONCURRENCY) {
+      const promises = [];
+      const end = Math.min(batch + BATCH_CONCURRENCY, totalPages);
+      for (let page = batch; page < end; page++) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        promises.push(
+          supabase
+            .from('vw_vendas_consolidadas')
+            .select('data_venda, local_venda, sku_produto, descricao_produto, quantidade_vendida, marca')
+            .gte('data_venda', dynamicCutoff)
+            .order('data_venda', { ascending: false })
+            .range(from, to)
+            .then(({ data, error }) => {
+              if (error) throw error;
+              return data || [];
+            })
+        );
+      }
+      const results = await Promise.all(promises);
+      results.forEach(res => {
+        allData = allData.concat(res);
+      });
+    }
 
     return allData.map(r => ({
       c: [

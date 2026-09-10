@@ -989,6 +989,18 @@ export function parseProductDescription(desc, sku = '', isWatch = false, brand =
     } else {
       baseTitle = 'Shorts Sandrini Tactel Elástico (77046)';
     }
+  } else if (skuUpper.includes('000001000') || (skuUpper.startsWith('KSA') && skuUpper.includes('1000') && !skuUpper.startsWith('KLP') && !skuUpper.startsWith('KNA') && !skuUpper.startsWith('KRB')) || (baseTitleUpper.includes('CAMISETA') && baseTitleUpper.includes('LISA') && isSandrini)) {
+    if (baseTitleUpper.includes('MEIA')) {
+      baseTitle = 'Kit 3 Camisetas Sandrini Lisa + 1 Par De Meias (1000)';
+    } else if (skuUpper.startsWith('KSA06') || baseTitleUpper.includes('KIT 6') || baseTitleUpper.includes('K6')) {
+      baseTitle = 'Kit 6 Camisetas Sandrini Lisa (1000)';
+    } else if (skuUpper.startsWith('KSA03') || baseTitleUpper.includes('KIT 3') || baseTitleUpper.includes('K3') || skuUpper.startsWith('K3')) {
+      baseTitle = 'Kit 3 Camisetas Sandrini Lisa (1000)';
+    } else if (skuUpper.startsWith('KSA02') || baseTitleUpper.includes('KIT 2') || baseTitleUpper.includes('K2') || skuUpper.startsWith('K2')) {
+      baseTitle = 'Kit 2 Camisetas Sandrini Lisa (1000)';
+    } else {
+      baseTitle = 'Camiseta Sandrini Lisa (1000)';
+    }
   }
 
   // Se o título não tiver o número do modelo, mas o SKU contiver o modelo (ex: 2032, 2230, 2170, 2171), nós injetamos no título
