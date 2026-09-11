@@ -549,7 +549,7 @@ export default function Estoque() {
 
     // Aplicar filtros de busca e locais/marcas
     if (busca) {
-      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/).filter(Boolean);
       linhas = linhas.filter(l => {
         const descLower = (l.descricao || "").toLowerCase();
         const skusArray = (l.skusArr || []).map(s => s.toLowerCase());

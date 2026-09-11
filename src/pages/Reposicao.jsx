@@ -293,7 +293,7 @@ export default function Reposicao() {
 
     // Aplicar buscas
     if (busca) {
-      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/);
+      const termos = busca.toLowerCase().replace(/plat:\s*/g, "").trim().split(/\s+/).filter(Boolean);
       
       envios = envios.filter(env => {
         let matches = false;

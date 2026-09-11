@@ -209,8 +209,8 @@ export default function Vendas() {
     const produtosVendidosObj = {};
 
     let searchTerms = null;
-    if (busca) {
-       searchTerms = busca.toLowerCase().replace(/plat:s*/g, '').trim().split(/s+/);
+    if (busca && busca.trim()) {
+      searchTerms = busca.toLowerCase().replace(/plat:\s*/g, '').trim().split(/\s+/).filter(Boolean);
     }
 
     for (let i = 0; i < parsedVendas.length; i++) {
