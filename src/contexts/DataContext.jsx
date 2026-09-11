@@ -13,7 +13,7 @@ const SHEETS_FROM_GS = [];
 const VENDAS_CUTOFF = '2026-06-01';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-const CACHE_KEY = '__dedo_duro_data_hybrid8__';
+const CACHE_KEY = '__dedo_duro_data_hybrid9__';
 
 // ── Google Sheets ─────────────────────────────────────────────────────────────
 
