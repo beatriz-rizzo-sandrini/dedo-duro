@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
 import {
   Trophy, TrendingUp, Search, UserCheck, CalendarDays, ChevronLeft, ChevronRight,
   Video, Radio, ShoppingBag, Filter, ArrowRightLeft, Percent, AlertCircle, PieChart,
-  Info, UploadCloud, CheckCircle, Users
+  Info, UploadCloud, CheckCircle, Users, RefreshCw
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -20,6 +20,7 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { supabase } from '../services/supabase';
 import { processTikTokFiles, mergeMarketplaceData } from '../utils/tiktokProcessor';
+import { getCachedReports, setCachedReports, getCachedMeta, clearMarketplaceCache } from '../services/marketplaceCache';
 import './Marketplace.css';
 
 ChartJS.register(
@@ -65,10 +66,11 @@ const formatDuration = (seconds) => {
   return `${minutes}m`;
 };
 
-// Hook auxiliar para ordenar dados
+// Função auxiliar otimizada para ordenar dados
 const sortArray = (array, config, defaultKey = 'gmv') => {
-  if (!array || !Array.isArray(array)) return [];
+  if (!array || !Array.isArray(array) || array.length <= 1) return array || [];
   const key = config.key || defaultKey;
+  const isAsc = config.direction === 'asc';
 
   return [...array].sort((a, b) => {
     let valA = a[key] !== undefined ? a[key] : 0;
@@ -79,13 +81,12 @@ const sortArray = (array, config, defaultKey = 'gmv') => {
       valB = (valB || '').toLowerCase();
     }
 
-    if (valA < valB) return config.direction === 'asc' ? -1 : 1;
-    if (valA > valB) return config.direction === 'asc' ? 1 : -1;
+    if (valA < valB) return isAsc ? -1 : 1;
+    if (valA > valB) return isAsc ? 1 : -1;
     return 0;
   });
 };
 
-// ChartJS Options definidas no escopo do módulo para evitar recriação e problemas de escopo
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -93,14 +94,6 @@ const chartOptions = {
     legend: { position: 'bottom', labels: { color: '#94a3b8' } },
     datalabels: { display: false }
   },
-};
-
-const barOptions = {
-  ...chartOptions,
-  scales: {
-    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
-  }
 };
 
 const tabs = [
@@ -151,9 +144,9 @@ const parseReportPeriod = (periodStr) => {
   return null;
 };
 
-// Remove relatórios obsoletos ou que foram sobrepostos por importações mais recentes/completas
+// Remove relatórios obsoletos ou sobrepostos por importações mais completas
 const deduplicateReports = (reports) => {
-  if (!reports || reports.length === 0) return [];
+  if (!reports || reports.length <= 1) return reports || [];
   const sorted = [...reports].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const accepted = [];
 
@@ -271,9 +264,10 @@ export default function Marketplace() {
   
   const [rawReports, setRawReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState(null);
 
-  // Configurador de ordenação (Resetado ao mudar de aba)
+  // Configurador de ordenação
   const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
   
   // Estados de Paginação por Aba/Tabela
@@ -307,62 +301,109 @@ export default function Marketplace() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadMessage, setUploadMessage] = useState(null);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const { data, error } = await supabase
-          .from('tiktok_reports')
-          .select('id, created_at, period, data')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        if (data && data.length > 0) {
-          setRawReports(data);
-
-          // Detectar a data final mais recente entre todos os relatórios disponíveis
-          let latestDateStr = null;
-          data.forEach(r => {
-            const p = parseReportPeriod(r.period || r.data?.metadata?.period);
-            if (p && p.end) {
-              if (!latestDateStr || p.end > latestDateStr) {
-                latestDateStr = p.end;
-              }
-            }
-          });
-
-          // Definir automaticamente o filtro inicial para os últimos 30 dias a partir da data mais recente
-          if (latestDateStr) {
-            const endD = new Date(`${latestDateStr}T12:00:00`);
-            const startD = new Date(endD);
-            startD.setDate(startD.getDate() - 29); // 30 dias no total (ex: 26/07 a 24/08)
-
-            const formatDateStr = (d) => {
-              const y = d.getFullYear();
-              const m = String(d.getMonth() + 1).padStart(2, '0');
-              const day = String(d.getDate()).padStart(2, '0');
-              return `${y}-${m}-${day}`;
-            };
-
-            setStartDate(formatDateStr(startD));
-            setEndDate(formatDateStr(endD));
-          }
-        } else {
-          throw new Error("Nenhum dado encontrado nos relatórios do TikTok.");
+  const initDefaultDates = useCallback((reportsList) => {
+    let latestDateStr = null;
+    reportsList.forEach(r => {
+      const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+      if (p && p.end) {
+        if (!latestDateStr || p.end > latestDateStr) {
+          latestDateStr = p.end;
         }
-      } catch (err) {
-        console.error("Erro ao buscar dados do Supabase:", err);
-        setDataError(err.message);
-      } finally {
-        setIsLoading(false);
       }
+    });
+
+    if (latestDateStr) {
+      const endD = new Date(`${latestDateStr}T12:00:00`);
+      const startD = new Date(endD);
+      startD.setDate(startD.getDate() - 29);
+
+      const formatDateStr = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      setStartDate(formatDateStr(startD));
+      setEndDate(formatDateStr(endD));
     }
-    loadData();
   }, []);
+
+  // Carregamento de dados com Cache Local Instantâneo (IndexedDB + SWR)
+  const fetchReports = useCallback(async (forceCloud = false) => {
+    try {
+      if (!forceCloud) {
+        // 1. Tenta carregar do cache local primeiro para exibição imediata (0ms)
+        const cached = await getCachedReports();
+        if (cached && cached.length > 0) {
+          setRawReports(cached);
+          setIsLoading(false);
+          initDefaultDates(cached);
+        }
+      }
+
+      // 2. Consulta leve de metadados no Supabase (< 1KB)
+      const cachedMeta = await getCachedMeta();
+      const { data: remoteMeta, error: metaErr } = await supabase
+        .from('tiktok_reports')
+        .select('id, created_at, period')
+        .order('created_at', { ascending: false });
+
+      if (metaErr) throw metaErr;
+
+      // Verifica se o cache já está atualizado
+      let isCacheValid = false;
+      if (!forceCloud && cachedMeta && remoteMeta && cachedMeta.length === remoteMeta.length) {
+        isCacheValid = remoteMeta.every((rm, idx) => {
+          const cm = cachedMeta[idx];
+          return cm && cm.id === rm.id && cm.created_at === rm.created_at;
+        });
+      }
+
+      if (isCacheValid) {
+        setIsLoading(false);
+        return; // Cache está 100% atualizado, nenhum download massivo necessário
+      }
+
+      // 3. Se o cache estava desatualizado ou forceCloud=true, baixa dados completos
+      setIsSyncing(true);
+      const { data: fullData, error: fullErr } = await supabase
+        .from('tiktok_reports')
+        .select('id, created_at, period, data')
+        .order('created_at', { ascending: false });
+
+      if (fullErr) throw fullErr;
+
+      if (fullData && fullData.length > 0) {
+        setRawReports(fullData);
+        await setCachedReports(fullData);
+        if (forceCloud || !startDate) {
+          initDefaultDates(fullData);
+        }
+      } else {
+        throw new Error("Nenhum dado encontrado nos relatórios do TikTok.");
+      }
+    } catch (err) {
+      console.error("Erro ao sincronizar dados do Marketplace:", err);
+      setDataError(err.message);
+    } finally {
+      setIsLoading(false);
+      setIsSyncing(false);
+    }
+  }, [initDefaultDates, startDate]);
+
+  useEffect(() => {
+    fetchReports(false);
+  }, [fetchReports]);
+
+  // Desduplicação dos relatórios (executada apenas uma vez quando rawReports mudar)
+  const cleanReports = useMemo(() => {
+    return deduplicateReports(rawReports);
+  }, [rawReports]);
 
   // Intervalo completo de datas disponíveis no banco (mínimo e máximo)
   const availableDateRange = useMemo(() => {
-    if (!rawReports || rawReports.length === 0) return null;
-    const cleanReports = deduplicateReports(rawReports);
+    if (!cleanReports || cleanReports.length === 0) return null;
     let minDate = null;
     let maxDate = null;
 
@@ -387,11 +428,11 @@ export default function Marketplace() {
       maxFormatted: formatStr(maxDate),
       label: `${formatStr(minDate)} a ${formatStr(maxDate)}`
     };
-  }, [rawReports]);
+  }, [cleanReports]);
 
   // Dados consolidados filtrados pelo intervalo de datas selecionado no calendário
   const marketplaceData = useMemo(() => {
-    if (!rawReports || rawReports.length === 0) {
+    if (!cleanReports || cleanReports.length === 0) {
       return {
         metadata: { period: '', total_gmv: 0 },
         creators: [],
@@ -403,7 +444,6 @@ export default function Marketplace() {
       };
     }
     
-    const cleanReports = deduplicateReports(rawReports);
     let filtered = cleanReports;
 
     if (startDate || endDate) {
@@ -439,20 +479,18 @@ export default function Marketplace() {
       };
     }
     return mergeMarketplaceData(filtered);
-  }, [rawReports, startDate, endDate]);
+  }, [cleanReports, startDate, endDate]);
 
   useEffect(() => {
-    // Resetar página de criadores quando mudar filtros ou ordenação
     setCreatorsPage(1);
   }, [searchTerm, startDate, endDate, sortConfig]);
 
   useEffect(() => {
-    // Reset sort when changing tabs
     setSortConfig({ key: 'gmv', direction: 'desc' });
   }, [activeTab]);
 
   const handleSort = (key) => {
-    let direction = 'desc'; // Sempre começa decrescente (maior para o menor)
+    let direction = 'desc';
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
     }
@@ -465,11 +503,11 @@ export default function Marketplace() {
   };
 
   // ==========================================
-  // DATA FILTERING & AGGREGATIONS
+  // DATA FILTERING & AGGREGATIONS (OTIMIZADO)
   // ==========================================
 
   const filteredVideos = useMemo(() => {
-    if (!marketplaceData?.videos) return [];
+    if (!marketplaceData?.videos || marketplaceData.videos.length === 0) return [];
     let list = marketplaceData.videos;
     if (startDate || endDate) {
       list = list.filter(v => {
@@ -481,16 +519,16 @@ export default function Marketplace() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(v => 
-        v.creator_name?.toLowerCase().includes(term) ||
-        v.video_title?.toLowerCase().includes(term) ||
-        (v.product_names && v.product_names.some(pn => pn.toLowerCase().includes(term)))
+        (v.creator_name && v.creator_name.toLowerCase().includes(term)) ||
+        (v.video_title && v.video_title.toLowerCase().includes(term)) ||
+        (v.product_names && v.product_names.some(pn => pn && pn.toLowerCase().includes(term)))
       );
     }
     return list;
-  }, [searchTerm, marketplaceData, startDate, endDate]);
+  }, [searchTerm, marketplaceData?.videos, startDate, endDate]);
 
   const filteredLives = useMemo(() => {
-    if (!marketplaceData?.lives) return [];
+    if (!marketplaceData?.lives || marketplaceData.lives.length === 0) return [];
     let list = marketplaceData.lives;
     if (startDate || endDate) {
       list = list.filter(l => {
@@ -502,16 +540,16 @@ export default function Marketplace() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(l => 
-        l.creator_name?.toLowerCase().includes(term) ||
-        l.live_title?.toLowerCase().includes(term) ||
-        (l.product_names && l.product_names.some(pn => pn.toLowerCase().includes(term)))
+        (l.creator_name && l.creator_name.toLowerCase().includes(term)) ||
+        (l.live_title && l.live_title.toLowerCase().includes(term)) ||
+        (l.product_names && l.product_names.some(pn => pn && pn.toLowerCase().includes(term)))
       );
     }
     return list;
-  }, [searchTerm, marketplaceData, startDate, endDate]);
+  }, [searchTerm, marketplaceData?.lives, startDate, endDate]);
 
   const filteredAffinity = useMemo(() => {
-    if (!marketplaceData?.unified_affinity) return [];
+    if (!marketplaceData?.unified_affinity || marketplaceData.unified_affinity.length === 0) return [];
     let list = marketplaceData.unified_affinity;
     if (startDate || endDate) {
       list = list.filter(item => {
@@ -523,16 +561,15 @@ export default function Marketplace() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(item => 
-        item.creator_name?.toLowerCase().includes(term) ||
-        item.product_name?.toLowerCase().includes(term)
+        (item.creator_name && item.creator_name.toLowerCase().includes(term)) ||
+        (item.product_name && item.product_name.toLowerCase().includes(term))
       );
     }
     return list;
-  }, [searchTerm, marketplaceData, startDate, endDate]);
+  }, [searchTerm, marketplaceData?.unified_affinity, startDate, endDate]);
 
-  // Quantidade de dias no período filtrado (para médias diárias)
+  // Quantidade de dias no período filtrado
   const filteredDaysCount = useMemo(() => {
-    // 1. Se o usuário tem datas selecionadas no calendário:
     if (startDate && endDate) {
       const d1 = new Date(`${startDate}T12:00:00`);
       const d2 = new Date(`${endDate}T12:00:00`);
@@ -543,7 +580,6 @@ export default function Marketplace() {
     if (startDate && !endDate) return 1;
     if (!startDate && endDate) return 1;
 
-    // 2. Se as planilhas trouxerem o período nos metadados (ex: 20260201-20260228):
     const p = parseReportPeriod(marketplaceData?.metadata?.period);
     if (p && p.start && p.end) {
       const d1 = new Date(`${p.start}T12:00:00`);
@@ -556,16 +592,18 @@ export default function Marketplace() {
     return 30;
   }, [startDate, endDate, marketplaceData?.metadata?.period]);
 
-  // Lista Oficial de Criadores (Calculado dinamicamente com base nas datas selecionadas)
+  // Lista Oficial de Criadores
   const sortedCreators = useMemo(() => {
-    if (!marketplaceData?.creators) return [];
+    if (!marketplaceData?.creators || marketplaceData.creators.length === 0) return [];
 
     const isCustomDateFilter = Boolean(startDate || endDate);
     let list = [];
 
     if (isCustomDateFilter && (filteredVideos.length > 0 || filteredLives.length > 0)) {
       const creatorMap = {};
-      (marketplaceData.creators || []).forEach(c => {
+      const baseCreators = marketplaceData.creators;
+      for (let i = 0; i < baseCreators.length; i++) {
+        const c = baseCreators[i];
         creatorMap[c.creator_name] = {
           creator_name: c.creator_name,
           gmv: 0,
@@ -578,10 +616,11 @@ export default function Marketplace() {
           commission: 0,
           _base: c
         };
-      });
+      }
 
-      filteredVideos.forEach(v => {
-        if (!v.creator_name) return;
+      for (let i = 0; i < filteredVideos.length; i++) {
+        const v = filteredVideos[i];
+        if (!v.creator_name) continue;
         if (!creatorMap[v.creator_name]) {
           creatorMap[v.creator_name] = { creator_name: v.creator_name, gmv: 0, orders: 0, items_sold: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, refunds: 0, commission: 0 };
         }
@@ -589,10 +628,11 @@ export default function Marketplace() {
         c.gmv += (v.gmv || 0);
         c.orders += (v.orders || 0);
         c.video_count += 1;
-      });
+      }
 
-      filteredLives.forEach(l => {
-        if (!l.creator_name) return;
+      for (let i = 0; i < filteredLives.length; i++) {
+        const l = filteredLives[i];
+        if (!l.creator_name) continue;
         if (!creatorMap[l.creator_name]) {
           creatorMap[l.creator_name] = { creator_name: l.creator_name, gmv: 0, orders: 0, items_sold: 0, video_count: 0, live_count: 0, live_duration_seconds: 0, refunds: 0, commission: 0 };
         }
@@ -601,52 +641,65 @@ export default function Marketplace() {
         c.orders += (l.orders || 0);
         c.live_count += 1;
         c.live_duration_seconds += (l.duration_seconds || 0);
-      });
+      }
 
-      Object.values(creatorMap).forEach(c => {
-        if (c._base && c._base.gmv > 0) {
-          const ratio = c.gmv / c._base.gmv;
-          c.items_sold = Math.round((c._base.items_sold || 0) * ratio);
-          c.refunds = (c._base.refunds || 0) * ratio;
-          c.commission = (c._base.commission || 0) * ratio;
-        } else {
-          c.items_sold = c.orders;
+      const days = filteredDaysCount || 1;
+      const values = Object.values(creatorMap);
+      list = [];
+      for (let i = 0; i < values.length; i++) {
+        const c = values[i];
+        if (c.gmv > 0 || c.orders > 0 || c.video_count > 0 || c.live_count > 0) {
+          if (c._base && c._base.gmv > 0) {
+            const ratio = c.gmv / c._base.gmv;
+            c.items_sold = Math.round((c._base.items_sold || 0) * ratio);
+            c.refunds = (c._base.refunds || 0) * ratio;
+            c.commission = (c._base.commission || 0) * ratio;
+          } else {
+            c.items_sold = c.orders;
+          }
+          c.avg_live_duration_seconds = Math.round((c.live_duration_seconds || 0) / days);
+          list.push(c);
         }
-        c.avg_live_duration_seconds = Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1));
-      });
-
-      list = Object.values(creatorMap).filter(c => c.gmv > 0 || c.orders > 0 || c.video_count > 0 || c.live_count > 0);
+      }
     } else {
+      const days = filteredDaysCount || 1;
       list = marketplaceData.creators.map(c => ({
         ...c,
-        avg_live_duration_seconds: Math.round((c.live_duration_seconds || 0) / (filteredDaysCount || 1))
+        avg_live_duration_seconds: Math.round((c.live_duration_seconds || 0) / days)
       }));
     }
 
-    list = list.filter(c => c && c.creator_name && c.creator_name.trim() !== '');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      list = list.filter(c => c.creator_name.toLowerCase().includes(term));
+      list = list.filter(c => c && c.creator_name && c.creator_name.toLowerCase().includes(term));
     }
     return sortArray(list, sortConfig);
-  }, [searchTerm, sortConfig, marketplaceData, filteredDaysCount, startDate, endDate, filteredVideos, filteredLives]);
+  }, [searchTerm, sortConfig, marketplaceData?.creators, filteredDaysCount, startDate, endDate, filteredVideos, filteredLives]);
 
-  const totalGMV = useMemo(() => {
-    return sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
-  }, [sortedCreators]);
-    
-  const totalRefunds = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.refunds || 0), 0), [sortedCreators]);
-  const totalCommission = useMemo(() => sortedCreators.reduce((acc, c) => acc + (c.commission || 0), 0), [sortedCreators]);
-
-  // Totais Gerais específicos da Performance por Criador
+  // Totais Gerais específicos da Performance por Criador (Single pass loop)
   const creatorSummaryTotals = useMemo(() => {
-    const totalCount = sortedCreators.length;
-    const totalGmv = sortedCreators.reduce((acc, c) => acc + (c.gmv || 0), 0);
-    const totalOrders = sortedCreators.reduce((acc, c) => acc + (c.orders || 0), 0);
-    const totalItems = sortedCreators.reduce((acc, c) => acc + (c.items_sold || 0), 0);
-    const totalVideos = sortedCreators.reduce((acc, c) => acc + (c.video_count || 0), 0);
-    const totalLives = sortedCreators.reduce((acc, c) => acc + (c.live_count || 0), 0);
-    const totalLiveDuration = sortedCreators.reduce((acc, c) => acc + (c.live_duration_seconds || 0), 0);
+    let totalCount = sortedCreators.length;
+    let totalGmv = 0;
+    let totalOrders = 0;
+    let totalItems = 0;
+    let totalVideos = 0;
+    let totalLives = 0;
+    let totalLiveDuration = 0;
+    let totalRefunds = 0;
+    let totalCommission = 0;
+
+    for (let i = 0; i < totalCount; i++) {
+      const c = sortedCreators[i];
+      totalGmv += (c.gmv || 0);
+      totalOrders += (c.orders || 0);
+      totalItems += (c.items_sold || 0);
+      totalVideos += (c.video_count || 0);
+      totalLives += (c.live_count || 0);
+      totalLiveDuration += (c.live_duration_seconds || 0);
+      totalRefunds += (c.refunds || 0);
+      totalCommission += (c.commission || 0);
+    }
+
     const avgLiveDurationPerDay = Math.round(totalLiveDuration / (filteredDaysCount || 1));
     const avgGmvPerCreator = totalCount > 0 ? totalGmv / totalCount : 0;
     const avgTicket = totalOrders > 0 ? totalGmv / totalOrders : 0;
@@ -661,40 +714,53 @@ export default function Marketplace() {
       totalLiveDuration,
       avgLiveDurationPerDay,
       avgGmvPerCreator,
-      avgTicket
+      avgTicket,
+      totalRefunds,
+      totalCommission
     };
   }, [sortedCreators, filteredDaysCount]);
 
+  const totalGMV = creatorSummaryTotals.totalGmv;
+  const totalRefunds = creatorSummaryTotals.totalRefunds;
+  const totalCommission = creatorSummaryTotals.totalCommission;
+
+  // Single pass para stats de vídeo e live
   const videoStats = useMemo(() => {
-    return filteredVideos.reduce((acc, v) => ({
-      gmv: acc.gmv + (v.gmv || 0),
-      views: acc.views + (v.views || 0),
-      clicks: acc.clicks + (v.clicks || 0),
-      orders: acc.orders + (v.orders || 0),
-      count: acc.count + 1
-    }), { gmv: 0, views: 0, clicks: 0, orders: 0, count: 0 });
+    let gmv = 0, views = 0, clicks = 0, orders = 0, count = filteredVideos.length;
+    for (let i = 0; i < count; i++) {
+      const v = filteredVideos[i];
+      gmv += (v.gmv || 0);
+      views += (v.views || 0);
+      clicks += (v.clicks || 0);
+      orders += (v.orders || 0);
+    }
+    return { gmv, views, clicks, orders, count };
   }, [filteredVideos]);
 
   const liveStats = useMemo(() => {
-    return filteredLives.reduce((acc, l) => ({
-      gmv: acc.gmv + (l.gmv || 0),
-      views: acc.views + (l.views || 0),
-      clicks: acc.clicks + (l.clicks || 0),
-      orders: acc.orders + (l.orders || 0),
-      count: acc.count + 1
-    }), { gmv: 0, views: 0, clicks: 0, orders: 0, count: 0 });
+    let gmv = 0, views = 0, clicks = 0, orders = 0, count = filteredLives.length;
+    for (let i = 0; i < count; i++) {
+      const l = filteredLives[i];
+      gmv += (l.gmv || 0);
+      views += (l.views || 0);
+      clicks += (l.clicks || 0);
+      orders += (l.orders || 0);
+    }
+    return { gmv, views, clicks, orders, count };
   }, [filteredLives]);
 
   // Lista Oficial de Produtos
   const sortedProducts = useMemo(() => {
-    if (!marketplaceData?.products) return [];
+    if (!marketplaceData?.products || marketplaceData.products.length === 0) return [];
 
     const isCustomDateFilter = Boolean(startDate || endDate);
     let list = [];
 
     if (isCustomDateFilter && filteredAffinity.length > 0) {
       const prodMap = {};
-      (marketplaceData.products || []).forEach(p => {
+      const baseProds = marketplaceData.products;
+      for (let i = 0; i < baseProds.length; i++) {
+        const p = baseProds[i];
         prodMap[p.product_id] = {
           product_id: p.product_id,
           product_name: p.product_name,
@@ -705,47 +771,53 @@ export default function Marketplace() {
           commission: 0,
           _base: p
         };
-      });
+      }
 
-      filteredAffinity.forEach(a => {
-        if (!a.product_id) return;
+      for (let i = 0; i < filteredAffinity.length; i++) {
+        const a = filteredAffinity[i];
+        if (!a.product_id) continue;
         if (!prodMap[a.product_id]) {
           prodMap[a.product_id] = { product_id: a.product_id, product_name: a.product_name, gmv: 0, orders: 0, items_sold: 0, refunds: 0, commission: 0 };
         }
         const p = prodMap[a.product_id];
         p.gmv += (a.gmv_presence || 0);
         p.orders += (a.orders_presence || 0);
-      });
+      }
 
-      Object.values(prodMap).forEach(p => {
-        if (p._base && p._base.gmv > 0) {
-          const ratio = p.gmv / p._base.gmv;
-          p.items_sold = Math.round((p._base.items_sold || 0) * ratio);
-          p.refunds = (p._base.refunds || 0) * ratio;
-          p.commission = (p._base.commission || 0) * ratio;
-        } else {
-          p.items_sold = p.orders;
+      const values = Object.values(prodMap);
+      list = [];
+      for (let i = 0; i < values.length; i++) {
+        const p = values[i];
+        if (p.gmv > 0 || p.orders > 0) {
+          if (p._base && p._base.gmv > 0) {
+            const ratio = p.gmv / p._base.gmv;
+            p.items_sold = Math.round((p._base.items_sold || 0) * ratio);
+            p.refunds = (p._base.refunds || 0) * ratio;
+            p.commission = (p._base.commission || 0) * ratio;
+          } else {
+            p.items_sold = p.orders;
+          }
+          list.push(p);
         }
-      });
-
-      list = Object.values(prodMap).filter(p => p.gmv > 0 || p.orders > 0);
+      }
     } else {
-      list = [...(marketplaceData.products || [])];
+      list = [...marketplaceData.products];
     }
 
-    list = list.filter(p => p && p.product_name && p.product_name.trim() !== '');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      list = list.filter(p => p.product_name?.toLowerCase().includes(term));
+      list = list.filter(p => p && p.product_name && p.product_name.toLowerCase().includes(term));
     }
-    return sortArray(list, sortConfig).slice(0, 10);
-  }, [searchTerm, sortConfig, marketplaceData, startDate, endDate, filteredAffinity]);
+    return sortArray(list, sortConfig);
+  }, [searchTerm, sortConfig, marketplaceData?.products, startDate, endDate, filteredAffinity]);
 
   // Affinity Data
   const affinityList = useMemo(() => {
+    if (!filteredAffinity || filteredAffinity.length === 0) return [];
     const map = {};
-    filteredAffinity.forEach(item => {
-      if (!item.creator_name || !item.product_name) return;
+    for (let i = 0; i < filteredAffinity.length; i++) {
+      const item = filteredAffinity[i];
+      if (!item.creator_name || !item.product_name) continue;
       const key = `${item.creator_name}|${item.product_name}`;
       if (!map[key]) {
         map[key] = { creator_name: item.creator_name, product_name: item.product_name, gmv: 0, orders: 0, video_gmv: 0, live_gmv: 0 };
@@ -754,12 +826,11 @@ export default function Marketplace() {
       map[key].orders += (item.orders_presence || 0);
       if (item.format === 'video') map[key].video_gmv += (item.gmv_presence || 0);
       if (item.format === 'live') map[key].live_gmv += (item.gmv_presence || 0);
-    });
-    const list = Object.values(map);
-    return sortArray(list, sortConfig).slice(0, 50);
+    }
+    return sortArray(Object.values(map), sortConfig);
   }, [filteredAffinity, sortConfig]);
 
-  // Chart Data & Options com Porcentagens (%)
+  // Chart Data & Options
   const top3Creators = useMemo(() => {
     return [...sortedCreators].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 3);
   }, [sortedCreators]);
@@ -886,7 +957,93 @@ export default function Marketplace() {
   }), [totalGMV]);
 
   // ==========================================
-  // RENDERS
+  // TAB METRICS MEMOIZATION (Performance Boost)
+  // ==========================================
+
+  // Tab 3: Agregações de Vídeo e Live
+  const tab3Metrics = useMemo(() => {
+    const avgVideoGmv = videoStats.count ? (videoStats.gmv / videoStats.count) : 0;
+    const avgLiveGmv = liveStats.count ? (liveStats.gmv / liveStats.count) : 0;
+
+    const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const hourlyGmvVideo = new Array(24).fill(0);
+    const hourlyGmvLive = new Array(24).fill(0);
+    const dailyGmvVideo = new Array(7).fill(0);
+    const dailyGmvLive = new Array(7).fill(0);
+
+    for (let i = 0; i < filteredVideos.length; i++) {
+      const v = filteredVideos[i];
+      if (v.datetime) {
+        const d = new Date(v.datetime);
+        if (!isNaN(d)) {
+          hourlyGmvVideo[d.getHours()] += (v.gmv || 0);
+          dailyGmvVideo[d.getDay()] += (v.gmv || 0);
+        }
+      }
+    }
+
+    for (let i = 0; i < filteredLives.length; i++) {
+      const l = filteredLives[i];
+      if (l.datetime) {
+        const d = new Date(l.datetime);
+        if (!isNaN(d)) {
+          hourlyGmvLive[d.getHours()] += (l.gmv || 0);
+          dailyGmvLive[d.getDay()] += (l.gmv || 0);
+        }
+      }
+    }
+
+    const totalWeeklyGmvVideo = dailyGmvVideo.reduce((a, b) => a + b, 0);
+    const totalWeeklyGmvLive = dailyGmvLive.reduce((a, b) => a + b, 0);
+    const totalDailyGmvVideo = hourlyGmvVideo.reduce((a, b) => a + b, 0);
+    const totalDailyGmvLive = hourlyGmvLive.reduce((a, b) => a + b, 0);
+
+    const topVideos = [...filteredVideos].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
+    const topLives = [...filteredLives].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
+
+    return {
+      avgVideoGmv,
+      avgLiveGmv,
+      daysOfWeek,
+      hourlyGmvVideo,
+      hourlyGmvLive,
+      dailyGmvVideo,
+      dailyGmvLive,
+      totalWeeklyGmvVideo,
+      totalWeeklyGmvLive,
+      totalDailyGmvVideo,
+      totalDailyGmvLive,
+      topVideos,
+      topLives
+    };
+  }, [filteredVideos, filteredLives, videoStats]);
+
+  // Tab 5: Cancelamentos
+  const tab5Data = useMemo(() => {
+    let sortedByRefunds = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      sortedByRefunds = sortedByRefunds.filter(p => p.product_name.toLowerCase().includes(term));
+    }
+    sortedByRefunds = sortArray(sortedByRefunds, sortConfig);
+    const creatorRefunds = sortArray([...sortedCreators], sortConfig);
+    return { sortedByRefunds, creatorRefunds };
+  }, [marketplaceData?.products, searchTerm, sortConfig, sortedCreators]);
+
+  // Tab 7: Comissão e Margem
+  const tab7Data = useMemo(() => {
+    let sortedProdsComm = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      sortedProdsComm = sortedProdsComm.filter(p => p.product_name.toLowerCase().includes(term));
+    }
+    sortedProdsComm = sortArray(sortedProdsComm, sortConfig);
+    const creatorComm = sortArray([...sortedCreators], sortConfig);
+    return { sortedProdsComm, creatorComm };
+  }, [marketplaceData?.products, searchTerm, sortConfig, sortedCreators]);
+
+  // ==========================================
+  // RENDERS DAS ABAS
   // ==========================================
 
   const renderTab0 = () => (
@@ -1130,7 +1287,6 @@ export default function Marketplace() {
             </table>
           </div>
 
-          {/* Paginação */}
           <PaginationControls
             currentPage={creatorsPage}
             totalPages={totalPages}
@@ -1202,36 +1358,21 @@ export default function Marketplace() {
   };
 
   const renderTab3 = () => {
-    // 1. Receita Média por Conteúdo
-    const avgVideoGmv = videoStats.count ? (videoStats.gmv / videoStats.count) : 0;
-    const avgLiveGmv = liveStats.count ? (liveStats.gmv / liveStats.count) : 0;
-
-    // 2. Agrupamentos por Dia da Semana e Hora
-    const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const hourlyGmvVideo = new Array(24).fill(0);
-    const hourlyGmvLive = new Array(24).fill(0);
-    const dailyGmvVideo = new Array(7).fill(0);
-    const dailyGmvLive = new Array(7).fill(0);
-
-    filteredVideos.forEach(v => {
-      if (v.datetime) {
-        const d = new Date(v.datetime);
-        if (!isNaN(d)) {
-          hourlyGmvVideo[d.getHours()] += (v.gmv || 0);
-          dailyGmvVideo[d.getDay()] += (v.gmv || 0);
-        }
-      }
-    });
-
-    filteredLives.forEach(l => {
-      if (l.datetime) {
-        const d = new Date(l.datetime);
-        if (!isNaN(d)) {
-          hourlyGmvLive[d.getHours()] += (l.gmv || 0);
-          dailyGmvLive[d.getDay()] += (l.gmv || 0);
-        }
-      }
-    });
+    const {
+      avgVideoGmv,
+      avgLiveGmv,
+      daysOfWeek,
+      hourlyGmvVideo,
+      hourlyGmvLive,
+      dailyGmvVideo,
+      dailyGmvLive,
+      totalWeeklyGmvVideo,
+      totalWeeklyGmvLive,
+      totalDailyGmvVideo,
+      totalDailyGmvLive,
+      topVideos,
+      topLives
+    } = tab3Metrics;
 
     const hourlyChartData = {
       labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
@@ -1304,11 +1445,6 @@ export default function Marketplace() {
         }
       ]
     };
-
-    const totalWeeklyGmvVideo = dailyGmvVideo.reduce((a, b) => a + b, 0);
-    const totalWeeklyGmvLive = dailyGmvLive.reduce((a, b) => a + b, 0);
-    const totalDailyGmvVideo = hourlyGmvVideo.reduce((a, b) => a + b, 0);
-    const totalDailyGmvLive = hourlyGmvLive.reduce((a, b) => a + b, 0);
 
     const hourlyChartOptions = {
       responsive: true,
@@ -1415,9 +1551,6 @@ export default function Marketplace() {
       }
     };
 
-    const topVideos = [...filteredVideos].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
-    const topLives = [...filteredLives].sort((a, b) => (b.gmv || 0) - (a.gmv || 0)).slice(0, 5);
-
     return (
       <div className="animated-fade-in">
         <div className="mkp-sections-grid" style={{ marginBottom: '24px' }}>
@@ -1517,7 +1650,7 @@ export default function Marketplace() {
           </div>
         </div>
       </div>
-    )
+    );
   };
 
   const renderTab4 = () => (
@@ -1573,12 +1706,9 @@ export default function Marketplace() {
       </div>
     </div>
   );
-  const renderTab5 = () => {
-    let sortedByRefunds = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
-    if (searchTerm) sortedByRefunds = sortedByRefunds.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    sortedByRefunds = sortArray(sortedByRefunds, sortConfig);
 
-    let creatorRefunds = sortArray([...sortedCreators], sortConfig);
+  const renderTab5 = () => {
+    const { sortedByRefunds, creatorRefunds } = tab5Data;
 
     const totalProdPages = Math.ceil(sortedByRefunds.length / (refundsProdPerPage === 'all' ? sortedByRefunds.length || 1 : refundsProdPerPage));
     const paginatedProds = refundsProdPerPage === 'all' 
@@ -1815,11 +1945,7 @@ export default function Marketplace() {
   };
 
   const renderTab7 = () => {
-    let sortedProdsComm = [...(marketplaceData?.products || [])].filter(p => p && p.product_name && p.product_name.trim() !== '');
-    if (searchTerm) sortedProdsComm = sortedProdsComm.filter(p => p.product_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    sortedProdsComm = sortArray(sortedProdsComm, sortConfig);
-
-    let creatorComm = sortArray([...sortedCreators], sortConfig);
+    const { sortedProdsComm, creatorComm } = tab7Data;
 
     const totalProdPages = Math.ceil(sortedProdsComm.length / (commProdPerPage === 'all' ? sortedProdsComm.length || 1 : commProdPerPage));
     const paginatedProds = commProdPerPage === 'all' 
@@ -1965,12 +2091,10 @@ export default function Marketplace() {
     setUploadMessage({ type: 'info', text: 'Processando arquivos localmente... (Isso pode levar alguns segundos)' });
 
     try {
-      // 1. Process files using our utility
       const finalData = await processTikTokFiles(uploadFiles);
 
       setUploadMessage({ type: 'info', text: `Dados processados! Período detectado: ${finalData.metadata.period}. Enviando para o Supabase...` });
 
-      // 2. Upload to Supabase
       const { data, error } = await supabase
         .from('tiktok_reports')
         .insert([
@@ -1982,12 +2106,14 @@ export default function Marketplace() {
 
       if (error) throw error;
 
-      setUploadMessage({ type: 'success', text: 'Upload concluído com sucesso! Recarregando a tela para exibir os novos dados...' });
+      // Limpa o cache local para que a sincronização traga o novo relatório
+      await clearMarketplaceCache();
+
+      setUploadMessage({ type: 'success', text: 'Upload concluído com sucesso! Atualizando os relatórios...' });
       
-      // 3. Reload window after 2 seconds to fetch new data
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 1500);
 
     } catch (err) {
       console.error(err);
@@ -2056,25 +2182,41 @@ export default function Marketplace() {
     </div>
   );
 
-  if (isLoading) {
+  if (isLoading && rawReports.length === 0) {
     return (
       <div className="mkp-dashboard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <div style={{ width: '40px', height: '40px', border: '3px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
-          <p>Carregando relatórios da nuvem (Supabase)...</p>
+          <p>Carregando relatórios do Marketplace...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-
-
   return (
     <div className="mkp-dashboard">
       <div className="mkp-header">
         <div>
-          <h1 className="mkp-title">Marketplace & Afiliados</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 className="mkp-title">Marketplace & Afiliados</h1>
+            {isSyncing && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                color: '#60a5fa',
+                background: 'rgba(59, 130, 246, 0.12)',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                border: '1px solid rgba(59, 130, 246, 0.25)'
+              }}>
+                <div style={{ width: '10px', height: '10px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                Sincronizando nuvem...
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
             <p className="mkp-subtitle" style={{ margin: 0 }}>
               {startDate && endDate 
@@ -2195,6 +2337,23 @@ export default function Marketplace() {
             </div>
           )}
 
+          <button
+            type="button"
+            onClick={() => fetchReports(true)}
+            disabled={isSyncing}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--mkp-surface)', color: 'var(--mkp-text-primary)',
+              border: '1px solid var(--mkp-border)', borderRadius: '8px', padding: '0 14px',
+              fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', height: '42px',
+              fontSize: '13px', transition: 'all 0.2s ease', whiteSpace: 'nowrap'
+            }}
+            title="Recarregar dados diretamente do Supabase"
+          >
+            <RefreshCw size={15} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
+            {isSyncing ? 'Atualizando...' : 'Atualizar'}
+          </button>
+
           <button 
             onClick={() => setActiveTab(8)}
             style={{
@@ -2203,7 +2362,7 @@ export default function Marketplace() {
               border: 'none', borderRadius: '8px', padding: '0 20px',
               fontWeight: 'bold', cursor: 'pointer', height: '42px',
               boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-              transition: 'all 0.2s ease', marginLeft: '8px',
+              transition: 'all 0.2s ease', marginLeft: '4px',
               whiteSpace: 'nowrap'
             }}
             onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
