@@ -178,7 +178,7 @@ export default function Reposicao() {
       if (inicioTime && previsaoTime && previsaoTime < inicioTime) return;
       if (fimTime !== Infinity && previsaoTime && previsaoTime > fimTime) return;
 
-      if (status !== 'FINALIZADO' || filtroStatus === 'FINALIZADO') {
+      if ((status !== 'FINALIZADO' && !status.includes('CANCEL')) || filtroStatus) {
         totalGeral += quantidade;
       }
 

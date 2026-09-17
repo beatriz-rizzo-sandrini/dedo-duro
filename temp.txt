@@ -1,0 +1,19 @@
+Token obtido com sucesso.
+
+=== Buscando SKU: 'FL01TR00108AABPCB411918' ===
+Resultados: 1
+  codDer: FL01TR00108AABPCB411918
+  desDer: TENIS FILA RISE UP MASCULINO F01TR00108 PTO/GRA/DOU 2151 - TAM 41
+  nomMar: Fila
+  desFam: Fila
+  codBar: 7909946750341
+  dthger: 2026-04-07T16:39:44.217Z
+
+=== Buscando SKU: 'KSA12000002350AA0P0396' ===
+Resultados: 1
+  codDer: KSA12000002350AA0P0396
+  desDer: Kit 12 Camisas Sandrini Dry Fit (2350) PTO Tam P
+  nomMar: Sandrini
+  desFam: KITS DE PRODUTOS SANDRINI
+  codBar: undefined
+  dthger: 2026-07-17T14:15:43.604Z
