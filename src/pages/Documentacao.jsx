@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, Search, Copy, Check, Printer, Layers, Cpu, Database, 
@@ -7,7 +7,7 @@ import {
   FileEdit, Users, Server, ExternalLink, Code2, Globe, ShoppingBag, 
   Palette, ClipboardList, CheckCircle2, AlertCircle, Clock, Calendar, 
   ArrowDown, ChevronRight, HelpCircle, CheckCheck, RefreshCw, Eye,
-  Sliders, ArrowUpRight, FileCheck, CheckSquare, Zap, ChevronDown
+  Sliders, ArrowUpRight, FileCheck, CheckSquare, Zap, ChevronDown, CheckCircle
 } from 'lucide-react';
 import './Documentacao.css';
 
@@ -39,15 +39,109 @@ const MODULES_LIST = [
   { id: 'usuarios', name: 'Usuários & Permissões', route: '/usuarios', icon: Users, desc: 'Gestão de acessos com níveis de privilégio (Admin, Gestor, Operador) e ferramenta de redefinição de senhas.' }
 ];
 
+const SITE_CHECKLIST_ITEMS = [
+  {
+    id: 'site-task-1',
+    num: 1,
+    title: 'Definir se vai trabalhar com algo além de marca própria',
+    desc: 'Alinhar a estratégia de sortimento de produtos: se o site venderá exclusivamente peças da marca própria Sandrini ou incluirá marcas parceiras parceiras no mix.',
+    action: 'Após definir, comunicar Bia para saber como redefinir o layout da loja (menus, vitrines e banners).',
+    category: 'Estratégia & Layout',
+    priority: 'Alta'
+  },
+  {
+    id: 'site-task-2',
+    num: 2,
+    title: 'Configurar EANs e dimensões de todos os produtos',
+    desc: 'Cadastrar o código de barras padrão EAN-13 e as medidas exatas de cubagem (peso em kg, altura, largura e profundidade em cm) de cada SKU na Tray.',
+    action: 'Imprescindível para o cálculo exato de frete dos Correios/transportadoras e integração de catálogo.',
+    category: 'Catálogo & Logística',
+    priority: 'Alta'
+  },
+  {
+    id: 'site-task-3',
+    num: 3,
+    title: 'Subir as fotos de todos os produtos',
+    desc: 'Garantir o upload das fotografias padronizadas em alta resolução (mínimo 1200x1200px, fundo branco puro para a capa, fotos no corpo e detalhes de costura/elástico).',
+    action: 'Cadastrar fotos em todas as variações de cor e kits na grade da Tray.',
+    category: 'Visual & Catálogo',
+    priority: 'Média'
+  },
+  {
+    id: 'site-task-4',
+    num: 4,
+    title: 'Cadastrar todos os usuários que irão acessar a plataforma da Tray',
+    desc: 'Criar as contas de acesso individuais com os respectivos níveis de permissão para toda a equipe que operará pedidos, catálogo, marketing e expedição.',
+    action: 'Configurar usuários e permissões no painel administrativo da Tray.',
+    category: 'Acessos & Equipe',
+    priority: 'Média'
+  },
+  {
+    id: 'site-task-5',
+    num: 5,
+    title: 'Configurar os selos de site',
+    desc: 'Ativar os selos de segurança SSL, selo de compra protegida, certificado de autenticidade e bandeiras de pagamento no rodapé e checkout.',
+    action: 'Gera confiança no visitante e aumenta diretamente a taxa de conversão.',
+    category: 'Credibilidade & Segurança',
+    priority: 'Média'
+  },
+  {
+    id: 'site-task-6',
+    num: 6,
+    title: 'Validar todos os banners e fotos com o marketing',
+    desc: 'Revisar formalmente todos os criativos de marketing: banner principal desktop, banner mobile, réguas de vantagens e banners de categorias.',
+    action: 'Aprovação final com a equipe de Marketing antes da divulgação.',
+    category: 'Marketing & Design',
+    priority: 'Alta'
+  },
+  {
+    id: 'site-task-7',
+    num: 7,
+    title: 'Verificar configuração do Melhor Envio e da Vindi',
+    desc: 'Testar e homologar as duas integrações essenciais da loja virtual: cotação/etiquetas de frete no Melhor Envio e gateway de pagamento (Cartão de Crédito, Pix e Boleto com antifraude) na Vindi.',
+    action: 'Realizar pedido de teste para validar o fluxo de ponta a ponta (aprovação e etiqueta).',
+    category: 'Gateways & Integrações',
+    priority: 'Alta'
+  }
+];
+
 export default function Documentacao() {
   // Inicialmente null para exibir APENAS as 2 opções principais
   const [selectedPillar, setSelectedPillar] = useState(null);
-  const [selectedTopic, setSelectedTopic] = useState('produtos');
+  const [selectedTopic, setSelectedTopic] = useState('checklist');
   const [codeCopied, setCodeCopied] = useState('');
-  const [checkedItems, setCheckedItems] = useState({});
+  
+  // Persistência das caixas marcadas no localStorage
+  const [checkedItems, setCheckedItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('__sandrini_site_checklist_v1__');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const toggleCheck = (id) => {
-    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
+    setCheckedItems(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem('__sandrini_site_checklist_v1__', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  const handleResetChecklist = () => {
+    if (window.confirm('Deseja desmarcar todos os itens do checklist do site?')) {
+      setCheckedItems({});
+      try {
+        localStorage.removeItem('__sandrini_site_checklist_v1__');
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
 
   const copyToClipboard = (text, type = 'all') => {
@@ -63,11 +157,18 @@ export default function Documentacao() {
   const handleSelectPillar = (pillar) => {
     setSelectedPillar(pillar);
     if (pillar === 'site') {
-      setSelectedTopic('produtos');
+      setSelectedTopic('checklist');
     } else {
       setSelectedTopic('paginas');
     }
   };
+
+  // Contadores do checklist
+  const completedCount = useMemo(() => {
+    return SITE_CHECKLIST_ITEMS.filter(item => !!checkedItems[item.id]).length;
+  }, [checkedItems]);
+
+  const progressPct = Math.round((completedCount / SITE_CHECKLIST_ITEMS.length) * 100);
 
   return (
     <div className="doc-page-container">
@@ -82,7 +183,7 @@ export default function Documentacao() {
             {selectedPillar === null 
               ? 'Selecione abaixo qual área você deseja consultar:' 
               : selectedPillar === 'site' 
-                ? 'Guias de criação de produtos, marketing visual e expedição de pedidos da loja virtual.'
+                ? 'Checklist de pendências da Tray, guias de criação de produtos, marketing visual e expedição.'
                 : 'Manual detalhado das 12 telas, rotina do relatório diário e inteligência de estoque do Dedo Duro.'}
           </p>
         </div>
@@ -116,13 +217,16 @@ export default function Documentacao() {
               <div className="pillar-hub-icon-bubble site">
                 <Globe size={30} />
               </div>
-              <div className="pillar-hub-badge">E-commerce</div>
+              <div className="pillar-hub-badge">E-commerce / Tray</div>
               <h2 className="pillar-hub-title">Site & Loja Virtual</h2>
               <p className="pillar-hub-desc">
-                Criação de produtos com SEO, padronização fotográfica, configuração de banners, vitrines, cupons e fluxo de expedição de pedidos.
+                Checklist de pendências para lançamento na Tray, cadastro de produtos com SEO, fotos, marketing, vitrines e expedição.
               </p>
 
               <div className="pillar-hub-items">
+                <span style={{ color: '#0284c7', fontWeight: 'bold', background: '#f0f9ff', borderColor: '#bae6fd' }}>
+                  <CheckSquare size={14} /> Checklist do Site (Tray)
+                </span>
                 <span><ShoppingBag size={14} /> Criação de Produtos</span>
                 <span><Palette size={14} /> Marketing e Tema</span>
                 <span><ClipboardList size={14} /> Gerenciar Pedidos</span>
@@ -179,7 +283,7 @@ export default function Documentacao() {
             <div className="doc-nav-path">
               <span>Central</span>
               <ChevronRight size={14} />
-              <strong>{selectedPillar === 'site' ? 'Site & Loja Virtual' : 'Sistema Dedo Duro'}</strong>
+              <strong>{selectedPillar === 'site' ? 'Site & Loja Virtual (Tray)' : 'Sistema Dedo Duro'}</strong>
             </div>
           </div>
 
@@ -187,6 +291,25 @@ export default function Documentacao() {
           <div className="doc-tabs-bar">
             {selectedPillar === 'site' ? (
               <>
+                <button 
+                  className={`doc-tab-btn ${selectedTopic === 'checklist' ? 'active' : ''}`}
+                  onClick={() => setSelectedTopic('checklist')}
+                >
+                  <CheckSquare size={16} />
+                  <span>Checklist do Site</span>
+                  {completedCount > 0 && (
+                    <span style={{ 
+                      marginLeft: '6px', 
+                      background: completedCount === SITE_CHECKLIST_ITEMS.length ? '#10b981' : '#0284c7', 
+                      color: '#fff', 
+                      fontSize: '11px', 
+                      padding: '2px 6px', 
+                      borderRadius: '10px' 
+                    }}>
+                      {completedCount}/{SITE_CHECKLIST_ITEMS.length}
+                    </span>
+                  )}
+                </button>
                 <button 
                   className={`doc-tab-btn ${selectedTopic === 'produtos' ? 'active' : ''}`}
                   onClick={() => setSelectedTopic('produtos')}
@@ -238,6 +361,110 @@ export default function Documentacao() {
 
           {/* Painel de Conteúdo */}
           <main className="doc-panel-box">
+            
+            {/* SITE: CHECKLIST DE IMPLEMENTAÇÃO TRAY */}
+            {selectedPillar === 'site' && selectedTopic === 'checklist' && (
+              <div className="doc-topic-body">
+                <div className="topic-header-row">
+                  <span className="topic-badge" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                    Plano de Ação & Lançamento
+                  </span>
+                  <h2>Checklist Site Sandrini (Tray)</h2>
+                  <p className="topic-intro">
+                    Lista de tarefas prioritárias e pendências para configuração, validação e lançamento da loja virtual na Tray.
+                  </p>
+                </div>
+
+                {/* Barra de Progresso Interativa */}
+                <div className="checklist-progress-card">
+                  <div className="checklist-progress-header">
+                    <div className="progress-info">
+                      <span className="progress-title">Progresso Geral de Implementação</span>
+                      <span className="progress-counter">
+                        <strong>{completedCount}</strong> de <strong>{SITE_CHECKLIST_ITEMS.length}</strong> concluídos ({progressPct}%)
+                      </span>
+                    </div>
+                    {completedCount > 0 && (
+                      <button 
+                        className="checklist-reset-btn"
+                        onClick={handleResetChecklist}
+                        title="Desmarcar todos os itens"
+                      >
+                        <RefreshCw size={12} /> Desmarcar Todos
+                      </button>
+                    )}
+                  </div>
+                  <div className="checklist-progress-bar-bg">
+                    <div 
+                      className="checklist-progress-bar-fill" 
+                      style={{ 
+                        width: `${progressPct}%`,
+                        background: progressPct === 100 
+                          ? 'linear-gradient(90deg, #10b981, #059669)' 
+                          : 'linear-gradient(90deg, #0284c7, #38bdf8)'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Lista de Itens do Checklist */}
+                <div className="checklist-items-grid">
+                  {SITE_CHECKLIST_ITEMS.map((item) => {
+                    const isDone = !!checkedItems[item.id];
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={`checklist-item-card ${isDone ? 'completed' : ''}`}
+                        onClick={() => toggleCheck(item.id)}
+                      >
+                        <div className="checklist-checkbox-wrapper">
+                          <div className={`checklist-custom-checkbox ${isDone ? 'checked' : ''}`}>
+                            {isDone && <Check size={14} strokeWidth={3} />}
+                          </div>
+                          <span className="checklist-item-number">#{item.num}</span>
+                        </div>
+
+                        <div className="checklist-item-content">
+                          <div className="checklist-item-header">
+                            <h3 className="checklist-item-title">{item.title}</h3>
+                            <span className={`checklist-status-badge ${isDone ? 'badge-done' : 'badge-pending'}`}>
+                              {isDone ? (
+                                <>
+                                  <CheckCircle size={12} /> Concluído
+                                </>
+                              ) : (
+                                <>
+                                  <Clock size={12} /> Pendente
+                                </>
+                              )}
+                            </span>
+                          </div>
+
+                          {item.desc && (
+                            <p className="checklist-item-desc">{item.desc}</p>
+                          )}
+
+                          {item.action && (
+                            <div className="checklist-action-tip">
+                              <ArrowRight size={14} className="action-tip-icon" />
+                              <span><strong>Ação recomendada:</strong> {item.action}</span>
+                            </div>
+                          )}
+
+                          <div className="checklist-item-footer">
+                            <span className="checklist-category-tag">{item.category}</span>
+                            <span className={`checklist-priority-tag priority-${item.priority.toLowerCase()}`}>
+                              Prioridade {item.priority}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* SITE: CRIAÇÃO DE PRODUTOS */}
             {selectedPillar === 'site' && selectedTopic === 'produtos' && (
               <div className="doc-topic-body">
@@ -298,11 +525,11 @@ export default function Documentacao() {
                   <div className="doc-info-card">
                     <div className="card-icon-round"><TrendingUp size={18} /></div>
                     <h3>Precificação & Estoque</h3>
-                    <p>Configuração comercial na plataforma:</p>
+                    <p>Controle financeiro de margem e ruptura:</p>
                     <ul>
-                      <li><strong>Preço De / Por:</strong> Preço original tachado e promocional em destaque.</li>
-                      <li><strong>Estoque Mínimo:</strong> Quantidade de segurança para evitar venda sem estoque.</li>
-                      <li><strong>Markup:</strong> Considerar comissões de gateway e embalagem no preço final.</li>
+                      <li><strong>Preço De / Por:</strong> Preço cheio de referência e preço promocional à vista com desconto no Pix.</li>
+                      <li><strong>Alerta de Estoque Mínimo:</strong> Notificação configurada para 5 unidades no sistema.</li>
+                      <li><strong>Cross-Sell / Up-Sell:</strong> Sugestão de kits maiores ou produtos complementares.</li>
                     </ul>
                   </div>
                 </div>
@@ -313,40 +540,22 @@ export default function Documentacao() {
             {selectedPillar === 'site' && selectedTopic === 'marketing' && (
               <div className="doc-topic-body">
                 <div className="topic-header-row">
-                  <span className="topic-badge">Design & Conversão</span>
-                  <h2>Marketing e Tema da Loja Virtual</h2>
+                  <span className="topic-badge">Identidade & Vendas</span>
+                  <h2>Marketing Visual, Banners e Vitrines</h2>
                   <p className="topic-intro">
-                    Configuração de banners da página inicial, vitrines dinâmicas, promoções de carrinho e pixels de rastreamento.
+                    Configuração de layout da loja, banners promocionais, cupons de desconto e réguas de confiança.
                   </p>
-                </div>
-
-                <div className="banner-guide-row">
-                  <div className="banner-guide-col">
-                    <span className="guide-label">🖥️ Desktop Hero Banner</span>
-                    <strong>1920 x 600 px</strong>
-                    <p>Foco visual no centro para legibilidade em monitores wide.</p>
-                  </div>
-                  <div className="banner-guide-col">
-                    <span className="guide-label">📱 Mobile Hero Banner</span>
-                    <strong>800 x 800 px</strong>
-                    <p>Formato quadrado otimizado para telas verticais de smartphones.</p>
-                  </div>
-                  <div className="banner-guide-col">
-                    <span className="guide-label">🖼️ Mosaico de Categorias</span>
-                    <strong>600 x 400 px</strong>
-                    <p>Banners para coleções estratégicas (Lupo, Kits, Linha Térmica).</p>
-                  </div>
                 </div>
 
                 <div className="doc-grid-2x2">
                   <div className="doc-info-card">
-                    <div className="card-icon-round"><Store size={18} /></div>
-                    <h3>Vitrines Inteligentes da Home</h3>
-                    <p>Organização dinâmica baseada nos dados do Dedo Duro:</p>
+                    <div className="card-icon-round"><Palette size={18} /></div>
+                    <h3>Banners da Home</h3>
+                    <p>Dimensões exatas para o time de design:</p>
                     <ul>
-                      <li><strong>Mais Vendidos:</strong> Vitrine no topo com os produtos de maior giro.</li>
-                      <li><strong>Ofertas da Semana:</strong> Produtos selecionados com desconto para acelerar saída.</li>
-                      <li><strong>Kits Especiais:</strong> Ofertas progressivas (compre mais por menos).</li>
+                      <li><strong>Banner Principal (Desktop):</strong> 1920 x 600 px (máx. 350 KB, formato WebP).</li>
+                      <li><strong>Banner Principal (Mobile):</strong> 800 x 800 px (máx. 180 KB, formato WebP).</li>
+                      <li><strong>Mini Banners / Categorias:</strong> 600 x 400 px para destaques em grade.</li>
                     </ul>
                   </div>
 
@@ -452,101 +661,66 @@ export default function Documentacao() {
               </div>
             )}
 
-            {/* DEDO DURO: CADA PÁGINA COMO FUNCIONA */}
+            {/* DEDO DURO: CADA PÁGINA */}
             {selectedPillar === 'dedo' && selectedTopic === 'paginas' && (
               <div className="doc-topic-body">
                 <div className="topic-header-row">
-                  <span className="topic-badge">Guia das Telas</span>
-                  <h2>Cada Página do Dedo Duro: Como Funciona</h2>
+                  <span className="topic-badge">Manual do Usuário</span>
+                  <h2>Guia Completo das 12 Telas</h2>
                   <p className="topic-intro">
-                    O Dedo Duro conta com 12 telas estratégicas integradas para controle rigoroso de estoque e sellout.
+                    Objetivo, principais indicadores e decisões gerenciais suportadas por cada tela do Sistema Dedo Duro.
                   </p>
                 </div>
 
                 <div className="modules-compact-grid">
                   {MODULES_LIST.map((mod) => {
-                    const IconComp = mod.icon;
+                    const Icon = mod.icon;
                     return (
-                      <div key={mod.id} className="module-compact-card">
-                        <div className="module-compact-top">
-                          <div className="module-bubble"><IconComp size={18} /></div>
-                          <span className="module-route">{mod.route}</span>
+                      <div key={mod.id} className="module-clean-card">
+                        <div className="mod-card-top">
+                          <div className="mod-icon-badge"><Icon size={18} /></div>
+                          <span className="mod-route-pill">{mod.route}</span>
                         </div>
-                        <h4>{mod.name}</h4>
+                        <h3>{mod.name}</h3>
                         <p>{mod.desc}</p>
                       </div>
                     );
                   })}
                 </div>
-
-                <div className="formula-highlight-box" style={{ marginTop: '24px' }}>
-                  <div className="formula-title">
-                    <Boxes size={18} /> Fórmula de Cobertura de Estoque (DDC)
-                  </div>
-                  <div className="formula-code">
-                    DDC = (Estoque Disponível + Estoque a Caminho) ÷ Giro Médio Diário
-                  </div>
-                  <div className="coverage-legend-row">
-                    <span className="cov-badge red">🚨 Ruptura (0 dias)</span>
-                    <span className="cov-badge yellow">⚠️ Crítico (1 a 14 dias)</span>
-                    <span className="cov-badge green">✅ Saudável (15 a 45 dias)</span>
-                    <span className="cov-badge blue">📦 Excesso (&gt; 60 dias)</span>
-                  </div>
-                </div>
               </div>
             )}
 
-            {/* DEDO DURO: COMO PREENCHER O RELATÓRIO DIÁRIO */}
+            {/* DEDO DURO: ROTINA DIÁRIA */}
             {selectedPillar === 'dedo' && selectedTopic === 'rotina' && (
               <div className="doc-topic-body">
                 <div className="topic-header-row">
-                  <span className="topic-badge">Rotina Operacional</span>
-                  <h2>Como Preencher o Relatório Diário</h2>
+                  <span className="topic-badge">Procedimento Operacional</span>
+                  <h2>Rotina do Relatório Diário de Fechamento</h2>
                   <p className="topic-intro">
-                    Procedimento padrão matinal para a equipe importar e conferir os dados diários com precisão.
+                    Checklist matinal para alimentação e validação dos dados de vendas, estoque e reposição.
                   </p>
                 </div>
 
-                <div className="routine-timeline-compact">
+                <div className="routine-timeline">
                   <div className="routine-row">
-                    <div className="routine-hour"><Clock size={15} /> 08:30 - 09:15</div>
+                    <div className="routine-hour"><Clock size={15} /> 08:30 - 09:00</div>
                     <div className="routine-detail">
-                      <h4>1. Extração dos Relatórios</h4>
-                      <p>Baixar relatórios de vendas e inventário do dia anterior:</p>
-                      <div className="source-tags">
-                        <span>Mercado Livre Full (SP e MG)</span>
-                        <span>ERP Senior X (Faturamento & Matriz)</span>
-                        <span>TikTok Shop Seller Center</span>
-                      </div>
+                      <h4>1. Extração nos Painéis dos Marketplaces</h4>
+                      <p>
+                        Exportar relatórios de vendas consolidadas do dia anterior do Mercado Livre, Shopee, TikTok Shop e Magalu.
+                      </p>
                     </div>
                   </div>
 
                   <div className="routine-row">
-                    <div className="routine-hour"><Clock size={15} /> 09:15 - 09:40</div>
+                    <div className="routine-hour"><Clock size={15} /> 09:00 - 09:40</div>
                     <div className="routine-detail">
-                      <h4>2. Padronização das Planilhas</h4>
-                      <p>Conferir colunas obrigatórias aceitas pelos parsers:</p>
-                      <div className="table-wrapper-clean">
-                        <table className="clean-table">
-                          <thead>
-                            <tr>
-                              <th>Data (DD/MM/AAAA)</th>
-                              <th>Local / Canal</th>
-                              <th>SKU Produto</th>
-                              <th>Descrição</th>
-                              <th>Quantidade</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td><code>02/09/2026</code></td>
-                              <td><code>ML FULL SP</code></td>
-                              <td><code>LU7890-001-M</code></td>
-                              <td>Cueca Boxer Lupo M</td>
-                              <td><code>120</code></td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <h4>2. Carga no Supabase (ETL)</h4>
+                      <p>
+                        Fazer o upload das planilhas ou rodar o script de ingestão para popular a tabela <code>bronze_vendas</code> e <code>silver_vendas</code>.
+                      </p>
+                      <div className="routine-tip">
+                        <strong>Atenção:</strong> Sempre conferir se a data da venda está no formato <code>YYYY-MM-DD</code>.
                       </div>
                     </div>
                   </div>
