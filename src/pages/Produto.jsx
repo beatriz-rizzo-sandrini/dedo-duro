@@ -517,6 +517,7 @@ export default function Produto() {
       local: localObj.local, 
       sku: skuObj.sku, 
       estoque: skuObj.estoque,
+      aCaminho: skuObj.aCaminho || 0,
       vendas: skuObj.vendas, 
       cobertura: skuObj.cobertura === -1 ? "∞" : Math.round(skuObj.cobertura), 
       reposicao: customRepo
@@ -533,6 +534,7 @@ export default function Produto() {
             local: localObj.local, 
             sku: s.sku, 
             estoque: s.estoque,
+            aCaminho: s.aCaminho || 0,
             vendas: s.vendas, 
             cobertura: s.cobertura === -1 ? "∞" : Math.round(s.cobertura), 
             reposicao: s.reposicaoSugerida
@@ -905,17 +907,24 @@ export default function Produto() {
             </div>
             <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               <table className="data-table">
-                <thead><tr><th>Produto</th><th>Local</th><th>SKU</th><th>Reposição</th><th></th></tr></thead>
+                <thead><tr><th>Produto</th><th>Local</th><th>SKU</th><th>A Caminho</th><th>Reposição</th><th></th></tr></thead>
                 <tbody>
                   {carrinho.map((item, i) => (
-                    <tr key={i}><td>{toTitleCase(item.produto)}</td><td>{item.local}</td><td>{item.sku}</td><td style={{ fontWeight: 'bold', color: '#e74c3c' }}>{item.reposicao}</td><td><button onClick={() => setCarrinho(p => p.filter((_, idx) => idx !== i))} style={{background: "none", border: "none", cursor: "pointer", color: "#ef4444"}}><X size={16} /></button></td></tr>
+                    <tr key={i}>
+                      <td>{toTitleCase(item.produto)}</td>
+                      <td>{item.local}</td>
+                      <td>{item.sku}</td>
+                      <td>{item.aCaminho > 0 ? item.aCaminho : 0}</td>
+                      <td style={{ fontWeight: 'bold', color: '#e74c3c' }}>{item.reposicao}</td>
+                      <td><button onClick={() => setCarrinho(p => p.filter((_, idx) => idx !== i))} style={{background: "none", border: "none", cursor: "pointer", color: "#ef4444"}}><X size={16} /></button></td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button className="btn-padrao" style={{ background: '#10b981', color: 'white' }} onClick={() => {
-                handleExport('xlsx', "Carrinho_Reposicao", ["Produto", "Local", "SKU", "Estoque", "Vendas", "Cobertura", "Reposição"], carrinho.map(i => [i.produto, i.local, i.sku, i.estoque, i.vendas, i.cobertura, i.reposicao]));
+                handleExport('xlsx', "Carrinho_Reposicao", ["Produto", "Local", "SKU", "Estoque", "A Caminho", "Vendas", "Cobertura", "Reposição"], carrinho.map(i => [i.produto, i.local, i.sku, i.estoque, i.aCaminho ?? 0, i.vendas, i.cobertura, i.reposicao]));
                 setCarrinho([]); setIsCartOpen(false);
               }}>Exportar Excel</button>
               <button className="btn-padrao" onClick={() => setIsCartOpen(false)}>Fechar</button>
