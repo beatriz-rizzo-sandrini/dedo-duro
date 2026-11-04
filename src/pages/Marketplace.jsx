@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue, useCallback, useRef } from 'react';
 import {
   Trophy, TrendingUp, Search, UserCheck, CalendarDays, ChevronLeft, ChevronRight,
   Video, Radio, ShoppingBag, Filter, ArrowRightLeft, Percent, AlertCircle, PieChart,
@@ -247,8 +247,10 @@ export default function Marketplace() {
   const searchTerm = useDeferredValue(rawSearchTerm);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const userHasManuallyChangedDatesRef = useRef(false);
 
   const handleStartDateChange = (newStart) => {
+    userHasManuallyChangedDatesRef.current = true;
     setStartDate(newStart);
     if (newStart && endDate && newStart > endDate) {
       setEndDate(newStart);
@@ -256,6 +258,7 @@ export default function Marketplace() {
   };
 
   const handleEndDateChange = (newEnd) => {
+    userHasManuallyChangedDatesRef.current = true;
     setEndDate(newEnd);
     if (newEnd && startDate && newEnd < startDate) {
       setStartDate(newEnd);
@@ -332,6 +335,8 @@ export default function Marketplace() {
   // Carregamento de dados com Cache Local Instantâneo (IndexedDB + SWR)
   const fetchReports = useCallback(async (forceCloud = false) => {
     try {
+      let cachedLatestDate = null;
+
       if (!forceCloud) {
         // 1. Tenta carregar do cache local primeiro para exibição imediata (0ms)
         const cached = await getCachedReports();
@@ -339,6 +344,14 @@ export default function Marketplace() {
           setRawReports(cached);
           setIsLoading(false);
           initDefaultDates(cached);
+
+          // Registra a data mais recente disponível no cache local
+          cached.forEach(r => {
+            const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+            if (p?.end && (!cachedLatestDate || p.end > cachedLatestDate)) {
+              cachedLatestDate = p.end;
+            }
+          });
         }
       }
 
@@ -377,9 +390,23 @@ export default function Marketplace() {
       if (fullData && fullData.length > 0) {
         setRawReports(fullData);
         await setCachedReports(fullData);
-        if (forceCloud || !startDate) {
+
+        // Identifica a data mais recente retornada da nuvem
+        let remoteLatestDate = null;
+        fullData.forEach(r => {
+          const p = parseReportPeriod(r.period || r.data?.metadata?.period);
+          if (p?.end && (!remoteLatestDate || p.end > remoteLatestDate)) {
+            remoteLatestDate = p.end;
+          }
+        });
+
+        // Se forceCloud for true, OU o usuário ainda não tiver alterado as datas manualmente,
+        // OU a nuvem trouxer dados mais recentes que o cache pré-carregado:
+        const hasNewerDataInCloud = !cachedLatestDate || (remoteLatestDate && remoteLatestDate > cachedLatestDate);
+        if (forceCloud || !userHasManuallyChangedDatesRef.current || hasNewerDataInCloud) {
           initDefaultDates(fullData);
         }
+        setDataError(null);
       } else {
         throw new Error("Nenhum dado encontrado nos relatórios do TikTok.");
       }
@@ -390,7 +417,7 @@ export default function Marketplace() {
       setIsLoading(false);
       setIsSyncing(false);
     }
-  }, [initDefaultDates, startDate]);
+  }, [initDefaultDates]);
 
   useEffect(() => {
     fetchReports(false);
@@ -2108,6 +2135,7 @@ export default function Marketplace() {
 
       // Limpa o cache local para que a sincronização traga o novo relatório
       await clearMarketplaceCache();
+      userHasManuallyChangedDatesRef.current = false;
 
       setUploadMessage({ type: 'success', text: 'Upload concluído com sucesso! Atualizando os relatórios...' });
       
@@ -2286,6 +2314,7 @@ export default function Marketplace() {
                 type="button"
                 onClick={() => {
                   if (availableDateRange?.max) {
+                    userHasManuallyChangedDatesRef.current = false;
                     const endD = new Date(`${availableDateRange.max}T12:00:00`);
                     const startD = new Date(endD);
                     startD.setDate(startD.getDate() - 29);
@@ -2314,6 +2343,7 @@ export default function Marketplace() {
                 type="button"
                 onClick={() => {
                   if (availableDateRange?.min && availableDateRange?.max) {
+                    userHasManuallyChangedDatesRef.current = true;
                     setStartDate(availableDateRange.min);
                     setEndDate(availableDateRange.max);
                   }
@@ -2372,6 +2402,43 @@ export default function Marketplace() {
           </button>
         </div>
       </div>
+
+      {dataError && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#f87171',
+          padding: '12px 18px',
+          borderRadius: '10px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          fontSize: '13px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={18} />
+            <span>Não foi possível sincronizar novos relatórios com a nuvem: <strong>{dataError}</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setDataError(null); fetchReports(true); }}
+            style={{
+              background: '#ef4444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
 
       {marketplaceData?.isFilteredEmpty && (
         <div style={{

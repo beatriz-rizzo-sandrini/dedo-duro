@@ -88,10 +88,20 @@ export async function getCachedMeta() {
 export async function clearMarketplaceCache() {
   try {
     const db = await openDB();
-    if (!db) return;
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).clear();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => {
+        console.warn('Erro ao limpar cache do Marketplace:', tx.error);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
+    });
   } catch (err) {
     console.warn('Erro ao limpar cache do Marketplace:', err);
+    return false;
   }
 }
