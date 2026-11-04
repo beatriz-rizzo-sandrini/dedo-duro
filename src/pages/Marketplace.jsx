@@ -90,7 +90,7 @@ const sortArray = (array, config, defaultKey = 'gmv') => {
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { 
+  plugins: {
     legend: { position: 'bottom', labels: { color: '#94a3b8' } },
     datalabels: { display: false }
   },
@@ -264,7 +264,7 @@ export default function Marketplace() {
       setStartDate(newEnd);
     }
   };
-  
+
   const [rawReports, setRawReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -272,7 +272,7 @@ export default function Marketplace() {
 
   // Configurador de ordenação
   const [sortConfig, setSortConfig] = useState({ key: 'gmv', direction: 'desc' });
-  
+
   // Estados de Paginação por Aba/Tabela
   const [creatorsPage, setCreatorsPage] = useState(1);
   const [creatorsPerPage, setCreatorsPerPage] = useState(15);
@@ -470,7 +470,7 @@ export default function Marketplace() {
         isFilteredEmpty: true
       };
     }
-    
+
     let filtered = cleanReports;
 
     if (startDate || endDate) {
@@ -493,7 +493,7 @@ export default function Marketplace() {
         return overlapDays >= 2;
       });
     }
-    
+
     if (filtered.length === 0) {
       return {
         metadata: { period: '', total_gmv: 0 },
@@ -545,7 +545,7 @@ export default function Marketplace() {
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      list = list.filter(v => 
+      list = list.filter(v =>
         (v.creator_name && v.creator_name.toLowerCase().includes(term)) ||
         (v.video_title && v.video_title.toLowerCase().includes(term)) ||
         (v.product_names && v.product_names.some(pn => pn && pn.toLowerCase().includes(term)))
@@ -566,7 +566,7 @@ export default function Marketplace() {
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      list = list.filter(l => 
+      list = list.filter(l =>
         (l.creator_name && l.creator_name.toLowerCase().includes(term)) ||
         (l.live_title && l.live_title.toLowerCase().includes(term)) ||
         (l.product_names && l.product_names.some(pn => pn && pn.toLowerCase().includes(term)))
@@ -587,7 +587,7 @@ export default function Marketplace() {
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      list = list.filter(item => 
+      list = list.filter(item =>
         (item.creator_name && item.creator_name.toLowerCase().includes(term)) ||
         (item.product_name && item.product_name.toLowerCase().includes(term))
       );
@@ -615,7 +615,7 @@ export default function Marketplace() {
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
       return Math.max(1, diffDays);
     }
-    
+
     return 30;
   }, [startDate, endDate, marketplaceData?.metadata?.period]);
 
@@ -969,16 +969,16 @@ export default function Marketplace() {
       }
     },
     scales: {
-      y: { 
+      y: {
         grace: '20%',
         border: { display: false },
-        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
-        grid: { color: 'rgba(241, 245, 249, 0.08)' } 
+        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) },
+        grid: { color: 'rgba(241, 245, 249, 0.08)' }
       },
-      x: { 
+      x: {
         border: { display: false },
-        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
-        grid: { display: false } 
+        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' },
+        grid: { display: false }
       }
     }
   }), [totalGMV]);
@@ -1127,8 +1127,8 @@ export default function Marketplace() {
 
   const renderTab1 = () => {
     const totalPages = Math.ceil(sortedCreators.length / (creatorsPerPage === 'all' ? sortedCreators.length || 1 : creatorsPerPage));
-    const paginatedCreators = creatorsPerPage === 'all' 
-      ? sortedCreators 
+    const paginatedCreators = creatorsPerPage === 'all'
+      ? sortedCreators
       : sortedCreators.slice((creatorsPage - 1) * creatorsPerPage, creatorsPage * creatorsPerPage);
 
     return (
@@ -1291,7 +1291,7 @@ export default function Marketplace() {
                   <tr>
                     <td style={{ fontWeight: 'bold' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        <Users size={16} style={{ color: 'var(--mkp-accent-blue)' }} /> 
+                        <Users size={16} style={{ color: 'var(--mkp-accent-blue)' }} />
                         TOTAL GERAL ({formatNumber(creatorSummaryTotals.totalCount)} criadores)
                       </span>
                     </td>
@@ -1404,10 +1404,10 @@ export default function Marketplace() {
     const hourlyChartData = {
       labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
       datasets: [
-        { 
-          label: 'Vídeos (GMV)', 
-          data: hourlyGmvVideo, 
-          borderColor: '#3b82f6', 
+        {
+          label: 'Vídeos (GMV)',
+          data: hourlyGmvVideo,
+          borderColor: '#3b82f6',
           backgroundColor: (context) => {
             const chart = context.chart;
             const { ctx, chartArea } = chart;
@@ -1416,7 +1416,7 @@ export default function Marketplace() {
             gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
             gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
             return gradient;
-          }, 
+          },
           borderWidth: 2,
           fill: true,
           tension: 0.4,
@@ -1426,10 +1426,10 @@ export default function Marketplace() {
           pointHoverBorderColor: '#ffffff',
           pointHoverBorderWidth: 3
         },
-        { 
-          label: 'LIVES (GMV)', 
-          data: hourlyGmvLive, 
-          borderColor: '#ef4444', 
+        {
+          label: 'LIVES (GMV)',
+          data: hourlyGmvLive,
+          borderColor: '#ef4444',
           backgroundColor: (context) => {
             const chart = context.chart;
             const { ctx, chartArea } = chart;
@@ -1438,7 +1438,7 @@ export default function Marketplace() {
             gradient.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
             gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
             return gradient;
-          }, 
+          },
           borderWidth: 2,
           fill: true,
           tension: 0.4,
@@ -1454,17 +1454,17 @@ export default function Marketplace() {
     const dailyChartData = {
       labels: daysOfWeek,
       datasets: [
-        { 
-          label: 'Vídeos', 
-          data: dailyGmvVideo, 
+        {
+          label: 'Vídeos',
+          data: dailyGmvVideo,
           backgroundColor: '#3b82f6',
           hoverBackgroundColor: '#2563eb',
           borderRadius: 8,
           borderSkipped: false,
         },
-        { 
-          label: 'LIVES', 
-          data: dailyGmvLive, 
+        {
+          label: 'LIVES',
+          data: dailyGmvLive,
           backgroundColor: '#ef4444',
           hoverBackgroundColor: '#dc2626',
           borderRadius: 8,
@@ -1481,9 +1481,9 @@ export default function Marketplace() {
         intersect: false,
       },
       plugins: {
-        legend: { 
-          position: 'bottom', 
-          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' } 
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' }
         },
         datalabels: { display: false },
         tooltip: {
@@ -1504,15 +1504,15 @@ export default function Marketplace() {
         }
       },
       scales: {
-        y: { 
+        y: {
           border: { display: false },
-          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
-          grid: { color: 'rgba(241, 245, 249, 0.08)' } 
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) },
+          grid: { color: 'rgba(241, 245, 249, 0.08)' }
         },
-        x: { 
+        x: {
           border: { display: false },
-          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
-          grid: { display: false } 
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' },
+          grid: { display: false }
         }
       }
     };
@@ -1529,9 +1529,9 @@ export default function Marketplace() {
         }
       },
       plugins: {
-        legend: { 
-          position: 'bottom', 
-          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' } 
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12, padding: 16, font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#64748b' }
         },
         datalabels: {
           anchor: 'end',
@@ -1564,16 +1564,16 @@ export default function Marketplace() {
         }
       },
       scales: {
-        y: { 
+        y: {
           grace: '20%',
           border: { display: false },
-          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) }, 
-          grid: { color: 'rgba(241, 245, 249, 0.08)' } 
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b', callback: (v) => formatCurrency(v) },
+          grid: { color: 'rgba(241, 245, 249, 0.08)' }
         },
-        x: { 
+        x: {
           border: { display: false },
-          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }, 
-          grid: { display: false } 
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' },
+          grid: { display: false }
         }
       }
     };
@@ -1738,13 +1738,13 @@ export default function Marketplace() {
     const { sortedByRefunds, creatorRefunds } = tab5Data;
 
     const totalProdPages = Math.ceil(sortedByRefunds.length / (refundsProdPerPage === 'all' ? sortedByRefunds.length || 1 : refundsProdPerPage));
-    const paginatedProds = refundsProdPerPage === 'all' 
-      ? sortedByRefunds 
+    const paginatedProds = refundsProdPerPage === 'all'
+      ? sortedByRefunds
       : sortedByRefunds.slice((refundsProdPage - 1) * refundsProdPerPage, refundsProdPage * refundsProdPerPage);
 
     const totalCreatorPages = Math.ceil(creatorRefunds.length / (refundsCreatorPerPage === 'all' ? creatorRefunds.length || 1 : refundsCreatorPerPage));
-    const paginatedCreators = refundsCreatorPerPage === 'all' 
-      ? creatorRefunds 
+    const paginatedCreators = refundsCreatorPerPage === 'all'
+      ? creatorRefunds
       : creatorRefunds.slice((refundsCreatorPage - 1) * refundsCreatorPerPage, refundsCreatorPage * refundsCreatorPerPage);
 
     return (
@@ -1828,9 +1828,9 @@ export default function Marketplace() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('creator_name')} style={{cursor: 'pointer'}}>Criador{renderSortIcon('creator_name')}</th>
-                    <th className="text-right" onClick={() => handleSort('gmv')} style={{cursor: 'pointer'}}>GMV{renderSortIcon('gmv')}</th>
-                    <th className="text-right" onClick={() => handleSort('refunds')} style={{cursor: 'pointer'}}>Cancelados{renderSortIcon('refunds')}</th>
+                    <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
+                    <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV{renderSortIcon('gmv')}</th>
+                    <th className="text-right" onClick={() => handleSort('refunds')} style={{ cursor: 'pointer' }}>Cancelados{renderSortIcon('refunds')}</th>
                     <th className="text-right">%</th>
                   </tr>
                 </thead>
@@ -1865,13 +1865,13 @@ export default function Marketplace() {
 
   const renderTab6 = () => {
     const totalProdPages = Math.ceil(sortedProducts.length / (revProdPerPage === 'all' ? sortedProducts.length || 1 : revProdPerPage));
-    const paginatedProds = revProdPerPage === 'all' 
-      ? sortedProducts 
+    const paginatedProds = revProdPerPage === 'all'
+      ? sortedProducts
       : sortedProducts.slice((revProdPage - 1) * revProdPerPage, revProdPage * revProdPerPage);
 
     const totalCreatorPages = Math.ceil(sortedCreators.length / (revCreatorPerPage === 'all' ? sortedCreators.length || 1 : revCreatorPerPage));
-    const paginatedCreators = revCreatorPerPage === 'all' 
-      ? sortedCreators 
+    const paginatedCreators = revCreatorPerPage === 'all'
+      ? sortedCreators
       : sortedCreators.slice((revCreatorPage - 1) * revCreatorPerPage, revCreatorPage * revCreatorPerPage);
 
     return (
@@ -1936,9 +1936,9 @@ export default function Marketplace() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('creator_name')} style={{cursor: 'pointer'}}>Criador{renderSortIcon('creator_name')}</th>
-                    <th className="text-right" onClick={() => handleSort('orders')} style={{cursor: 'pointer'}}>Pedidos{renderSortIcon('orders')}</th>
-                    <th className="text-right" onClick={() => handleSort('gmv')} style={{cursor: 'pointer'}}>GMV Total{renderSortIcon('gmv')}</th>
+                    <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
+                    <th className="text-right" onClick={() => handleSort('orders')} style={{ cursor: 'pointer' }}>Pedidos{renderSortIcon('orders')}</th>
+                    <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV Total{renderSortIcon('gmv')}</th>
                     <th className="text-right">% do Total Geral</th>
                   </tr>
                 </thead>
@@ -1975,13 +1975,13 @@ export default function Marketplace() {
     const { sortedProdsComm, creatorComm } = tab7Data;
 
     const totalProdPages = Math.ceil(sortedProdsComm.length / (commProdPerPage === 'all' ? sortedProdsComm.length || 1 : commProdPerPage));
-    const paginatedProds = commProdPerPage === 'all' 
-      ? sortedProdsComm 
+    const paginatedProds = commProdPerPage === 'all'
+      ? sortedProdsComm
       : sortedProdsComm.slice((commProdPage - 1) * commProdPerPage, commProdPage * commProdPerPage);
 
     const totalCreatorPages = Math.ceil(creatorComm.length / (commCreatorPerPage === 'all' ? creatorComm.length || 1 : commCreatorPerPage));
-    const paginatedCreators = commCreatorPerPage === 'all' 
-      ? creatorComm 
+    const paginatedCreators = commCreatorPerPage === 'all'
+      ? creatorComm
       : creatorComm.slice((commCreatorPage - 1) * commCreatorPerPage, commCreatorPage * commCreatorPerPage);
 
     const commissionMargin = totalGMV ? ((totalCommission / totalGMV) * 100).toFixed(2) : 0;
@@ -2064,9 +2064,9 @@ export default function Marketplace() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('creator_name')} style={{cursor: 'pointer'}}>Criador{renderSortIcon('creator_name')}</th>
-                    <th className="text-right" onClick={() => handleSort('gmv')} style={{cursor: 'pointer'}}>GMV{renderSortIcon('gmv')}</th>
-                    <th className="text-right" onClick={() => handleSort('commission')} style={{cursor: 'pointer'}}>Comissão Paga{renderSortIcon('commission')}</th>
+                    <th onClick={() => handleSort('creator_name')} style={{ cursor: 'pointer' }}>Criador{renderSortIcon('creator_name')}</th>
+                    <th className="text-right" onClick={() => handleSort('gmv')} style={{ cursor: 'pointer' }}>GMV{renderSortIcon('gmv')}</th>
+                    <th className="text-right" onClick={() => handleSort('commission')} style={{ cursor: 'pointer' }}>Comissão Paga{renderSortIcon('commission')}</th>
                     <th className="text-right">Taxa Efetiva</th>
                   </tr>
                 </thead>
@@ -2125,9 +2125,9 @@ export default function Marketplace() {
       const { data, error } = await supabase
         .from('tiktok_reports')
         .insert([
-          { 
+          {
             period: finalData.metadata.period,
-            data: finalData 
+            data: finalData
           }
         ]);
 
@@ -2138,7 +2138,7 @@ export default function Marketplace() {
       userHasManuallyChangedDatesRef.current = false;
 
       setUploadMessage({ type: 'success', text: 'Upload concluído com sucesso! Atualizando os relatórios...' });
-      
+
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -2182,7 +2182,7 @@ export default function Marketplace() {
         </div>
 
         {uploadMessage && (
-          <div style={{ 
+          <div style={{
             padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px',
             background: uploadMessage.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : uploadMessage.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
             color: uploadMessage.type === 'error' ? '#f87171' : uploadMessage.type === 'success' ? '#4ade80' : '#60a5fa',
@@ -2193,7 +2193,7 @@ export default function Marketplace() {
           </div>
         )}
 
-        <button 
+        <button
           onClick={handleProcessUpload}
           disabled={isProcessing || !uploadFiles.creators || !uploadFiles.products || !uploadFiles.videos || !uploadFiles.lives}
           style={{
@@ -2247,8 +2247,8 @@ export default function Marketplace() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
             <p className="mkp-subtitle" style={{ margin: 0 }}>
-              {startDate && endDate 
-                ? `Exibindo: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${marketplaceData?.isFilteredEmpty ? 0 : filteredDaysCount} dias)` 
+              {startDate && endDate
+                ? `Exibindo: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')} (${marketplaceData?.isFilteredEmpty ? 0 : filteredDaysCount} dias)`
                 : formatPeriod(marketplaceData?.metadata?.period)}
             </p>
             {availableDateRange && (
@@ -2384,7 +2384,7 @@ export default function Marketplace() {
             {isSyncing ? 'Atualizando...' : 'Atualizar'}
           </button>
 
-          <button 
+          <button
             onClick={() => setActiveTab(8)}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -2472,8 +2472,8 @@ export default function Marketplace() {
                 Nenhum dado encontrado para o período selecionado ({startDate ? startDate.split('-').reverse().join('/') : ''} a {endDate ? endDate.split('-').reverse().join('/') : ''})
               </div>
               <div style={{ fontSize: '12px', color: 'var(--mkp-text-secondary)', marginTop: '2px' }}>
-                {availableDateRange 
-                  ? `Os relatórios cadastrados cobrem o período de ${availableDateRange.label}.` 
+                {availableDateRange
+                  ? `Os relatórios cadastrados cobrem o período de ${availableDateRange.label}.`
                   : 'Nenhum dado cadastrado para este intervalo.'}
               </div>
             </div>
