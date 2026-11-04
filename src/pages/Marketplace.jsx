@@ -336,11 +336,13 @@ export default function Marketplace() {
   const fetchReports = useCallback(async (forceCloud = false) => {
     try {
       let cachedLatestDate = null;
+      let existingReports = [];
 
+      // 1. Tenta carregar do cache local primeiro para exibição imediata (0ms)
       if (!forceCloud) {
-        // 1. Tenta carregar do cache local primeiro para exibição imediata (0ms)
         const cached = await getCachedReports();
         if (cached && cached.length > 0) {
+          existingReports = cached;
           setRawReports(cached);
           setIsLoading(false);
           initDefaultDates(cached);
@@ -364,36 +366,65 @@ export default function Marketplace() {
 
       if (metaErr) throw metaErr;
 
-      // Verifica se o cache já está atualizado
-      let isCacheValid = false;
-      if (!forceCloud && cachedMeta && remoteMeta && cachedMeta.length === remoteMeta.length) {
-        isCacheValid = remoteMeta.every((rm, idx) => {
-          const cm = cachedMeta[idx];
-          return cm && cm.id === rm.id && cm.created_at === rm.created_at;
+      // Desduplica previamente apenas pelos períodos/metadados para evitar downloads desnecessários
+      const dedupedRemoteMeta = deduplicateReports(remoteMeta);
+
+      // Mapeia o que já temos no cache por ID
+      const cachedMap = new Map();
+      if (!forceCloud && existingReports.length > 0) {
+        existingReports.forEach(r => {
+          if (r?.id && r?.data) {
+            cachedMap.set(r.id, r);
+          }
         });
       }
 
-      if (isCacheValid) {
+      // Identifica quais relatórios da nuvem faltam no cache local
+      const missingReports = dedupedRemoteMeta.filter(rm => {
+        const existing = cachedMap.get(rm.id);
+        return !existing || existing.created_at !== rm.created_at;
+      });
+
+      // Se nenhum relatório está faltando e temos cache válido, finaliza
+      if (!forceCloud && missingReports.length === 0 && existingReports.length > 0) {
         setIsLoading(false);
-        return; // Cache está 100% atualizado, nenhum download massivo necessário
+        return;
       }
 
-      // 3. Se o cache estava desatualizado ou forceCloud=true, baixa dados completos
+      // 3. Baixa apenas os relatórios que faltam (linha por linha para evitar timeout de 30MB)
       setIsSyncing(true);
-      const { data: fullData, error: fullErr } = await supabase
-        .from('tiktok_reports')
-        .select('id, created_at, period, data')
-        .order('created_at', { ascending: false });
 
-      if (fullErr) throw fullErr;
+      const downloadedMap = new Map();
+      for (const item of missingReports) {
+        const { data: rowData, error: rowErr } = await supabase
+          .from('tiktok_reports')
+          .select('id, created_at, period, data')
+          .eq('id', item.id)
+          .single();
 
-      if (fullData && fullData.length > 0) {
-        setRawReports(fullData);
-        await setCachedReports(fullData);
+        if (rowErr) throw rowErr;
+        if (rowData) {
+          downloadedMap.set(rowData.id, rowData);
+        }
+      }
+
+      // Monta a lista consolidada final preservando a ordem dos metadados
+      const finalReports = [];
+      for (const metaItem of dedupedRemoteMeta) {
+        if (downloadedMap.has(metaItem.id)) {
+          finalReports.push(downloadedMap.get(metaItem.id));
+        } else if (cachedMap.has(metaItem.id)) {
+          finalReports.push(cachedMap.get(metaItem.id));
+        }
+      }
+
+      if (finalReports.length > 0) {
+        setRawReports(finalReports);
+        await setCachedReports(finalReports);
 
         // Identifica a data mais recente retornada da nuvem
         let remoteLatestDate = null;
-        fullData.forEach(r => {
+        finalReports.forEach(r => {
           const p = parseReportPeriod(r.period || r.data?.metadata?.period);
           if (p?.end && (!remoteLatestDate || p.end > remoteLatestDate)) {
             remoteLatestDate = p.end;
@@ -404,7 +435,7 @@ export default function Marketplace() {
         // OU a nuvem trouxer dados mais recentes que o cache pré-carregado:
         const hasNewerDataInCloud = !cachedLatestDate || (remoteLatestDate && remoteLatestDate > cachedLatestDate);
         if (forceCloud || !userHasManuallyChangedDatesRef.current || hasNewerDataInCloud) {
-          initDefaultDates(fullData);
+          initDefaultDates(finalReports);
         }
         setDataError(null);
       } else {
